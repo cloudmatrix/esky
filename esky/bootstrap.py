@@ -1,31 +1,44 @@
+"""
 
-import sys
+  esky.bootstrap:  minimal bootstrapping code for esky
+
+This module provides the minimal code necessary to bootstrap a frozen
+application packaged using esky.  It checks the runtime directory to find
+the most appropriate version of the app and chain-loads the standard bbfreeze
+bootstrapper.
+
+The code from this module becomes the __main__ module in the bootstrapping
+environment created by esky.  At application load time, it is executed with
+module name "__builtin__".
+
+"""
 
 def bootstrap():
-    distdir = sys.path[1]
+    import sys
+    #  bbfreeze always sets sys.path to [appdir/library.zip,appdir]
+    appdir = sys.path[1]
     del sys.path[:]
     #  The os module hasn't been bootstrapped yet, so we grab what
     #  we can directly from builtins and fudge the rest.
-    _names = sys.builtin_module_names
-    if "posix" in _names:
+    if "posix" in sys.builtin_module_names:
         from posix import listdir, stat
         sep = "/"
-    elif "nt" in _names:
+    elif "nt" in  sys.builtin_module_names:
         from nt import listdir, stat
         sep = "\\"
     else:
         raise RuntimeError("unsupported platform: " + sys.platform)
     #  Find the best available version and bootstrap its environment
-    for nm in listdir(distdir):
-        libdir = distdir + sep + nm
-        libfile = libdir + sep + "library.zip"
+    for nm in listdir(appdir):
+        vdir = appdir + sep + nm
+        vlib = appdir + sep + "library.zip"
         try:
-            stat(libfile)
+            stat(vlib)
         except OSError:
             pass
         else:
-            sys.path.append(libfile)
-            sys.path.append(libdir)
+            sys.path.append(vlib)
+            sys.path.append(vdir)
             break
     else:
         raise RuntimeError("no frozen versions found")
