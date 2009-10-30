@@ -13,46 +13,55 @@ module name "__builtin__".
 
 """
 
+import sys
+
+#  The os module might not have been bootstrapped yet, so we grab what
+#  we can directly from builtin modules and fudge the rest.
+if "posix" in sys.builtin_module_names:
+    from posix import listdir, stat
+    def pathjoin(*args):
+        return "/".join(args)
+elif "nt" in  sys.builtin_module_names:
+    from nt import listdir, stat
+    def pathjoin(*args):
+        return "\\".join(args)
+else:
+    raise RuntimeError("unsupported platform: " + sys.platform)
+
+
 def bootstrap():
     """Bootstrap an esky frozen app into newest available version."""
     #  bbfreeze always sets sys.path to [appdir/library.zip,appdir]
-    import sys
     appdir = sys.path[1]
-    #  The os module hasn't been bootstrapped yet, so we grab what
-    #  we can directly from builtins and fudge the rest.
-    if "posix" in sys.builtin_module_names:
-        from posix import listdir, stat
-        sep = "/"
-    elif "nt" in  sys.builtin_module_names:
-        from nt import listdir, stat
-        sep = "\\"
-    else:
-        raise RuntimeError("unsupported platform: " + sys.platform)
+    best_version = get_best_version(appdir)
+    del sys.path[:]
+    sys.path.append(pathjoin(appdir,best_version,"library.zip"))
+    sys.path.append(pathjoin(appdir,best_version))
+    import zipimport
+    importer = zipimport.zipimporter(sys.path[0])
+    exec importer.get_code("__main__") in {}
+
+
+def get_best_version(appdir):
+    """Get the name of the best version directory in the given appdir."""
     #  Find the best available version and bootstrap its environment
+    best_name = None
     best_version = None
-    best_vdir = None
     for nm in listdir(appdir):
-        (app,ver) = split_app_version(nm)
+        (_,ver) = split_app_version(nm)
         if ver:
-            vdir = appdir + sep + nm
             try:
-                stat(vdir + sep + "library.zip")
+                stat(pathjoin(appdir,vdir,"library.zip"))
             except OSError:
                 pass
             else:
                 ver = parse_version(ver)
                 if ver > best_version:
                     best_version = ver
-                    best_vdir = vdir
+                    best_name = nm
     if best_version is None:
         raise RuntimeError("no frozen versions found")
-    #  Now chain-load the original bbfreeze __main__ module
-    del sys.path[:]
-    sys.path.append(best_vdir + sep + "library.zip")
-    sys.path.append(best_vdir)
-    import zipimport
-    importer = zipimport.zipimporter(sys.path[0])
-    exec importer.get_code("__main__") in {}
+    return best_name
 
 
 def split_app_version(s):
@@ -110,6 +119,12 @@ def _parse_version_parts(s):
 
 
 def _split_version_components(s):
+    """Split version string into individual tokens.
+
+    pkg_resources does this using a regexp: (\d+ | [a-z]+ | \.| -)
+    Unfortunately the 're' module isn't in the bootstrap, so we have to do
+    an equivalent parse by hand.  Forunately, that's pretty easy.
+    """
     start = 0
     while start < len(s):
         end = start+1
