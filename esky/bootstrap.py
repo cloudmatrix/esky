@@ -43,10 +43,15 @@ def bootstrap():
 
 
 def get_best_version(appdir):
-    """Get the name of the best version directory in the given appdir."""
-    #  Find the best available version and bootstrap its environment
-    best_name = None
-    best_version = None
+    """Get the name of the best version directory in the given appdir.
+
+    In the common case, there is only a single version directory and this
+    returns very quickly.  If there are partial or failed upgrades, this
+    may take some corrective action to restore a consistent state.
+    """
+    #  Find all potential version directories, sorted by version number.
+    #  To be a version directory, it must contain a "library.zip".
+    candidates = []
     for nm in listdir(appdir):
         (_,ver) = split_app_version(nm)
         if ver:
@@ -56,12 +61,27 @@ def get_best_version(appdir):
                 pass
             else:
                 ver = parse_version(ver)
-                if ver > best_version:
-                    best_version = ver
-                    best_name = nm
-    if best_version is None:
+                candidates.append((ver,nm))
+    candidates.sort()
+    #  In the (hopefully) common case, there's a single candidate.
+    #  We don't need to poke around in the filesystem, just use it!
+    if len(candidates) == 1:
+        return candidates[0][1]
+    #  There's more than one candidate, therefore a failed/partial upgrade.
+    #  We might have to fix one up.
+    while candidates:
+        (_,nm) = candidates.pop(0)
+        execs = get_executables(nm)
+        if execs is None:
+            continue
+        try:
+           info = open(pathjoin(nm,"esky-info.txt"),"r").read()
+        except OSError:
+           continue
+        else: 
+           pass
+    else:
         raise RuntimeError("no frozen versions found")
-    return best_name
 
 
 def split_app_version(s):

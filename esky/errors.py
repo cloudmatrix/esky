@@ -1,6 +1,14 @@
+"""
+
+  esky.errors:  error classes for esky
+
+These definitions live in a separate sub-module to avoid circular imports,
+but you should access them directly from the main 'esky' namespace.
+
+"""
 
 class Error(Exception):
-    """Base errpr class for esky."""
+    """Base error class for esky."""
     pass
 
 class BrokenEskyError(Error):

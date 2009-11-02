@@ -1,46 +1,69 @@
 """
 
-  esky:  an auto-update system for frozen python apps
+  esky:  keep frozen apps fresh
 
-This package provides some management infrastructure around apps frozen by
-'bbfreeze', allowing them to be automatically updated in-place.  The process
-preserves the integrity of the app at all times during the update - it will
-never be left in an unrunnable state, even if there's a system crash in the
-middle of an update.
+Esky is an auto-update framework for frozen Python applications, built on top 
+of bbfreeze.  It provides a simple API through which apps can find, fetch
+and install updates, and a bootstrapping mechanism that keeps the app safe
+in the face of failed or partial upgrades.
 
 The main interface is the 'Esky' class, which represents a frozen app.  An Esky
-must be given the top-level directory of the frozen application, and it has the
-following useful methods:
+must be given the top-level directory of the frozen application, and it can
+then be used to find and install updates to that application.  Typical usage
+for an app automatically updating itself would look something like this:
 
-    * find_update()
-    * fetch_update(version)
-    * install_update(version)
+    if sys.frozen:
+        app = esky.Esky(os.path.dirname(sys.executable))
+        new_version = app.find_update()
+        if new_version is not None:
+            app.install_update(new_version)
 
-The default implementation is quite simplistic, hitting a specified URL to
-get a list of available versions that can be downloaded as zipfiles or tarfiles.
-More sophisticated implementations will be added in the future, and you're
-encouraged to override any or all of the above methods to suit your needs.
+The work of finding and fectching new versions is handled by an "UpdateFinder"
+object.  A simple default UpdateFinder is provided that hits a specified URL
+to get a list of available options.  More sophisticated implementations will
+be added in the future, and you're encouraged to develop a custom UpdateFinder
+subclass to meet your specific needs.
 
-The on-disk layout of an app managed by esky looks some thing like this:
+The frozen contents for a specific version of an esky app must look something
+like this:
 
-    prog.exe
-    pythonXY.dll
-    library.zip
-    scratch/
-        downloads/
-    appname-X.Y.Z/
-        library.zip
-        depmod.pyd
+    prog.exe                   - executable(s) as produced by bbfreeze
+    library.zip                - pure-python modules frozen by bbfreeze
+    pythonXY.dll               - python DLL
+    esky-info.txt              - meta-data about the frozen app
+    bootstrap-library.zip      - esky bootstrapping library
+    ...other deps...
 
-The contents of the "appname-X.Y.Z" directory are the bbfreeze of a specific
-version of the application, while the top-level files serve to bootstrap into
-that environment.  Updates are performed by creating the bbfreeze directory
-for the new version and then removing the directory for the old version; if
-this process fails and leaves behind the old directory, the bootstrap script
-is smart enough to use the newer version.
+This is simply a bbfrozen app directory with some additional data.  The file
+'esky-info.txt' contains information about the frozen application - the first
+line is the python version tuple, and the second line is a list of the
+executables included in the freeze.
 
 To freeze your app in a format suitable for esky, there is a "bdist_esky"
 command that can be used with a standard distutils setup.py file.
+
+When properly installed, the on-disk layout of an app managed by esky looks
+like this:
+
+    prog.exe                   - executable(s) as produced by bbfreeze
+    library.zip                - esky bootstrapping library
+    pythonXY.dll               - python DLL
+    updates/                   - work area for fecthing/unpacking updates
+    appname-X.Y/             - specific version of the application
+        library.zip            - pure-python modules frozen by bbfreeze
+        ...other deps...
+
+At application startup, esky takes care of detecting the "appname-X.Y"
+directory and bootstrapping into it.  Moreover, any failed or partial updates
+are detected and either completed or rolled back.
+
+To install an updated version, esky performs the following steps:
+    * extract it into a temporary directory under "updates"
+    * atomically rename it into the main directory as "appname-X.Z"
+    * atomically rename "appname-X.Z/bootstrap-library.zip" to "library.zip"
+    * atomically rename each frozen executable into the main directory
+    * remove "appname-X.Y/library.zip"
+    * remove the remaining "appname-X.Y" directory
 
 """
 
@@ -64,8 +87,15 @@ class Esky(object):
     """Class representing an updatable frozen app.
 
     Instances of this class point to a directory containing a frozen app in
-    the "esky" format.  Through such an instance the app can be updated to
-    a new version in-place.
+    the esky format.  Through such an instance the app can be updated to a
+    new version in-place.  Typical use of this class might be:
+
+        if sys.frozen:
+            app = esky.Esky(os.path.dirname(sys.executable))
+            new_version = app.find_update()
+            if new_version is not None:
+                app.install_update(new_version)
+
     """
 
     def __init__(self,app_dir,update_finder):
