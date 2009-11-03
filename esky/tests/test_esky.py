@@ -53,10 +53,6 @@ def test_esky():
                 outfile.close()
             mode = zf.getinfo(nm).external_attr >> 16L
             os.chmod(outfilenm,mode)
-        bsdir = os.path.join(deploydir,"eskytester-0.1","esky-bootstrap")
-        for nm in os.listdir(bsdir):
-            os.rename(os.path.join(bsdir,nm),os.path.join(deploydir,nm))
-        os.rmdir(bsdir)
         #  Run the first script, which will perform the necessary tests
         #  and write "tests-completed" file when done.
         if os.path.exists("tests-completed"):

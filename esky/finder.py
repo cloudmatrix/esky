@@ -154,12 +154,16 @@ class SimpleVersionFinder(VersionFinder):
         dlpath = self._download_name(version)
         vdir = "%s-%s" % (self.appname,version,)
         uppath = os.path.join(self.workdir,"unpack")
+        bspath = os.path.join(uppath,vdir,"esky-bootstrap")
         zf = zipfile.ZipFile(dlpath,"r")
         for nm in zf.namelist():
-            if not nm.startswith(vdir):
-                continue
+            #  Anything in the root of the zipfile is part of the boostrap
+            #  env, so it gets placed in a special directory.
+            if nm.startswith(vdir):
+                outfilenm = os.path.join(uppath,nm)
+            else:
+                outfilenm = os.path.join(bspath,nm)
             infile = zf.open(nm,"r")
-            outfilenm = os.path.join(uppath,nm)
             if not os.path.isdir(os.path.dirname(outfilenm)):
                 os.makedirs(os.path.dirname(outfilenm))
             outfile = open(outfilenm,"wb")
@@ -170,6 +174,8 @@ class SimpleVersionFinder(VersionFinder):
                 outfile.close()
             mode = zf.getinfo(nm).external_attr >> 16L
             os.chmod(outfilenm,mode)
+        if not os.path.isdir(bspath):
+            os.makedirs(bspath)
         return os.path.join(uppath,vdir)
 
 

@@ -49,9 +49,11 @@ class bdist_esky(Command):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
 
     def run(self):
-        fdir = os.path.join(self.dist_dir,self.distribution.get_fullname())
-        if os.path.exists(fdir):
-            shuil.rmtree(fdir)
+        bsdir = os.path.join(self.dist_dir,self.distribution.get_fullname())
+        fdir = os.path.join(bsdir,self.distribution.get_fullname())
+        if os.path.exists(bsdir):
+            shuil.rmtree(bsdir)
+        os.makedirs(fdir)
         #  Do a standard bbfreeze of the given scripts
         f = bbfreeze.Freezer(fdir)
         f.linkmethod = "loader"
@@ -61,8 +63,6 @@ class bdist_esky(Command):
                 f.addScript(s,gui_only=s.endswith(".pyw"))
         f()
         #  Create the bootstrap environment
-        bsdir = os.path.join(fdir,"esky-bootstrap")
-        os.mkdir(bsdir)
         bscode_source = inspect.getsource(esky.bootstrap)
         bscode = imp.get_magic() + struct.pack("<i",0)
         bscode += marshal.dumps(compile(bscode_source,"__main__.py","exec"))
@@ -92,13 +92,13 @@ class bdist_esky(Command):
         #  Zip up the distribution
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(self.distribution.get_fullname(),get_platform()))
         zf = zipfile.ZipFile(zfname,"w")
-        for (dirpath,dirnames,filenames) in os.walk(fdir):
+        for (dirpath,dirnames,filenames) in os.walk(bsdir):
             for fn in filenames:
                 fpath = os.path.join(dirpath,fn)
-                zpath = os.path.basename(fdir)+"/"+fpath[len(fdir)+1:]
+                zpath = fpath[len(bsdir)+1:]
                 zf.write(fpath,zpath)
         zf.close()
-        shutil.rmtree(fdir)
+        shutil.rmtree(bsdir)
 
 
 distutils.command.__all__.append("bdist_esky")
