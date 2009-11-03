@@ -1,0 +1,7 @@
+
+ * A custom loader for win32, since execv isn't great on that platform
+      - would use LoadLibrary to bootstrap into the correct python dll
+ * Bundle package_data and data_files into the distribution somehow
+ * Build a constant bootstrapping library.zip, so it doesn't need overwriting.
+   Currently I think the zipfile gets timestamps or something, leading us to
+   replace it unnecessarily.

@@ -22,14 +22,6 @@ import bbfreeze
 import esky.bootstrap
 
 
-# Things to do:
-#
-#   * bundle package_data into the library.zip
-#   * copy data_files into the distribution directory
-#
-
-
-
 class bdist_esky(Command):
 
     description = "create a frozen app in 'esky' format"
