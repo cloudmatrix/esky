@@ -132,7 +132,7 @@ class Esky(object):
                 if nm != "updates" and nm != version:
                     shutil.rmtree(fullnm)
             else:
-                if nm not in minifest:
+                if nm not in manifest:
                     os.unlink(fullnm)
         self.version_finder.cleanup()
 
@@ -186,14 +186,19 @@ class Esky(object):
                 fullnm = os.path.join(self.appdir,nm)
                 if nm not in manifest and not os.path.isdir(fullnm):
                     trn.remove(fullnm)
-            #  Remove the old version directory
+            #  Remove/disable the old version.
+            #  On win32 we can't remove in-use files, so just clobber
+            #  library.zip and leave to rest to a cleanup() call.
             oldv = os.path.join(self.appdir,"%s-%s"%(self.name,self.version,))
-            for (dirpath,dirnames,filenames) in os.walk(oldv,topdown=False):
-                for fn in filenames:
-                    trn.remove(os.path.join(dirpath,fn))
-                for dn in dirnames:
-                    trn.remove(os.path.join(dirpath,dn))
-            trn.remove(oldv)
+            if sys.platform == "win32":
+                trn.remove(os.path.join(oldv,"library.zip"))
+            else:
+                for (dirpath,dirnames,filenames) in os.walk(oldv,topdown=False):
+                    for fn in filenames:
+                        trn.remove(os.path.join(dirpath,fn))
+                    for dn in dirnames:
+                        trn.remove(os.path.join(dirpath,dn))
+                trn.remove(oldv)
         except Exception:
             trn.abort()
             raise

@@ -27,6 +27,8 @@ assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
 
 v3dir = os.path.join(app.appdir,"eskytester-0.3")
 if len(sys.argv) == 1:
+    app.cleanup()
+    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
     assert not os.path.isdir(v3dir)
     script2 = os.path.join(app.appdir,"script2"+dotexe)
     #  Simulate a broken upgrade, then re-launch this script.
@@ -34,7 +36,7 @@ if len(sys.argv) == 1:
     app.version_finder.fetch_version("0.3")
     upv3 = app.version_finder.prepare_version("0.3")
     os.rename(upv3,v3dir)
-    os.rename(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),script2)
+    os.unlink(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe))
     os.execv(script2,[script2,"rerun"])
 else:
     #  Recover from the broken upgrade
@@ -42,11 +44,10 @@ else:
     assert os.path.isdir(v3dir)
     app.install_update("0.3")
     assert not os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
-    print os.listdir(app.appdir)
     assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
     assert os.path.isfile(os.path.join(app.appdir,"script3"+dotexe))
     assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
-    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2"))
+    assert not os.path.isfile(os.path.join(app.appdir,"eskytester-0.2","library.zip"))
     assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3"))
     script3 = os.path.join(app.appdir,"script3"+dotexe)
     os.execv(script3,[script3])

@@ -22,3 +22,10 @@ assert app.name == "eskytester"
 assert app.version == "0.3"
 assert app.find_update() is None
 
+app.cleanup()
+assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
+assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2"))
+assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3"))
+
+print "TESTS COMPLETED"
+
