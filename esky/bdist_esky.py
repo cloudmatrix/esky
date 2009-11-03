@@ -66,7 +66,7 @@ class bdist_esky(Command):
         bscode += marshal.dumps(compile(bscode_source,"__main__.py","exec"))
         bslib_path = os.path.join(bsdir,"library.zip")
         bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
-        bslib.writestr("__main__.pyc",bscode)
+        bslib.writestr(zipfile.ZipInfo("__main__.pyc",(2000,1,1,0,0,0)),bscode)
         bslib.close()
         manifest = ["library.zip"]
         if self.distribution.has_scripts():

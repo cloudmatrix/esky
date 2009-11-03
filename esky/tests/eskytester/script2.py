@@ -31,12 +31,19 @@ if len(sys.argv) == 1:
     assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
     assert not os.path.isdir(v3dir)
     script2 = os.path.join(app.appdir,"script2"+dotexe)
-    #  Simulate a broken upgrade, then re-launch this script.
-    #  We should still be at version 0.2 after this.
+    #  Simulate a broken upgrade.
     app.version_finder.fetch_version("0.3")
     upv3 = app.version_finder.prepare_version("0.3")
     os.rename(upv3,v3dir)
     os.unlink(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe))
+    #  While we're here, check that the bootstrap library hasn't changed
+    f1 = open(os.path.join(app.appdir,"library.zip"),"r")
+    f2 = open(os.path.join(v3dir,"esky-bootstrap","library.zip"),"r")
+    assert f1.read() == f2.read()
+    f1.close()
+    f2.close()
+    #  Re-launch the script.
+    #  We should still be at version 0.2 after this.
     os.execv(script2,[script2,"rerun"])
 else:
     #  Recover from the broken upgrade
