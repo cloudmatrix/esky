@@ -1,5 +1,6 @@
 
 import sys
+import difflib
 import os
 from os.path import dirname
 import subprocess
@@ -10,9 +11,12 @@ from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 
 from distutils.core import setup as dist_setup
+import esky
 from esky import bdist_esky
 
+
 def test_esky():
+    """Build and launch a simple self-testing esky application."""
     olddir = os.path.abspath(os.curdir)
     try:
         esky_root = dirname(dirname(dirname(__file__)))
@@ -60,5 +64,18 @@ def test_esky():
         assert p.returncode == 0
     finally:
         os.chdir(olddir)
+
+
+def test_README():
+    """Test that the README is in sync with the docstring."""
+    dirname = os.path.dirname
+    readme = os.path.join(dirname(dirname(dirname(__file__))),"README.txt")
+    print readme
+    assert os.path.isfile(readme)
+    diff = difflib.unified_diff(open(readme).readlines(),esky.__doc__.splitlines(True))
+    diff = "".join(diff)
+    if diff:
+        print diff
+        raise RuntimeError
 
 
