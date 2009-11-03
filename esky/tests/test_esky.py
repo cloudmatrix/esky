@@ -70,7 +70,6 @@ def test_README():
     """Test that the README is in sync with the docstring."""
     dirname = os.path.dirname
     readme = os.path.join(dirname(dirname(dirname(__file__))),"README.txt")
-    print readme
     assert os.path.isfile(readme)
     diff = difflib.unified_diff(open(readme).readlines(),esky.__doc__.splitlines(True))
     diff = "".join(diff)

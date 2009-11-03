@@ -80,8 +80,9 @@ if CreateTransaction:
         def move(self,source,target):
             if not files_differ(source,target):
                 self.remove(source)
+                return
             srcenc = source.encode(sys.getfilesystemencoding())
-            tgtenc = source.encode(sys.getfilesystemencoding())
+            tgtenc = target.encode(sys.getfilesystemencoding())
             if os.path.exists(target):
                 MoveFileTransacted(tgtenc,tgtenc+".old",None,None,1,self.trnid)
                 MoveFileTransacted(srcenc,tgtenc,None,None,1,self.trnid)
@@ -96,7 +97,7 @@ if CreateTransaction:
             if not files_differ(source,target):
                 return
             srcenc = source.encode(sys.getfilesystemencoding())
-            tgtenc = source.encode(sys.getfilesystemencoding())
+            tgtenc = target.encode(sys.getfilesystemencoding())
             if os.path.exists(target):
                 MoveFileTransacted(tgtenc,tgtenc+".old",None,None,1,self.trnid)
                 CopyFileTransacted(srcenc,tgtenc,None,None,None,0,self.trnid)
@@ -108,7 +109,7 @@ if CreateTransaction:
                 CopyFileTransacted(srcenc,tgtenc,None,None,None,0,self.trnid)
 
         def remove(self,target):
-            tgtenc = source.encode(sys.getfilesystemencoding())
+            tgtenc = target.encode(sys.getfilesystemencoding())
             if os.path.isdir(target):
                 RemoveDirectoryTransacted(tgtenc,self.trnid)
             else:
@@ -125,8 +126,8 @@ else:
     class FSTransaction(object):
         """Utility class for transactionally operating on the filesystem.
 
-        This particular implementation if the fallback for systems that don't
-        support transaction filesystem operations.
+        This particular implementation is the fallback for systems that don't
+        support transactional filesystem operations.
         """
 
         def __init__(self):
