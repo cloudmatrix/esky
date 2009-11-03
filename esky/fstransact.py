@@ -10,6 +10,7 @@ at a time.
 Currently supported platforms are:
 
     * Windows Vista and later, using MoveFileTransacted and friends
+    * err..that's it for the moment, actually
 
 """
 
@@ -17,6 +18,7 @@ import sys
 import shutil
 import os
 
+#  Try to access the transacted filesystem APIs on win32
 CreateTransaction = None
 if sys.platform == "win32":
     try:
@@ -71,7 +73,7 @@ if CreateTransaction:
         """Utility class for transactionally operating on the filesystem.
 
         This particular implementation uses the transaction services provided
-        by Windows Vista and later in ktmw32.dll.
+        by Windows Vista and later (from ktmw32.dll).
         """
 
         def __init__(self):
@@ -141,6 +143,9 @@ else:
 
         def _move(self,source,target):
             if sys.platform == "win32" and os.path.exists(target):
+                #  os.rename won't overwite an existing file on win32.
+                #  We also want to use this on files that are potentially open.
+                #  Renaming the target out of the way is the best we can do :-(
                 os.rename(target,target+".old")
                 try:
                     os.rename(source,target)

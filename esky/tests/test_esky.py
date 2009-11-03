@@ -22,12 +22,11 @@ def test_esky():
     olddir = os.path.abspath(os.curdir)
     try:
         platform = get_platform()
+        deploydir = "deploy"
         esky_root = dirname(dirname(dirname(__file__)))
         os.chdir(os.path.join(esky_root,"esky","tests"))
-        if os.path.isdir("dist"):
-            shutil.rmtree("dist")
-        if os.path.isdir("deploy"):
-            shutil.rmtree("deploy")
+        if os.path.isdir(deploydir):
+            shutil.rmtree(deploydir)
         #  Build three increasing versions of the test package
         metadata = dict(name="eskytester",packages=["eskytester"],author="rfk",
                         description="the esky test package",script_args=["bdist_esky"])
@@ -40,9 +39,9 @@ def test_esky():
         #  Set up the deployed esky environment for the initial version
         zfname = os.path.join("dist","eskytester-0.1.%s.zip"%(platform,))
         zf = zipfile.ZipFile(zfname,"r")
-        os.mkdir("deploy")
+        os.mkdir(deploydir)
         for nm in zf.namelist():
-            outfilenm = os.path.join("deploy",nm)
+            outfilenm = os.path.join(deploydir,nm)
             if not os.path.isdir(os.path.dirname(outfilenm)):
                 os.makedirs(os.path.dirname(outfilenm))
             infile = zf.open(nm,"r")
@@ -54,15 +53,15 @@ def test_esky():
                 outfile.close()
             mode = zf.getinfo(nm).external_attr >> 16L
             os.chmod(outfilenm,mode)
-        bsdir = os.path.join("deploy","eskytester-0.1","esky-bootstrap")
+        bsdir = os.path.join(deploydir,"eskytester-0.1","esky-bootstrap")
         for nm in os.listdir(bsdir):
-            os.rename(os.path.join(bsdir,nm),os.path.join("deploy",nm))
+            os.rename(os.path.join(bsdir,nm),os.path.join(deploydir,nm))
         os.rmdir(bsdir)
         #  Run the first script, which will perform the necessary tests
         if sys.platform == "win32":
-            cmd = os.path.join("deploy","script1.exe")
+            cmd = os.path.join(deploydir,"script1.exe")
         else:
-            cmd = os.path.join("deploy","script1")
+            cmd = os.path.join(deploydir,"script1")
         p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout)

@@ -2,6 +2,13 @@
 
   esky.bdist_esky:  distutils command to freeze apps in esky format
 
+Importing this module makes "bdist_esky" available as a distutils command.
+This command will freeze the given scripts and package them into a zipfile
+named with the application name, version and platform.
+
+The resulting zipfile is conveniently in the format expected by the default
+SimpleVersionFinder.
+
 """
 
 import os

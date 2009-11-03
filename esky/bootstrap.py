@@ -16,6 +16,9 @@ The code from this module becomes the __main__ module in the bootstrapping
 environment created by esky.  At application load time, it is executed with
 module name "__builtin__".
 
+I plan to eventually replace this with a custom loader written in C, but
+for now this lets us get up and running with minimal effort.
+
 """
 
 import sys

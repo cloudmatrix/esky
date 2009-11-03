@@ -2,6 +2,11 @@
 
   esky.finder:  VersionFinder implementations for esky
 
+This module provides the default VersionFinder implementains for esky. The
+abstract base class 'VersionFinder' defines the expected interface, while 
+'SimpleVersionFinder' provides a simple default implementation that hits a
+specified URL to look for new versions.
+
 """
 
 import os
@@ -10,7 +15,6 @@ import stat
 import urllib2
 import zipfile
 import shutil
-import uuid
 from urlparse import urljoin
 
 from distutils.util import get_platform
@@ -20,6 +24,30 @@ from esky.errors import *
 
 
 class VersionFinder(object):
+    """Base VersionFinder class.
+
+    This class defines the interface expected of a VersionFinder object.
+    It will be given two properties at initialisation time:
+
+        appname:  name of the application being managed
+        workdir:  directory in which updates can be downloaded, extracted, etc
+
+    The important methods expected from any VersionFinder are:
+
+        cleanup:  perform maintenance/cleanup tasks in the workdir
+                  (e.g. removing old or broken downloads)
+
+        find_versions:  get a list of all available versions
+
+        fetch_version:  make the specified version available locally
+                        (e.g. download it from the internet)
+
+        has_version:  check that the specified version is available locally
+
+        prepare_version:  extract the specific version into a directory
+                          that can be linked into the application
+
+    """
 
     def __init__(self,appname=None,workdir=None):
         self.appname = appname
@@ -47,6 +75,15 @@ class VersionFinder(object):
 
 
 class SimpleVersionFinder(VersionFinder):
+    """VersionFinder implementing simple download scheme.
+
+    SimpleVersionFinder expects to be given a download url, which it will
+    hit looking for new versions packaged as zipfiles.  These are simply
+    downloaded and extracted on request.
+
+    Zipfiles suitable for use with this class can be produced using the
+    "bdist_esky" distutils command.
+    """
 
     def __init__(self,download_url,**kwds):
         self.download_url = download_url
@@ -58,7 +95,7 @@ class SimpleVersionFinder(VersionFinder):
             if e.errno not in (17,183):
                 raise
         try:
-            os.makedirs(os.path.join(self.workdir,"unpacked"))
+            os.makedirs(os.path.join(self.workdir,"unpack"))
         except OSError, e:
             if e.errno not in (17,183):
                 raise
@@ -67,7 +104,7 @@ class SimpleVersionFinder(VersionFinder):
         dldir = os.path.join(self.workdir,"downloads")
         for nm in os.listdir(dldir):
             os.unlink(os.path.join(dldir,nm))
-        updir = os.path.join(self.workdir,"unpacked")
+        updir = os.path.join(self.workdir,"unpack")
         for nm in os.listdir(updir):
             os.unlink(os.path.join(updir,nm))
 
@@ -86,10 +123,9 @@ class SimpleVersionFinder(VersionFinder):
         try:
             url = self.version_urls[version]
         except KeyError:
-            raise NoSuchVersionError(version)
+            raise EskyVersionError(version)
         infile = self.open_url(urljoin(self.download_url,url))
-        rand_id = uuid.uuid4().hex
-        outfilenm = os.path.join(self.workdir,"downloads",rand_id)
+        outfilenm = self._download_name(version)+".part"
         outfile = open(outfilenm,"wb")
         try:
             data = infile.read(1024*512)
@@ -115,7 +151,7 @@ class SimpleVersionFinder(VersionFinder):
     def prepare_version(self,version):
         dlpath = self._download_name(version)
         vdir = "%s-%s" % (self.appname,version,)
-        uppath = os.path.join(self.workdir,"unpacked")
+        uppath = os.path.join(self.workdir,"unpack")
         zf = zipfile.ZipFile(dlpath,"r")
         for nm in zf.namelist():
             if not nm.startswith(vdir):
@@ -134,6 +170,5 @@ class SimpleVersionFinder(VersionFinder):
             mode = zf.getinfo(nm).external_attr >> 16L
             os.chmod(outfilenm,mode)
         return os.path.join(uppath,vdir)
-
 
 
