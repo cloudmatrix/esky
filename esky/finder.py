@@ -158,7 +158,6 @@ class SimpleVersionFinder(VersionFinder):
                 continue
             infile = zf.open(nm,"r")
             outfilenm = os.path.join(uppath,nm)
-            print outfilenm
             if not os.path.isdir(os.path.dirname(outfilenm)):
                 os.makedirs(os.path.dirname(outfilenm))
             outfile = open(outfilenm,"wb")
