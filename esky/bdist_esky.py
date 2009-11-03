@@ -52,7 +52,7 @@ class bdist_esky(Command):
         bsdir = os.path.join(self.dist_dir,self.distribution.get_fullname())
         fdir = os.path.join(bsdir,self.distribution.get_fullname())
         if os.path.exists(bsdir):
-            shuil.rmtree(bsdir)
+            shutil.rmtree(bsdir)
         os.makedirs(fdir)
         #  Do a standard bbfreeze of the given scripts
         f = bbfreeze.Freezer(fdir)

@@ -37,7 +37,8 @@ if "posix" in sys.builtin_module_names:
         """Local re-implementation of os.path.basename."""
         return p.split("/")[-1]
 elif "nt" in  sys.builtin_module_names:
-    from nt import listdir, stat, execv, unlink, rename
+    from nt import listdir, stat, spawnv, P_WAIT, unlink, rename
+    execv = None
     def pathjoin(*args):
         """Local re-implementation of os.path.join."""
         return "\\".join(args)
@@ -53,7 +54,7 @@ def exists(path):
     try:
         stat(path)
     except EnvironmentError, e:
-        if e.errno != errno.ENOENT:
+        if e.errno not in (errno.ENOENT,errno.ENOTDIR,):
             raise
         else:
             return False
@@ -69,7 +70,11 @@ def bootstrap():
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
     target_exe = pathjoin(appdir,best_version,basename(sys.executable))
-    execv(target_exe,[target_exe] + sys.argv[1:])
+    if execv:
+        execv(target_exe,[target_exe] + sys.argv[1:])
+    else:
+        res = spawnv(P_WAIT,target_exe,[target_exe] + sys.argv[1:])
+        raise SystemExit(res)
 
 
 def get_best_version(appdir):
