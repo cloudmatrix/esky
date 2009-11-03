@@ -27,5 +27,6 @@ assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
 assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2"))
 assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3"))
 
+open("tests-completed","w").close()
 print "TESTS COMPLETED"
 

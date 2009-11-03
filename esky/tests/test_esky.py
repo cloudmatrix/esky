@@ -58,6 +58,9 @@ def test_esky():
             os.rename(os.path.join(bsdir,nm),os.path.join(deploydir,nm))
         os.rmdir(bsdir)
         #  Run the first script, which will perform the necessary tests
+        #  and write "tests-completed" file when done.
+        if os.path.exists("tests-completed"):
+            os.unlink("tests-completed")
         if sys.platform == "win32":
             cmd = os.path.join(deploydir,"script1.exe")
         else:
@@ -66,6 +69,8 @@ def test_esky():
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout)
         assert p.returncode == 0
+        assert os.path.exists("tests-completed")
+        os.unlink("tests-completed")
     finally:
         os.chdir(olddir)
 
