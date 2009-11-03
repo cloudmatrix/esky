@@ -4,8 +4,13 @@
 
 This module provides the minimal code necessary to bootstrap a frozen
 application packaged using esky.  It checks the runtime directory to find
-the most appropriate version of the app and chain-loads the standard bbfreeze
-bootstrapper.
+the most appropriate version of the app and then execvs to the frozen exe.
+
+This module must use no modules other than builtins, since the stdlib is
+not available in the bootstrapping environment.  It must also be capable
+of bootstrapping into apps made with older versions of esky, since a partial
+update could result in the boostrapper from a new version being forced
+to load an old version.
 
 The code from this module becomes the __main__ module in the bootstrapping
 environment created by esky.  At application load time, it is executed with
@@ -14,19 +19,41 @@ module name "__builtin__".
 """
 
 import sys
+import errno
 
-#  The os module might not have been bootstrapped yet, so we grab what
-#  we can directly from builtin modules and fudge the rest.
+#  The os module is not builtin, so we grab what we can from the
+#  platform-specific modules and fudge the rest.
 if "posix" in sys.builtin_module_names:
-    from posix import listdir, stat
+    from posix import listdir, stat, execv, unlink, rename
     def pathjoin(*args):
+        """Local re-implementation of os.path.join."""
         return "/".join(args)
+    def basename(p):
+        """Local re-implementation of os.path.basename."""
+        return p.split("/")[-1]
 elif "nt" in  sys.builtin_module_names:
-    from nt import listdir, stat
+    from nt import listdir, stat, execv, unlink, rename
     def pathjoin(*args):
+        """Local re-implementation of os.path.join."""
         return "\\".join(args)
+    def basename(p):
+        """Local re-implementation of os.path.basename."""
+        return p.split("\\")[-1]
 else:
     raise RuntimeError("unsupported platform: " + sys.platform)
+
+
+def exists(path):
+    """Local re-implementation of os.path.exists."""
+    try:
+        stat(path)
+    except EnvironmentError, e:
+        if e.errno != errno.ENOENT:
+            raise
+        else:
+            return False
+    else:
+        return True
 
 
 def bootstrap():
@@ -34,54 +61,41 @@ def bootstrap():
     #  bbfreeze always sets sys.path to [appdir/library.zip,appdir]
     appdir = sys.path[1]
     best_version = get_best_version(appdir)
-    del sys.path[:]
-    sys.path.append(pathjoin(appdir,best_version,"library.zip"))
-    sys.path.append(pathjoin(appdir,best_version))
-    import zipimport
-    importer = zipimport.zipimporter(sys.path[0])
-    exec importer.get_code("__main__") in {}
+    if best_version is None:
+        raise RuntimeError("no usable frozen versions were found")
+    target_exe = pathjoin(appdir,best_version,basename(sys.executable))
+    execv(target_exe,[target_exe] + sys.argv[1:])
 
 
 def get_best_version(appdir):
-    """Get the name of the best version directory in the given appdir.
+    """Get the best usable version from within the given appdir.
 
-    In the common case, there is only a single version directory and this
-    returns very quickly.  If there are partial or failed upgrades, this
-    may take some corrective action to restore a consistent state.
+    In the common case there is only a single version directory, but failed
+    or partial updates can result in several being present.  This function
+    finds the highest-numbered version that is completely installed.
     """
     #  Find all potential version directories, sorted by version number.
     #  To be a version directory, it must contain a "library.zip".
     candidates = []
     for nm in listdir(appdir):
         (_,ver) = split_app_version(nm)
-        if ver:
-            try:
-                stat(pathjoin(appdir,vdir,"library.zip"))
-            except OSError:
-                pass
-            else:
-                ver = parse_version(ver)
-                candidates.append((ver,nm))
-    candidates.sort()
-    #  In the (hopefully) common case, there's a single candidate.
-    #  We don't need to poke around in the filesystem, just use it!
+        if ver and exists(pathjoin(appdir,nm,"library.zip")):
+            ver = parse_version(ver)
+            candidates.append((ver,nm))
+    candidates = [c[1] for c in sorted(candidates,reverse=True)]
+    #  In the (hopefully) common case of no failed upgrade, we don't need
+    #  to poke around in the filesystem so we just return asap.
+    if not candidates:
+        return None
     if len(candidates) == 1:
-        return candidates[0][1]
-    #  There's more than one candidate, therefore a failed/partial upgrade.
-    #  We might have to fix one up.
+        return candidates[0]
+    #  If there are several candidate versions, we need to find the best
+    #  one whose 'esky-bootstrap' dir has been completely removed.
     while candidates:
-        (_,nm) = candidates.pop(0)
-        execs = get_executables(nm)
-        if execs is None:
-            continue
-        try:
-           info = open(pathjoin(nm,"esky-info.txt"),"r").read()
-        except OSError:
-           continue
-        else: 
-           pass
-    else:
-        raise RuntimeError("no frozen versions found")
+        nm = candidates.pop(0)
+        if not exists(pathjoin(appdir,nm,"esky-bootstrap")):
+            return nm
+    return None
 
 
 def split_app_version(s):

@@ -1,0 +1,54 @@
+
+#  Second entry point for testing an esky install.
+
+import os
+import sys
+import stat
+import esky
+
+if sys.platform == "win32":
+    dotexe = ".exe"
+else:
+    dotexe = ""
+
+#  Check that the app is still working
+import eskytester
+eskytester.yes_i_am_working()
+eskytester.yes_my_deps_are_working()
+
+#  Sanity check the esky environment
+assert sys.frozen
+app = esky.Esky(sys.executable,"http://localhost:8000/downloads/")
+assert app.name == "eskytester"
+assert app.version == "0.2"
+assert app.find_update() == "0.3"
+assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
+assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
+
+v3dir = os.path.join(app.appdir,"eskytester-0.3")
+if len(sys.argv) == 1:
+    assert not os.path.isdir(v3dir)
+    script2 = os.path.join(app.appdir,"script2"+dotexe)
+    #  Simulate a broken upgrade, then re-launch this script.
+    #  We should still be at version 0.2 after this.
+    app.version_finder.fetch_version("0.3")
+    upv3 = app.version_finder.prepare_version("0.3")
+    os.rename(upv3,v3dir)
+    os.rename(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),script2)
+    os.execv(script2,[script2,"rerun"])
+else:
+    #  Recover from the broken upgrade
+    assert len(sys.argv) == 2
+    assert os.path.isdir(v3dir)
+    app.install_update("0.3")
+    assert not os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
+    print os.listdir(app.appdir)
+    assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
+    assert os.path.isfile(os.path.join(app.appdir,"script3"+dotexe))
+    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
+    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2"))
+    assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3"))
+    script3 = os.path.join(app.appdir,"script3"+dotexe)
+    os.execv(script3,[script3])
+
+

@@ -18,7 +18,6 @@ import distutils.command
 from distutils.core import Command
 
 import bbfreeze
-from bbfreeze.freezer import replace_paths_in_code
 
 import esky.bootstrap
 
@@ -48,6 +47,7 @@ class bdist_esky(Command):
 
     def run(self):
         fdir = os.path.join(self.dist_dir,self.distribution.get_fullname())
+        #  Do a standard bbfreeze of the given scripts
         f = bbfreeze.Freezer(fdir)
         f.linkmethod = "loader"
         f.addModule("esky")
@@ -55,13 +55,35 @@ class bdist_esky(Command):
             for s in self.distribution.scripts:
                 f.addScript(s,gui_only=s.endswith(".pyw"))
         f()
+        #  Create the bootstrap environment
+        bsdir = os.path.join(fdir,"esky-bootstrap")
+        os.mkdir(bsdir)
         bscode_source = inspect.getsource(esky.bootstrap)
-        bscode = imp.get_magic() + struct.pack("<i",time.time())
+        bscode = imp.get_magic() + struct.pack("<i",0)
         bscode += marshal.dumps(compile(bscode_source,"__main__.py","exec"))
-        bslib_path = os.path.join(fdir,"bootstrap-library.zip")
+        bslib_path = os.path.join(bsdir,"library.zip")
         bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
         bslib.writestr("__main__.pyc",bscode)
         bslib.close()
+        manifest = ["library.zip"]
+        if self.distribution.has_scripts():
+            for s in self.distribution.scripts:
+                nm = os.path.basename(s)
+                if nm.endswith(".py") or nm.endswith(".pyw"):
+                    nm = ".".join(nm.split(".")[:-1])
+                if sys.platform == "win32":
+                    nm += ".exe"
+                shutil.copy2(os.path.join(fdir,nm),os.path.join(bsdir,nm))
+                manifest.append(nm)
+        for nm in os.listdir(fdir):
+            if nm.startswith("python"):
+                shutil.copy2(os.path.join(fdir,nm),os.path.join(bsdir,nm))
+                manifest.append(nm)
+        f_manifest = open(os.path.join(fdir,"esky-bootstrap.txt"),"wt")
+        for nm in manifest:
+            f_manifest.write(nm)
+            f_manifest.write("\n")
+        f_manifest.close()
 
 
 distutils.command.__all__.append("bdist_esky")
