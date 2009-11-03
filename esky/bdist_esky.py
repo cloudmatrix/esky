@@ -1,3 +1,5 @@
+#  Copyright (c) 2009, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
 """
 
   esky.bdist_esky:  distutils command to freeze apps in esky format

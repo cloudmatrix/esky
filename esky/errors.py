@@ -1,3 +1,5 @@
+#  Copyright (c) 2009, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
 """
 
   esky.errors:  error classes for esky

@@ -9,7 +9,7 @@ DESCRIPTION = "keep frozen apps fresh"
 AUTHOR = "Ryan Kelly"
 AUTHOR_EMAIL = "rfk@cloud.me"
 URL = "http://github.com/clouddotme/esky/"
-LICENSE = "LGPL"
+LICENSE = "BSD"
 KEYWORDS = "update auto-update freeze"
 LONG_DESC = esky.__doc__
 
