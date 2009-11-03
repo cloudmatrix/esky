@@ -18,7 +18,7 @@ eskytester.yes_my_deps_are_working()
 
 #  Sanity check the esky environment
 assert sys.frozen
-app = esky.Esky(sys.executable,"http://localhost:8000/downloads/")
+app = esky.Esky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.version == "0.2"
 assert app.find_update() == "0.3"

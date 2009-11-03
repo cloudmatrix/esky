@@ -17,7 +17,7 @@ eskytester.yes_my_deps_are_working()
 
 #  Test that we're at the best possible version
 assert sys.frozen
-app = esky.Esky(sys.executable,"http://localhost:8000/downloads/")
+app = esky.Esky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.version == "0.3"
 assert app.find_update() is None

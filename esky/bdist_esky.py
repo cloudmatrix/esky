@@ -13,9 +13,11 @@ import marshal
 import struct
 import shutil
 import inspect
+import zipfile
 
 import distutils.command
 from distutils.core import Command
+from distutils.util import get_platform
 
 import bbfreeze
 
@@ -39,6 +41,8 @@ class bdist_esky(Command):
 
     def run(self):
         fdir = os.path.join(self.dist_dir,self.distribution.get_fullname())
+        if os.path.exists(fdir):
+            shuil.rmtree(fdir)
         #  Do a standard bbfreeze of the given scripts
         f = bbfreeze.Freezer(fdir)
         f.linkmethod = "loader"
@@ -76,6 +80,16 @@ class bdist_esky(Command):
             f_manifest.write(nm)
             f_manifest.write("\n")
         f_manifest.close()
+        #  Zip up the distribution
+        zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(self.distribution.get_fullname(),get_platform()))
+        zf = zipfile.ZipFile(zfname,"w")
+        for (dirpath,dirnames,filenames) in os.walk(fdir):
+            for fn in filenames:
+                fpath = os.path.join(dirpath,fn)
+                zpath = os.path.basename(fdir)+"/"+fpath[len(fdir)+1:]
+                zf.write(fpath,zpath)
+        zf.close()
+        shutil.rmtree(fdir)
 
 
 distutils.command.__all__.append("bdist_esky")

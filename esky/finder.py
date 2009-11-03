@@ -9,8 +9,11 @@ import re
 import stat
 import urllib2
 import zipfile
+import shutil
 import uuid
 from urlparse import urljoin
+
+from distutils.util import get_platform
 
 from esky.bootstrap import parse_version
 from esky.errors import *
@@ -73,7 +76,7 @@ class SimpleVersionFinder(VersionFinder):
 
     def find_versions(self):
         downloads = self.open_url(self.download_url).read()
-        link_re = "href=['\"](?P<href>(.*/)?%s-(?P<version>[a-zA-Z0-9\\.-]+).zip)['\"]" % (self.appname,)
+        link_re = "href=['\"](?P<href>(.*/)?%s-(?P<version>[a-zA-Z0-9\\.-]+).%s.zip)['\"]" % (self.appname,get_platform(),)
         found = []
         for match in re.finditer(link_re,downloads):
             self.version_urls[match.group("version")] = match.group("href")
@@ -101,34 +104,36 @@ class SimpleVersionFinder(VersionFinder):
         else:
             infile.close()
             outfile.close()
-            os.rename(outfilenm,os.path.join(self.workdir,"downloads","%s-%s.zip"%(self.appname,version,)))
+            os.rename(outfilenm,self._download_name(version))
+
+    def _download_name(self,version):
+        return os.path.join(self.workdir,"downloads","%s-%s.%s.zip" % (self.appname,version,get_platform(),))
 
     def has_version(self,version):
-        return os.path.exists(os.path.join(self.workdir,"downloads","%s-%s.zip"%(self.appname,version,)))
+        return os.path.exists(self._download_name(version))
 
     def prepare_version(self,version):
-        rand_id = uuid.uuid4().hex
-        dlpath = os.path.join(self.workdir,"downloads","%s-%s.zip"%(self.appname,version,))
-        uppath = os.path.join(self.workdir,"unpacked",rand_id)
-        os.mkdir(uppath)
+        dlpath = self._download_name(version)
+        vdir = "%s-%s" % (self.appname,version,)
+        uppath = os.path.join(self.workdir,"unpacked")
         zf = zipfile.ZipFile(dlpath,"r")
         for nm in zf.namelist():
+            if not nm.startswith(vdir):
+                continue
             infile = zf.open(nm,"r")
             outfilenm = os.path.join(uppath,nm)
+            print outfilenm
             if not os.path.isdir(os.path.dirname(outfilenm)):
                 os.makedirs(os.path.dirname(outfilenm))
-            outfile = open(os.path.join(uppath,nm),"wb")
+            outfile = open(outfilenm,"wb")
             try:
-                data = infile.read(1024*512)
-                while data:
-                    outfile.write(data)
-                    data = infile.read(1024*512)
+                shutil.copyfileobj(infile,outfile)
             finally:
                 infile.close()
                 outfile.close()
             mode = zf.getinfo(nm).external_attr >> 16L
             os.chmod(outfilenm,mode)
-        return uppath
+        return os.path.join(uppath,vdir)
 
 
 
