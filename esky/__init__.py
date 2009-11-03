@@ -51,10 +51,13 @@ To upgrade to a new version "appname-X.Z", esky performs the following steps:
     * remove files not in "appname-X.Z/esky-bootstrap.txt" from the main dir
     * remove the "appname-X.Y" directory
 
-The esky bootstrapping executable is able to detect whether an update has
-failed at any point of this process, and correctly launch the old version. To
-clean up after failed or partial updates, the application should periodically
-call its esky's "cleanup" method.
+Where such facilities are provided by the operating system, this process is
+performed within a filesystem transaction.  Neverthless, the esky bootstrapping
+executable is able to detect and recover from a failed update should such an
+unfortunate situation arise.
+
+To clean up after failed or partial updates, applications should periodically
+call the "cleanup" method on their esky.
 
 """
 
