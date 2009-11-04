@@ -40,10 +40,16 @@ class bdist_esky(Command):
     user_options = [
                     ('dist-dir=', 'd',
                      "directory to put final built distributions in"),
+                    ('includes=', None,
+                     "list of modules to specifically include"),
+                    ('excludes=', None,
+                     "list of modules to specifically exclude"),
                    ]
 
     def initialize_options(self):
         self.dist_dir = None
+        self.includes = []
+        self.excludes = []
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
@@ -55,7 +61,7 @@ class bdist_esky(Command):
             shutil.rmtree(bsdir)
         os.makedirs(fdir)
         #  Do a standard bbfreeze of the given scripts
-        f = bbfreeze.Freezer(fdir)
+        f = bbfreeze.Freezer(fdir,includes=self.includes,excludes=self.excludes)
         f.linkmethod = "loader"
         f.addModule("esky")
         if self.distribution.has_scripts():
