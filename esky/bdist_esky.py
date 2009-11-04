@@ -49,7 +49,7 @@ class bdist_esky(Command):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
 
     def run(self):
-        bsdir = os.path.join(self.dist_dir,self.distribution.get_fullname())
+        bsdir = os.path.join(self.dist_dir,"%s.%s"%(self.distribution.get_fullname(),get_platform(),))
         fdir = os.path.join(bsdir,self.distribution.get_fullname())
         if os.path.exists(bsdir):
             shutil.rmtree(bsdir)
