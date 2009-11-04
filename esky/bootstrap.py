@@ -18,8 +18,9 @@ The code from this module becomes the __main__ module in the bootstrapping
 environment created by esky.  At application load time, it is executed with
 module name "__builtin__".
 
-I plan to eventually replace this with a custom loader written in C, but
-for now this lets us get up and running with minimal effort.
+If I can be bothered doing all this in C, I plan to eventually replace this
+module with a custom program loader. For now, this lets us get up and running
+with minimal effort.
 
 """
 
@@ -29,7 +30,7 @@ import errno
 #  The os module is not builtin, so we grab what we can from the
 #  platform-specific modules and fudge the rest.
 if "posix" in sys.builtin_module_names:
-    from posix import listdir, stat, execv, unlink, rename
+    from posix import listdir, stat, unlink, rename, execv
     def pathjoin(*args):
         """Local re-implementation of os.path.join."""
         return "/".join(args)
@@ -37,8 +38,7 @@ if "posix" in sys.builtin_module_names:
         """Local re-implementation of os.path.basename."""
         return p.split("/")[-1]
 elif "nt" in  sys.builtin_module_names:
-    from nt import listdir, stat, spawnv, P_WAIT, unlink, rename
-    execv = None
+    from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
     def pathjoin(*args):
         """Local re-implementation of os.path.join."""
         return "\\".join(args)
@@ -70,11 +70,27 @@ def bootstrap():
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
     target_exe = pathjoin(appdir,best_version,basename(sys.executable))
-    if execv:
+    if sys.platform != "win32":
+        #  Non-Windows platforms have a functioning, low-overhead execv,
+        #  so we just replace ourself with the target executable.
         execv(target_exe,[target_exe] + sys.argv[1:])
     else:
-        res = spawnv(P_WAIT,target_exe,[target_exe] + sys.argv[1:])
-        raise SystemExit(res)
+        #  On Windows, execv is flaky and expensive.  If we're the same python
+        #  version as the target exe, munge sys.path to bootstrap it directly.
+        #  If not, we'll have to spawn the target exe and wait for it to return.
+        pydll = "python%s%s.dll" % sys.version_info[:2]
+        if exists(pathjoin(appdir,best_version,pydll)):
+            sys.executable = target_exe
+            sys.argv[0] = target_exe
+            del sys.path[:]
+            sys.path.append(pathjoin(appdir,best_version,"library.zip"))
+            sys.path.append(pathjoin(appdir,best_version))
+            import zipimport
+            importer = zipimport.zipimporter(sys.path[0])
+            exec importer.get_code("__main__") in {}
+        else:
+            res = spawnv(P_WAIT,target_exe,[target_exe] + sys.argv[1:])
+            raise SystemExit(res)
 
 
 def get_best_version(appdir):
