@@ -34,8 +34,7 @@ like this:
         prog.exe             - executable(s) as produced by bbfreeze
         library.zip          - pure-python modules frozen by bbfreeze
         pythonXY.dll         - python DLL
-        esky-bootstrap/      - updated esky bootstrapping environment
-        esky-bootstrap.txt   - list of files in the updated bootstrapping env
+        esky-bootstrap.txt   - list of files expected in the bootstrapping env
         ...other deps...
 
 The "appname-X.Y" directory is simply a bbfrozen app directory with some extra
@@ -45,6 +44,7 @@ distutils setup.py file.
 
 To upgrade to a new version "appname-X.Z", esky performs the following steps:
     * extract it into a temporary directory under "updates"
+    * move all bootstrapping files into "appname-X.Z/esky-bootstrap"
     * atomically rename it into the main directory as "appname-X.Z"
     * move the contents of "appname-X.Z/esky-bootstrap" into the main dir
     * remove the "appname-X.Z/esky-bootstrap" directory
