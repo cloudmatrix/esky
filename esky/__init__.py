@@ -73,6 +73,14 @@ import sys
 import os
 import shutil
 import errno
+import socket
+import time
+
+try:
+    import threading
+except ImportError:
+    threading = None
+            
 
 from esky.errors import *
 from esky.bootstrap import split_app_version, parse_version, get_best_version
@@ -100,11 +108,14 @@ class Esky(object):
     SimpleVersionFinder instance.
     """
 
+    lock_timeout = 60*60  # 1 hour
+
     def __init__(self,appdir,version_finder):
         if os.path.isfile(appdir):
             appdir = os.path.dirname(os.path.dirname(appdir))
         self.appdir = appdir
         self.reinitialize()
+        self._lock_count = 0
         workdir = os.path.join(appdir,"updates")
         if isinstance(version_finder,basestring):
             self.version_finder = SimpleVersionFinder(appname=self.name,workdir=workdir,download_url=version_finder)
@@ -125,6 +136,76 @@ class Esky(object):
             raise EskyBrokenError("no frozen versions found")
         self.name,self.version = split_app_version(best_version)
 
+    def lock(self,num_retries=0):
+        """Lock the application directory for exclusive write access.
+
+        If the appdir is already locked by another process/thread then
+        EskyLockedError is raised.  There is no way to perform a blocking
+        lock on an appdir.
+
+        Locking is achieved by creating a "locked" directory and writing the
+        current process/thread ID into it.  os.mkdir is atomic on all platforms
+        that we care about. 
+        """
+        if num_retries > 5:
+            raise EskyLockedError
+        if threading:
+           curthread = threading.currentThread()
+           try:
+               threadid = curthread.ident
+           except AttributeError:
+               threadid = curthread.getName()
+        else:
+           threadid = "0"
+        myid = "%s-%s-%s" % (socket.gethostname(),os.getpid(),threadid)
+        lockdir = os.path.join(self.appdir,"locked")
+        #  Do I already own the lock?
+        if os.path.exists(os.path.join(lockdir,myid)):
+            #  Update file mtime to keep it safe from breakers
+            open(os.path.join(lockdir,myid),"wb").close()
+            self._lock_count += 1
+            return True
+        #  Try to make the "locked" directory.
+        try:
+            os.mkdir(lockdir)
+        except OSError, e:
+            if e.errno != errno.EEXIST:
+                raise
+            #  Is it stale?  If so, break it and try again.
+            try:
+                newest_mtime = os.path.getmtime(lockdir)
+                for nm in os.listdir(lockdir):
+                    mtime = os.path.getmtime(os.path.join(lockdir,nm))
+                    if mtime > newest_mtime:
+                        newest_mtime = mtime
+                if newest_mtime + self.lock_timeout < time.time():
+                    shutil.rmtree(lockdir)
+                    return self.lock(num_retries+1)
+                else:
+                    raise EskyLockedError
+            except OSError, e:
+                if e.errno not in (errno.ENOENT,errno.ENOTDIR,):
+                    raise
+                return self.lock(num_retries+1)
+        else:
+            #  Success!  Record my ownership
+            open(os.path.join(lockdir,myid),"wb").close()
+            self._lock_count = 1
+            return True
+            
+    def unlock(self):
+        """Unlock the application directory for exclusive write access."""
+        self._lock_count -= 1
+        if self._lock_count == 0:
+            if threading:
+               threadid = str(threading.currentThread().ident)
+            else:
+              threadid = "0"
+            myid = "%s-%s-%s" % (socket.gethostname(),os.getpid(),threadid)
+            lockdir = os.path.join(self.appdir,"locked")
+            os.unlink(os.path.join(lockdir,myid))
+            os.rmdir(lockdir)
+
     def cleanup(self):
         """Perform cleanup tasks in the app directory.
 
@@ -132,18 +213,22 @@ class Esky(object):
         attempts.  Such maintenance is not done automatically since it can
         take a non-negligible amount of time.
         """
-        version = get_best_version(self.appdir)
-        manifest = os.path.join(self.appdir,version,"esky-bootstrap.txt")
-        manifest = [ln.strip() for ln in open(manifest,"rt")]
-        for nm in os.listdir(self.appdir):
-            fullnm = os.path.join(self.appdir,nm)
-            if os.path.isdir(fullnm):
-                if nm != "updates" and nm != version:
-                    shutil.rmtree(fullnm)
-            else:
-                if nm not in manifest:
-                    os.unlink(fullnm)
-        self.version_finder.cleanup()
+        self.lock()
+        try:
+            version = get_best_version(self.appdir)
+            manifest = os.path.join(self.appdir,version,"esky-bootstrap.txt")
+            manifest = [ln.strip() for ln in open(manifest,"rt")]
+            for nm in os.listdir(self.appdir):
+                fullnm = os.path.join(self.appdir,nm)
+                if os.path.isdir(fullnm):
+                    if nm not in ("updates","locked",version):
+                        shutil.rmtree(fullnm)
+                else:
+                    if nm not in manifest:
+                        os.unlink(fullnm)
+            self.version_finder.cleanup()
+        finally:
+            self.unlock()
 
     def find_update(self):
         """Check for an available update to this app.
@@ -176,52 +261,56 @@ class Esky(object):
             if not self.version_finder.has_version(version):
                 self.version_finder.fetch_version(version)
             source = self.version_finder.prepare_version(version)
-            os.rename(source,target)
-        #  Move files out of the bootstrapping environment, and remove files
-        #  that are no longer required.  If possible, do this in a transaction.
-        trn = FSTransaction()
+        self.lock()
         try:
-            #  Move new bootrapping environment into main app dir.
-            #  Be sure to move dependencies before executables.
-            bootstrap = os.path.join(target,"esky-bootstrap")
-            if os.path.exists(os.path.join(bootstrap,"library.zip")):
-                trn.move(os.path.join(bootstrap,"library.zip"),
-                         os.path.join(self.appdir,"library.zip"))
-            for nm in os.listdir(bootstrap):
-                if nm.startswith("python"):
-                    trn.move(os.path.join(bootstrap,nm),
-                             os.path.join(self.appdir,nm))
-            for nm in os.listdir(bootstrap):
-                if not nm.startswith("python") and nm != "library.zip":
-                    trn.move(os.path.join(bootstrap,nm),
-                             os.path.join(self.appdir,nm))
-            #  Remove the bootstrap dir; the new version is now active
-            trn.remove(bootstrap)
-            #  Remove anything that doesn't belong in the main app dir
-            manifest = os.path.join(target,"esky-bootstrap.txt")
-            manifest = [ln.strip() for ln in open(manifest,"rt")]
-            for nm in os.listdir(self.appdir):
-                fullnm = os.path.join(self.appdir,nm)
-                if nm not in manifest and not os.path.isdir(fullnm):
-                    trn.remove(fullnm)
-            #  Remove/disable the old version.
-            #  On win32 we can't remove in-use files, so just clobber
-            #  library.zip and leave to rest to a cleanup() call.
-            oldv = os.path.join(self.appdir,"%s-%s"%(self.name,self.version,))
-            if sys.platform == "win32":
-                trn.remove(os.path.join(oldv,"library.zip"))
+            if not os.path.exists(target):
+                os.rename(source,target)
+            trn = FSTransaction()
+            try:
+                #  Move new bootrapping environment into main app dir.
+                #  Be sure to move dependencies before executables.
+                bootstrap = os.path.join(target,"esky-bootstrap")
+                if os.path.exists(os.path.join(bootstrap,"library.zip")):
+                    trn.move(os.path.join(bootstrap,"library.zip"),
+                             os.path.join(self.appdir,"library.zip"))
+                for nm in os.listdir(bootstrap):
+                    if nm.startswith("python"):
+                        trn.move(os.path.join(bootstrap,nm),
+                                 os.path.join(self.appdir,nm))
+                for nm in os.listdir(bootstrap):
+                    if not nm.startswith("python") and nm != "library.zip":
+                        trn.move(os.path.join(bootstrap,nm),
+                                 os.path.join(self.appdir,nm))
+                #  Remove the bootstrap dir; the new version is now active
+                trn.remove(bootstrap)
+                #  Remove anything that doesn't belong in the main app dir
+                manifest = os.path.join(target,"esky-bootstrap.txt")
+                manifest = [ln.strip() for ln in open(manifest,"rt")]
+                for nm in os.listdir(self.appdir):
+                    fullnm = os.path.join(self.appdir,nm)
+                    if nm not in manifest and not os.path.isdir(fullnm):
+                        trn.remove(fullnm)
+                #  Remove/disable the old version.
+                #  On win32 we can't remove in-use files, so just clobber
+                #  library.zip and leave to rest to a cleanup() call.
+                oldv = "%s-%s" % (self.name,self.version,)
+                oldv = os.path.join(self.appdir,oldv)
+                if sys.platform == "win32":
+                    trn.remove(os.path.join(oldv,"library.zip"))
+                else:
+                    for (dirp,dirnms,filenms) in os.walk(oldv,topdown=False):
+                        for fn in filenms:
+                            trn.remove(os.path.join(dirp,fn))
+                        for dn in dirnms:
+                            trn.remove(os.path.join(dirp,dn))
+                    trn.remove(oldv)
+            except Exception:
+                trn.abort()
+                raise
             else:
-                for (dirpath,dirnames,filenames) in os.walk(oldv,topdown=False):
-                    for fn in filenames:
-                        trn.remove(os.path.join(dirpath,fn))
-                    for dn in dirnames:
-                        trn.remove(os.path.join(dirpath,dn))
-                trn.remove(oldv)
-        except Exception:
-            trn.abort()
-            raise
-        else:
-            trn.commit()
+                trn.commit()
+        finally:
+            self.unlock()
         self.reinitialize()
 
 

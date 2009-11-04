@@ -6,6 +6,8 @@ import subprocess
 import shutil
 import zipfile
 import threading
+import tempfile
+import time
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 
@@ -68,6 +70,88 @@ def test_esky():
         os.unlink("tests-completed")
     finally:
         os.chdir(olddir)
+
+ 
+def test_esky_locking():
+    appdir = tempfile.mkdtemp()
+    try: 
+        os.mkdir(os.path.join(appdir,"testapp-0.1"))
+        open(os.path.join(appdir,"testapp-0.1","library.zip"),"wb").close()
+        e1 = esky.Esky(appdir,"http://example.com/downloads/")
+        assert e1.name == "testapp"
+        assert e1.version == "0.1"
+        e2 = esky.Esky(appdir,"http://example.com/downloads/")
+        assert e2.name == "testapp"
+        assert e2.version == "0.1"
+        locked = []; errors = [];
+        trigger1 = threading.Event(); trigger2 = threading.Event()
+        def runit(e,t1,t2):
+            def runme():
+                try:
+                    e.lock()
+                except Exception, err:
+                    errors.append(err)
+                else:
+                    locked.append(e)
+                t1.set()
+                t2.wait()
+            return runme
+        t1 = threading.Thread(target=runit(e1,trigger1,trigger2))
+        t2 = threading.Thread(target=runit(e2,trigger2,trigger1))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+        assert len(locked) == 1
+        assert (e1 in locked or e2 in locked)
+        assert len(errors) == 1
+        assert isinstance(errors[0],esky.EskyLockedError)
+    finally:
+        shutil.rmtree(appdir)
+
+ 
+def test_esky_lock_breaking():
+    appdir = tempfile.mkdtemp()
+    try: 
+        os.mkdir(os.path.join(appdir,"testapp-0.1"))
+        open(os.path.join(appdir,"testapp-0.1","library.zip"),"wb").close()
+        e1 = esky.Esky(appdir,"http://example.com/downloads/")
+        e2 = esky.Esky(appdir,"http://example.com/downloads/")
+        trigger1 = threading.Event(); trigger2 = threading.Event()
+        errors = []
+        def run1():
+            try:
+                e1.lock()
+            except Exception, err:
+                errors.append(err)
+            trigger1.set()
+            trigger2.wait()
+        def run2():
+            trigger1.wait()
+            try:
+                e2.lock()
+            except esky.EskyLockedError:
+                pass
+            except Exception, err:
+                errors.append(err)
+            else:
+                errors.append("locked when I shouldn't have")
+            e2.lock_timeout = 0.1
+            time.sleep(0.5)
+            try:
+                e2.lock()
+            except Exception, err:
+                errors.append(err)
+            trigger2.set()
+        t1 = threading.Thread(target=run1)
+        t2 = threading.Thread(target=run2)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+        assert len(errors) == 0, str(errors)
+    finally:
+        shutil.rmtree(appdir)
 
 
 def test_README():
