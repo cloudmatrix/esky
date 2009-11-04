@@ -9,7 +9,7 @@ in the face of failed or partial updates.
 
 The main interface is the 'Esky' class, which represents a frozen app.  An Esky
 must be given the path to the top-level directory of the frozen app, and a
-"VersionFinder" object that it will use to search for updates.  Typical usage
+'VersionFinder' object that it will use to search for updates.  Typical usage
 for an app automatically updating itself would look something like this:
 
     if hasattr(sys,"frozen"):

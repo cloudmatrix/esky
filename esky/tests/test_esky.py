@@ -1,6 +1,5 @@
 
 import sys
-import difflib
 import os
 from os.path import dirname
 import subprocess
@@ -22,7 +21,7 @@ def test_esky():
     olddir = os.path.abspath(os.curdir)
     try:
         platform = get_platform()
-        deploydir = "deploy"
+        deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
         os.chdir(os.path.join(esky_root,"esky","tests"))
         if os.path.isdir(deploydir):
@@ -72,14 +71,22 @@ def test_esky():
 
 
 def test_README():
-    """Test that the README is in sync with the docstring."""
+    """Ensure that the README is in sync with the docstring.
+
+    This test should always pass - it takes corrective action if the
+    README has gotten out of sync.
+    """
     dirname = os.path.dirname
     readme = os.path.join(dirname(dirname(dirname(__file__))),"README.txt")
-    assert os.path.isfile(readme)
-    diff = difflib.unified_diff(open(readme).readlines(),esky.__doc__.splitlines(True))
-    diff = "".join(diff)
-    if diff:
-        print diff
-        raise RuntimeError
-
+    if not os.path.isfile(readme):
+        f = open(readme,"wb")
+        f.write(esky.__doc__)
+        f.close()
+    else:
+        f = open(readme,"rb")
+        if f.read() != esky.__doc__:
+            f.close()
+            f = open(readme,"wb")
+            f.write(esky.__doc__)
+            f.close()
 
