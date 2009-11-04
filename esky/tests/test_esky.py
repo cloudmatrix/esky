@@ -16,6 +16,7 @@ from distutils.util import get_platform
 
 import esky
 from esky import bdist_esky
+from esky.util import extract_zipfile
 
 
 def test_esky():
@@ -43,21 +44,8 @@ def test_esky():
         threading.Thread(target=server.serve_forever).start()
         #  Set up the deployed esky environment for the initial version
         zfname = os.path.join("dist","eskytester-0.1.%s.zip"%(platform,))
-        zf = zipfile.ZipFile(zfname,"r")
         os.mkdir(deploydir)
-        for nm in zf.namelist():
-            outfilenm = os.path.join(deploydir,nm)
-            if not os.path.isdir(os.path.dirname(outfilenm)):
-                os.makedirs(os.path.dirname(outfilenm))
-            infile = zf.open(nm,"r")
-            outfile = open(outfilenm,"wb")
-            try:
-                shutil.copyfileobj(infile,outfile)
-            finally:
-                infile.close()
-                outfile.close()
-            mode = zf.getinfo(nm).external_attr >> 16L
-            os.chmod(outfilenm,mode)
+        extract_zipfile(zfname,deploydir)
         #  Run the first script, which will perform the necessary tests
         #  and write "tests-completed" file when done.
         if os.path.exists("tests-completed"):

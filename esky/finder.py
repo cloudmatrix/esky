@@ -23,6 +23,7 @@ from distutils.util import get_platform
 
 from esky.bootstrap import parse_version
 from esky.errors import *
+from esky.util import extract_zipfile
 
 
 class VersionFinder(object):
@@ -154,26 +155,14 @@ class SimpleVersionFinder(VersionFinder):
         dlpath = self._download_name(version)
         vdir = "%s-%s" % (self.appname,version,)
         uppath = os.path.join(self.workdir,"unpack")
+        #  Anything in the root of the zipfile is part of the boostrap
+        #  env, so it gets placed in a special directory.
+        def name_filter(nm):
+            if not nm.startswith(vdir):
+                return os.path.join(vdir,"esky-bootstrap",nm)
+            return nm
+        extract_zipfile(dlpath,uppath,name_filter)
         bspath = os.path.join(uppath,vdir,"esky-bootstrap")
-        zf = zipfile.ZipFile(dlpath,"r")
-        for nm in zf.namelist():
-            #  Anything in the root of the zipfile is part of the boostrap
-            #  env, so it gets placed in a special directory.
-            if nm.startswith(vdir):
-                outfilenm = os.path.join(uppath,nm)
-            else:
-                outfilenm = os.path.join(bspath,nm)
-            infile = zf.open(nm,"r")
-            if not os.path.isdir(os.path.dirname(outfilenm)):
-                os.makedirs(os.path.dirname(outfilenm))
-            outfile = open(outfilenm,"wb")
-            try:
-                shutil.copyfileobj(infile,outfile)
-            finally:
-                infile.close()
-                outfile.close()
-            mode = zf.getinfo(nm).external_attr >> 16L
-            os.chmod(outfilenm,mode)
         if not os.path.isdir(bspath):
             os.makedirs(bspath)
         return os.path.join(uppath,vdir)
