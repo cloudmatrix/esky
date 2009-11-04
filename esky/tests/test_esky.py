@@ -19,7 +19,11 @@ from esky import bdist_esky
 
 
 def test_esky():
-    """Build and launch a simple self-testing esky application."""
+    """Build and launch a simple self-testing esky application.
+
+    The "eskytester" application can be found next to this file, and the
+    sequence of tests performed range across "script1.py" to "script3.py".
+    """
     olddir = os.path.abspath(os.curdir)
     try:
         platform = get_platform()
@@ -73,6 +77,7 @@ def test_esky():
 
  
 def test_esky_locking():
+    """Test that locking an Esky works correctly."""
     appdir = tempfile.mkdtemp()
     try: 
         os.mkdir(os.path.join(appdir,"testapp-0.1"))
@@ -111,6 +116,7 @@ def test_esky_locking():
 
  
 def test_esky_lock_breaking():
+    """Test that breaking the lock on an Esky works correctly."""
     appdir = tempfile.mkdtemp()
     try: 
         os.mkdir(os.path.join(appdir,"testapp-0.1"))
@@ -157,8 +163,8 @@ def test_esky_lock_breaking():
 def test_README():
     """Ensure that the README is in sync with the docstring.
 
-    This test should always pass - it takes corrective action if the
-    README has gotten out of sync.
+    This test should always pass; if the README is out of sync it just updates
+    it with the contents of esky.__doc__.
     """
     dirname = os.path.dirname
     readme = os.path.join(dirname(dirname(dirname(__file__))),"README.txt")

@@ -1,6 +1,3 @@
 
  * Bundle package_data and data_files into the distribution somehow
- * A custom loader for win32, since execv isn't great on that platform
-      - would use LoadLibrary to bootstrap into the correct python dll
-        without switching processes
 
