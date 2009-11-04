@@ -11,7 +11,7 @@ in the face of failed or partial updates.
 
 The main interface is the 'Esky' class, which represents a frozen app.  An Esky
 must be given the path to the top-level directory of the frozen app, and a
-"VersionFinder" object that it will use to search for updates.  Typical usage
+'VersionFinder' object that it will use to search for updates.  Typical usage
 for an app automatically updating itself would look something like this:
 
     if hasattr(sys,"frozen"):
@@ -181,11 +181,20 @@ class Esky(object):
         #  that are no longer required.  If possible, do this in a transaction.
         trn = FSTransaction()
         try:
-            #  Move new bootrapping environment into main app dir
+            #  Move new bootrapping environment into main app dir.
+            #  Be sure to move dependencies before executables.
             bootstrap = os.path.join(target,"esky-bootstrap")
+            if os.path.exists(os.path.join(bootstrap,"library.zip")):
+                trn.move(os.path.join(bootstrap,"library.zip"),
+                         os.path.join(self.appdir,"library.zip"))
             for nm in os.listdir(bootstrap):
-                trn.move(os.path.join(bootstrap,nm),
-                         os.path.join(self.appdir,nm))
+                if nm.startswith("python"):
+                    trn.move(os.path.join(bootstrap,nm),
+                             os.path.join(self.appdir,nm))
+            for nm in os.listdir(bootstrap):
+                if not nm.startswith("python") and nm != "library.zip":
+                    trn.move(os.path.join(bootstrap,nm),
+                             os.path.join(self.appdir,nm))
             #  Remove the bootstrap dir; the new version is now active
             trn.remove(bootstrap)
             #  Remove anything that doesn't belong in the main app dir
