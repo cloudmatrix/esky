@@ -1,4 +1,5 @@
 
 include LICENSE.txt
 recursive-include esky/tests/ *.py
+recursive-include esky/tests/ *.txt
 
