@@ -16,6 +16,7 @@ else:
 import eskytester
 eskytester.yes_i_am_working()
 eskytester.yes_my_deps_are_working()
+eskytester.yes_my_data_is_installed()
 
 #  Test that we're at the best possible version
 assert sys.frozen

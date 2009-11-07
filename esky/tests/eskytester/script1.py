@@ -15,6 +15,7 @@ else:
 import eskytester
 eskytester.yes_i_am_working()
 eskytester.yes_my_deps_are_working()
+eskytester.yes_my_data_is_installed()
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
 assert sys.frozen

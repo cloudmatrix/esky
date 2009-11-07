@@ -34,7 +34,10 @@ def test_esky():
             shutil.rmtree(deploydir)
         #  Build three increasing versions of the test package
         metadata = dict(name="eskytester",packages=["eskytester"],author="rfk",
-                        description="the esky test package",script_args=["bdist_esky"])
+                        description="the esky test package",
+                        data_files=[("data",["eskytester/datafile.txt"])],
+                        package_data={"eskytester":["pkgdata.txt"]},
+                        script_args=["bdist_esky"])
         dist_setup(version="0.1",scripts=["eskytester/script1.py"],**metadata)
         dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],**metadata)
         dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],**metadata)

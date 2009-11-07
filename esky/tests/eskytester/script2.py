@@ -18,6 +18,7 @@ else:
 import eskytester
 eskytester.yes_i_am_working()
 eskytester.yes_my_deps_are_working()
+eskytester.yes_my_data_is_installed()
 
 #  Sanity check the esky environment
 assert sys.frozen
