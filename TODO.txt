@@ -1,4 +1,3 @@
 
  * Bundle package_data and data_files into the distribution somehow
- * better matching of python dlls (e.g. don't match "pythoncom26.dll")
 
