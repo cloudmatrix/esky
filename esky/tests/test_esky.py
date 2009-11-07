@@ -12,11 +12,10 @@ from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 
 from distutils.core import setup as dist_setup
-from distutils.util import get_platform
 
 import esky
 from esky import bdist_esky
-from esky.util import extract_zipfile
+from esky.util import extract_zipfile, get_platform
 
 
 def test_esky():
@@ -66,16 +65,20 @@ def test_esky():
  
 def test_esky_locking():
     """Test that locking an Esky works correctly."""
+    platform = get_platform()
     appdir = tempfile.mkdtemp()
     try: 
-        os.mkdir(os.path.join(appdir,"testapp-0.1"))
-        open(os.path.join(appdir,"testapp-0.1","library.zip"),"wb").close()
+        vdir = os.path.join(appdir,"testapp-0.1.%s" % (platform,))
+        os.mkdir(vdir)
+        open(os.path.join(vdir,"library.zip"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         assert e1.name == "testapp"
         assert e1.version == "0.1"
+        assert e1.platform == platform
         e2 = esky.Esky(appdir,"http://example.com/downloads/")
         assert e2.name == "testapp"
         assert e2.version == "0.1"
+        assert e2.platform == platform
         locked = []; errors = [];
         trigger1 = threading.Event(); trigger2 = threading.Event()
         def runit(e,t1,t2):

@@ -28,7 +28,7 @@ like this:
 
     prog.exe                 - esky bootstrapping executable
     updates/                 - work area for fetching/unpacking updates
-    appname-X.Y/             - specific version of the application
+    appname-X.Y.platform/    - specific version of the application
         prog.exe             - executable(s) as produced by bbfreeze
         library.zip          - pure-python modules frozen by bbfreeze
         pythonXY.dll         - python DLL
@@ -42,12 +42,12 @@ distutils setup.py file.
 
 To upgrade to a new version "appname-X.Z", esky performs the following steps:
     * extract it into a temporary directory under "updates"
-    * move all bootstrapping files into "appname-X.Z/esky-bootstrap"
-    * atomically rename it into the main directory as "appname-X.Z"
-    * move the contents of "appname-X.Z/esky-bootstrap" into the main dir
-    * remove the "appname-X.Z/esky-bootstrap" directory
-    * remove files not in "appname-X.Z/esky-bootstrap.txt" from the main dir
-    * remove the "appname-X.Y" directory
+    * move all bootstrapping files into "appname-X.Z.platform/esky-bootstrap"
+    * atomically rename it into the main directory as "appname-X.Z.platform"
+    * move contents of "appname-X.Z.platform/esky-bootstrap" into the main dir
+    * remove the "appname-X.Z.platform/esky-bootstrap" directory
+    * remove files not in "appname-X.Z.platform/esky-bootstrap.txt"
+    * remove the "appname-X.Y.platform" directory
 
 Where such facilities are provided by the operating system, this process is
 performed within a filesystem transaction.  Neverthless, the esky bootstrapping

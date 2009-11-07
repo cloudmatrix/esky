@@ -5,7 +5,10 @@ import os
 import sys
 import stat
 import esky
+import esky.util
+ 
 
+platform = esky.util.get_platform()
 if sys.platform == "win32":
     dotexe = ".exe"
 else:
@@ -25,10 +28,10 @@ assert app.find_update() == "0.3"
 assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
 
-v3dir = os.path.join(app.appdir,"eskytester-0.3")
+v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
     app.cleanup()
-    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
+    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
     assert not os.path.isdir(v3dir)
     script2 = os.path.join(app.appdir,"script2"+dotexe)
     #  Simulate a broken upgrade.
@@ -53,9 +56,9 @@ else:
     assert not os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
     assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
     assert os.path.isfile(os.path.join(app.appdir,"script3"+dotexe))
-    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
-    assert not os.path.isfile(os.path.join(app.appdir,"eskytester-0.2","library.zip"))
-    assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3"))
+    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
+    assert not os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+platform,"library.zip"))
+    assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
     script3 = os.path.join(app.appdir,"script3"+dotexe)
     os.execv(script3,[script3])
 

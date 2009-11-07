@@ -2,13 +2,16 @@
 #  All rights reserved; available under the terms of the BSD License.
 """
 
-  esky.util:  misc utilities for esky
+  esky.util:  misc utility functions for esky
 
 """
 
 import os
+import re
 import shutil
 import zipfile
+
+from distutils.util import get_platform as _distutils_get_platform
 
 
 def extract_zipfile(source,target,name_filter=None):
@@ -38,4 +41,28 @@ def extract_zipfile(source,target,name_filter=None):
             infile.close()
         mode = zf.getinfo(nm).external_attr >> 16L
         os.chmod(outfilenm,mode)
+
+
+def get_platform():
+    """Get the platform identifier for the current platform.
+
+    This is similar to the function distutils.util.get_platform() - it returns
+    a string identifying the types of platform on which binaries built on this
+    machine can reasonably be expected to run.
+
+    Unlike distutils.util.get_platform(), the value returned by this function
+    is guaranteed not to contain any periods; this makes it much easier to
+    parse out of filenames.
+    """
+    return _distutils_get_platform().replace(".","_")
  
+
+def is_core_dependency(filenm):
+    """Check whether than named file is a core python dependency.
+
+    If it is, then it's required for any frozen program to run (even the 
+    bootstrapper).  Currently this includes only the python DLL.
+    """
+    return re.match("^(lib)?python\\d[\\d\\.]*\\.[a-z\\.]*$",filenm)
+
+

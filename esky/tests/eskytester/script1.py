@@ -4,6 +4,7 @@
 import os
 import sys
 import esky
+import esky.util
 
 if sys.platform == "win32":
     dotexe = ".exe"
@@ -28,7 +29,7 @@ assert app.find_update() == "0.3"
 
 assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
-assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.2"))
+assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform()))
 script2 = os.path.join(app.appdir,"script2"+dotexe)
 os.execv(script2,[script2])
 

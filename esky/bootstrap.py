@@ -14,9 +14,8 @@ of bootstrapping into apps made with older versions of esky, since a partial
 update could result in the boostrapper from a new version being forced
 to load an old version.
 
-The code from this module becomes the __main__ module in the bootstrapping
-environment created by esky.  At application load time, it is executed with
-module name "__builtin__".
+The code from this module is included in the bootstrapping environment under
+the module name "bootstrap". 
 
 If I can be bothered doing all this in C, I plan to eventually replace this
 module with a custom program loader. For now, this lets us get up and running
@@ -31,23 +30,25 @@ import errno
 #  platform-specific modules and fudge the rest.
 if "posix" in sys.builtin_module_names:
     from posix import listdir, stat, unlink, rename, execv
-    def pathjoin(*args):
-        """Local re-implementation of os.path.join."""
-        return "/".join(args)
-    def basename(p):
-        """Local re-implementation of os.path.basename."""
-        return p.split("/")[-1]
+    SEP = "/"
 elif "nt" in  sys.builtin_module_names:
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
-    def pathjoin(*args):
-        """Local re-implementation of os.path.join."""
-        return "\\".join(args)
-    def basename(p):
-        """Local re-implementation of os.path.basename."""
-        return p.split("\\")[-1]
+    SEP = "\\"
 else:
     raise RuntimeError("unsupported platform: " + sys.platform)
 
+
+def pathjoin(*args):
+    """Local re-implementation of os.path.join."""
+    return SEP.join(args)
+
+def basename(p):
+    """Local re-implementation of os.path.basename."""
+    return p.split(SEP)[-1]
+
+def dirname(p):
+    """Local re-implementation of os.path.dirname."""
+    return SEP.join(p.split(SEP)[:-1])
 
 def exists(path):
     """Local re-implementation of os.path.exists."""
@@ -104,7 +105,7 @@ def get_best_version(appdir):
     #  To be a version directory, it must contain a "library.zip".
     candidates = []
     for nm in listdir(appdir):
-        (_,ver) = split_app_version(nm)
+        (_,ver,_) = split_app_version(nm)
         if ver and exists(pathjoin(appdir,nm,"library.zip")):
             ver = parse_version(ver)
             candidates.append((ver,nm))
@@ -125,9 +126,9 @@ def get_best_version(appdir):
 
 
 def split_app_version(s):
-    """Split a app version string to name and version components.
+    """Split a app version string to name, version and platform components.
 
-    For example, appname-0.1.2 => ("appname","0.1.2")
+    For example, app-name-0.1.2.win32 => ("app-name","0.1.2","win32")
     """
     bits = s.split("-")
     idx = 1
@@ -136,7 +137,11 @@ def split_app_version(s):
             if not bits[idx][0].isalpha() or not bits[idx].isalnum():
                 break
         idx += 1
-    return ("-".join(bits[:idx]),"-".join(bits[idx:]))
+    appname = "-".join(bits[:idx])
+    bits = "-".join(bits[idx:]).split(".")
+    version = ".".join(bits[:-1])
+    platform = bits[-1]
+    return (appname,version,platform)
     
 
 def parse_version(s):
@@ -201,8 +206,4 @@ def _split_version_components(s):
                 end += 1
         yield s[start:end]
         start = end
-
-
-if __name__ == "__builtin__":
-    bootstrap()
 

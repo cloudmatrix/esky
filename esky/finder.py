@@ -19,8 +19,6 @@ import zipfile
 import shutil
 from urlparse import urljoin
 
-from distutils.util import get_platform
-
 from esky.bootstrap import parse_version
 from esky.errors import *
 from esky.util import extract_zipfile
@@ -30,10 +28,11 @@ class VersionFinder(object):
     """Base VersionFinder class.
 
     This class defines the interface expected of a VersionFinder object.
-    It will be given two properties at initialisation time:
+    It will be given three properties at initialisation time:
 
-        appname:  name of the application being managed
-        workdir:  directory in which updates can be downloaded, extracted, etc
+        appname:   name of the application being managed
+        platform:  platform for which the application was produced
+        workdir:   directory in which updates can be downloaded, extracted, etc
 
     The important methods expected from any VersionFinder are:
 
@@ -52,8 +51,9 @@ class VersionFinder(object):
 
     """
 
-    def __init__(self,appname=None,workdir=None):
+    def __init__(self,appname=None,platform=None,workdir=None):
         self.appname = appname
+        self.platform = platform
         self.workdir = workdir
 
     def cleanup(self):
@@ -116,7 +116,7 @@ class SimpleVersionFinder(VersionFinder):
 
     def find_versions(self):
         downloads = self.open_url(self.download_url).read()
-        link_re = "href=['\"](?P<href>(.*/)?%s-(?P<version>[a-zA-Z0-9\\.-]+).%s.zip)['\"]" % (self.appname,get_platform(),)
+        link_re = "href=['\"](?P<href>(.*/)?%s-(?P<version>[a-zA-Z0-9\\.-]+).%s.zip)['\"]" % (self.appname,self.platform,)
         found = []
         for match in re.finditer(link_re,downloads):
             self.version_urls[match.group("version")] = match.group("href")
@@ -146,14 +146,14 @@ class SimpleVersionFinder(VersionFinder):
             os.rename(outfilenm,self._download_name(version))
 
     def _download_name(self,version):
-        return os.path.join(self.workdir,"downloads","%s-%s.%s.zip" % (self.appname,version,get_platform(),))
+        return os.path.join(self.workdir,"downloads","%s-%s.%s.zip" % (self.appname,version,self.platform,))
 
     def has_version(self,version):
         return os.path.exists(self._download_name(version))
 
     def prepare_version(self,version):
         dlpath = self._download_name(version)
-        vdir = "%s-%s" % (self.appname,version,)
+        vdir = "%s-%s.%s" % (self.appname,version,self.platform)
         uppath = os.path.join(self.workdir,"unpack")
         #  Anything in the root of the zipfile is part of the boostrap
         #  env, so it gets placed in a special directory.

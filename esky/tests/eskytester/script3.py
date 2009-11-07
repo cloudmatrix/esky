@@ -4,7 +4,9 @@
 import os
 import sys
 import esky
+import esky.util
 
+platform = esky.util.get_platform()
 if sys.platform == "win32":
     dotexe = ".exe"
 else:
@@ -23,9 +25,9 @@ assert app.version == "0.3"
 assert app.find_update() is None
 
 app.cleanup()
-assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1"))
-assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2"))
-assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3"))
+assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
+assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+platform))
+assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
 
 open("tests-completed","w").close()
 print "TESTS COMPLETED"

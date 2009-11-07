@@ -30,7 +30,7 @@ like this:
 
     prog.exe                 - esky bootstrapping executable
     updates/                 - work area for fetching/unpacking updates
-    appname-X.Y/             - specific version of the application
+    appname-X.Y.platform/    - specific version of the application
         prog.exe             - executable(s) as produced by bbfreeze
         library.zip          - pure-python modules frozen by bbfreeze
         pythonXY.dll         - python DLL
@@ -44,12 +44,12 @@ distutils setup.py file.
 
 To upgrade to a new version "appname-X.Z", esky performs the following steps:
     * extract it into a temporary directory under "updates"
-    * move all bootstrapping files into "appname-X.Z/esky-bootstrap"
-    * atomically rename it into the main directory as "appname-X.Z"
-    * move the contents of "appname-X.Z/esky-bootstrap" into the main dir
-    * remove the "appname-X.Z/esky-bootstrap" directory
-    * remove files not in "appname-X.Z/esky-bootstrap.txt" from the main dir
-    * remove the "appname-X.Y" directory
+    * move all bootstrapping files into "appname-X.Z.platform/esky-bootstrap"
+    * atomically rename it into the main directory as "appname-X.Z.platform"
+    * move contents of "appname-X.Z.platform/esky-bootstrap" into the main dir
+    * remove the "appname-X.Z.platform/esky-bootstrap" directory
+    * remove files not in "appname-X.Z.platform/esky-bootstrap.txt"
+    * remove the "appname-X.Y.platform" directory
 
 Where such facilities are provided by the operating system, this process is
 performed within a filesystem transaction.  Neverthless, the esky bootstrapping
@@ -86,6 +86,7 @@ from esky.errors import *
 from esky.bootstrap import split_app_version, parse_version, get_best_version
 from esky.fstransact import FSTransaction
 from esky.finder import SimpleVersionFinder
+from esky.util import is_core_dependency
 
 
 class Esky(object):
@@ -118,10 +119,11 @@ class Esky(object):
         self._lock_count = 0
         workdir = os.path.join(appdir,"updates")
         if isinstance(version_finder,basestring):
-            self.version_finder = SimpleVersionFinder(appname=self.name,workdir=workdir,download_url=version_finder)
+            self.version_finder = SimpleVersionFinder(appname=self.name,platform=self.platform,workdir=workdir,download_url=version_finder)
         else:
             self.version_finder = version_finder
             self.version_finder.appname = self.name
+            self.version_finder.platform = self.platform
             self.version_finder.workdir = workdir
 
     def reinitialize(self):
@@ -134,7 +136,7 @@ class Esky(object):
         best_version = get_best_version(self.appdir)
         if best_version is None:
             raise EskyBrokenError("no frozen versions found")
-        self.name,self.version = split_app_version(best_version)
+        self.name,self.version,self.platform = split_app_version(best_version)
 
     def lock(self,num_retries=0):
         """Lock the application directory for exclusive write access.
@@ -256,7 +258,7 @@ class Esky(object):
         before proceeding.
         """
         #  Extract update then rename into position in main app directory
-        target = os.path.join(self.appdir,"%s-%s"%(self.name,version))
+        target = os.path.join(self.appdir,"%s-%s.%s"%(self.name,version,self.platform,))
         if not os.path.exists(target):
             if not self.version_finder.has_version(version):
                 self.version_finder.fetch_version(version)
@@ -274,11 +276,11 @@ class Esky(object):
                     trn.move(os.path.join(bootstrap,"library.zip"),
                              os.path.join(self.appdir,"library.zip"))
                 for nm in os.listdir(bootstrap):
-                    if nm.startswith("python"):
+                    if is_core_dependency(nm):
                         trn.move(os.path.join(bootstrap,nm),
                                  os.path.join(self.appdir,nm))
                 for nm in os.listdir(bootstrap):
-                    if not nm.startswith("python") and nm != "library.zip":
+                    if not is_core_dependency(nm) and nm != "library.zip":
                         trn.move(os.path.join(bootstrap,nm),
                                  os.path.join(self.appdir,nm))
                 #  Remove the bootstrap dir; the new version is now active
@@ -293,7 +295,7 @@ class Esky(object):
                 #  Remove/disable the old version.
                 #  On win32 we can't remove in-use files, so just clobber
                 #  library.zip and leave to rest to a cleanup() call.
-                oldv = "%s-%s" % (self.name,self.version,)
+                oldv = "%s-%s.%s" % (self.name,self.version,self.platform)
                 oldv = os.path.join(self.appdir,oldv)
                 if sys.platform == "win32":
                     trn.remove(os.path.join(oldv,"library.zip"))
