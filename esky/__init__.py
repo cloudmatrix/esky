@@ -211,19 +211,30 @@ class Esky(object):
     def cleanup(self):
         """Perform cleanup tasks in the app directory.
 
-        This includes removing older versions of the app and failed update
-        attempts.  Such maintenance is not done automatically since it can
-        take a non-negligible amount of time.
+        This includes removing older versions of the app and completing any
+        failed update attempts.  Such maintenance is not done automatically
+        since it can take a non-negligible amount of time.
         """
+        appdir = self.appdir
         self.lock()
         try:
-            version = get_best_version(self.appdir)
-            manifest = os.path.join(self.appdir,version,"esky-bootstrap.txt")
+            cur_version = get_best_version(appdir)
+            new_version = get_best_version(appdir,include_partial_installs=True)
+            #  If there's a partial install we must complete it, since it
+            #  could have left exes in the bootstrap env and we don't want
+            #  to accidentally delete their dependencies.
+            if cur_version != new_version:
+                (_,v,_) = split_app_version(new_version)
+                self.install_update(v)
+                cur_version = new_version
+            #  Now we can safely remove anything that's not part of the
+            #  current version's bootstrap env.
+            manifest = os.path.join(appdir,cur_version,"esky-bootstrap.txt")
             manifest = [ln.strip() for ln in open(manifest,"rt")]
-            for nm in os.listdir(self.appdir):
-                fullnm = os.path.join(self.appdir,nm)
+            for nm in os.listdir(appdir):
+                fullnm = os.path.join(appdir,nm)
                 if os.path.isdir(fullnm):
-                    if nm not in ("updates","locked",version):
+                    if nm not in ("updates","locked",cur_version):
                         shutil.rmtree(fullnm)
                 else:
                     if nm not in manifest:

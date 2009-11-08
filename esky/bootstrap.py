@@ -94,7 +94,7 @@ def bootstrap():
             raise SystemExit(res)
 
 
-def get_best_version(appdir):
+def get_best_version(appdir,include_partial_installs=False):
     """Get the best usable version from within the given appdir.
 
     In the common case there is only a single version directory, but failed
@@ -110,11 +110,13 @@ def get_best_version(appdir):
             ver = parse_version(ver)
             candidates.append((ver,nm))
     candidates = [c[1] for c in sorted(candidates,reverse=True)]
-    #  In the (hopefully) common case of no failed upgrade, we don't need
+    #  In the (hopefully) common case of no failed updates, we don't need
     #  to poke around in the filesystem so we just return asap.
     if not candidates:
         return None
     if len(candidates) == 1:
+        return candidates[0]
+    if include_partial_installs:
         return candidates[0]
     #  If there are several candidate versions, we need to find the best
     #  one whose 'esky-bootstrap' dir has been completely removed.
