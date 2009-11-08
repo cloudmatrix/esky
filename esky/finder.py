@@ -19,7 +19,7 @@ import zipfile
 import shutil
 from urlparse import urljoin
 
-from esky.bootstrap import parse_version
+from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
 from esky.util import extract_zipfile
 
@@ -92,21 +92,20 @@ class SimpleVersionFinder(VersionFinder):
         self.download_url = download_url
         super(SimpleVersionFinder,self).__init__(**kwds)
         self.version_urls = {}
+
+    def _ensure_work_dir(self,nm):
         try:
-            os.makedirs(os.path.join(self.workdir,"downloads"))
-        except OSError, e:
-            if e.errno not in (17,183):
-                raise
-        try:
-            os.makedirs(os.path.join(self.workdir,"unpack"))
+            os.makedirs(os.path.join(self.workdir,nm))
         except OSError, e:
             if e.errno not in (17,183):
                 raise
 
     def cleanup(self):
+        self._ensure_work_dir("downloads")
         dldir = os.path.join(self.workdir,"downloads")
         for nm in os.listdir(dldir):
             os.unlink(os.path.join(dldir,nm))
+        self._ensure_work_dir("unpack")
         updir = os.path.join(self.workdir,"unpack")
         for nm in os.listdir(updir):
             os.unlink(os.path.join(updir,nm))
@@ -116,13 +115,16 @@ class SimpleVersionFinder(VersionFinder):
 
     def find_versions(self):
         downloads = self.open_url(self.download_url).read()
-        link_re = "href=['\"](?P<href>(.*/)?%s-(?P<version>[a-zA-Z0-9\\.-]+).%s.zip)['\"]" % (self.appname,self.platform,)
+        version_re = "(?P<version>[a-zA-Z0-9\\.-]+)"
+        version_re = join_app_version(self.appname,version_re,self.platform)
+        link_re = "href=['\"](?P<href>(.*/)?%s.zip)['\"]" % (version_re,)
         found = []
         for match in re.finditer(link_re,downloads):
             self.version_urls[match.group("version")] = match.group("href")
         return self.version_urls.keys()
 
     def fetch_version(self,version):
+        self._ensure_work_dir("downloads")
         try:
             url = self.version_urls[version]
         except KeyError:
@@ -146,14 +148,16 @@ class SimpleVersionFinder(VersionFinder):
             os.rename(outfilenm,self._download_name(version))
 
     def _download_name(self,version):
-        return os.path.join(self.workdir,"downloads","%s-%s.%s.zip" % (self.appname,version,self.platform,))
+        version = join_app_version(self.appname,version,self.platform)
+        return os.path.join(self.workdir,"downloads","%s.zip" % (version,))
 
     def has_version(self,version):
         return os.path.exists(self._download_name(version))
 
     def prepare_version(self,version):
+        self._ensure_work_dir("unpack")
         dlpath = self._download_name(version)
-        vdir = "%s-%s.%s" % (self.appname,version,self.platform)
+        vdir = join_app_version(self.appname,version,self.platform)
         uppath = os.path.join(self.workdir,"unpack")
         #  Anything in the root of the zipfile is part of the boostrap
         #  env, so it gets placed in a special directory.

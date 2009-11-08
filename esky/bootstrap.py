@@ -126,7 +126,7 @@ def get_best_version(appdir):
 
 
 def split_app_version(s):
-    """Split a app version string to name, version and platform components.
+    """Split an app version string to name, version and platform components.
 
     For example, app-name-0.1.2.win32 => ("app-name","0.1.2","win32")
     """
@@ -142,6 +142,14 @@ def split_app_version(s):
     version = ".".join(bits[:-1])
     platform = bits[-1]
     return (appname,version,platform)
+
+
+def join_app_version(appname,version,platform):
+    """Join an app name, version and platform into a version directory name.
+
+    For example, ("app-name","0.1.2","win32") => appname-0.1.2.win32
+    """
+    return "%s-%s.%s" % (appname,version,platform,)
     
 
 def parse_version(s):

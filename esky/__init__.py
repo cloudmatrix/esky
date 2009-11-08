@@ -83,7 +83,8 @@ except ImportError:
             
 
 from esky.errors import *
-from esky.bootstrap import split_app_version, parse_version, get_best_version
+from esky.bootstrap import split_app_version, join_app_version
+from esky.bootstrap import parse_version, get_best_version
 from esky.fstransact import FSTransaction
 from esky.finder import SimpleVersionFinder
 from esky.util import is_core_dependency
@@ -119,12 +120,11 @@ class Esky(object):
         self._lock_count = 0
         workdir = os.path.join(appdir,"updates")
         if isinstance(version_finder,basestring):
-            self.version_finder = SimpleVersionFinder(appname=self.name,platform=self.platform,workdir=workdir,download_url=version_finder)
-        else:
-            self.version_finder = version_finder
-            self.version_finder.appname = self.name
-            self.version_finder.platform = self.platform
-            self.version_finder.workdir = workdir
+            version_finder = SimpleVersionFinder(download_url=version_finder)
+        version_finder.appname = self.name
+        version_finder.platform = self.platform
+        version_finder.workdir = workdir
+        self.version_finder = version_finder
 
     def reinitialize(self):
         """Reinitialize internal state by poking around in the app directory.
@@ -258,7 +258,8 @@ class Esky(object):
         before proceeding.
         """
         #  Extract update then rename into position in main app directory
-        target = os.path.join(self.appdir,"%s-%s.%s"%(self.name,version,self.platform,))
+        target = join_app_version(self.name,version,self.platform)
+        target = os.path.join(self.appdir,target)
         if not os.path.exists(target):
             if not self.version_finder.has_version(version):
                 self.version_finder.fetch_version(version)
@@ -295,7 +296,7 @@ class Esky(object):
                 #  Remove/disable the old version.
                 #  On win32 we can't remove in-use files, so just clobber
                 #  library.zip and leave to rest to a cleanup() call.
-                oldv = "%s-%s.%s" % (self.name,self.version,self.platform)
+                oldv = join_app_version(self.name,self.version,self.platform)
                 oldv = os.path.join(self.appdir,oldv)
                 if sys.platform == "win32":
                     trn.remove(os.path.join(oldv,"library.zip"))
