@@ -118,7 +118,6 @@ class SimpleVersionFinder(VersionFinder):
         version_re = "(?P<version>[a-zA-Z0-9\\.-]+)"
         version_re = join_app_version(self.appname,version_re,self.platform)
         link_re = "href=['\"](?P<href>(.*/)?%s.zip)['\"]" % (version_re,)
-        found = []
         for match in re.finditer(link_re,downloads):
             self.version_urls[match.group("version")] = match.group("href")
         return self.version_urls.keys()
