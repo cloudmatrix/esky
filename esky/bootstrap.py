@@ -63,10 +63,11 @@ def exists(path):
         return True
 
 
-def bootstrap():
+def bootstrap(appdir=None):
     """Bootstrap an esky frozen app into newest available version."""
-    #  bbfreeze always sets sys.path to [appdir/library.zip,appdir]
-    appdir = sys.path[1]
+    if appdir is None:
+        #  bbfreeze sets sys.path to [appdir/library.zip,appdir]
+        appdir = sys.path[1]
     best_version = get_best_version(appdir)
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
