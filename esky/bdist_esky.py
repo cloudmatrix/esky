@@ -13,6 +13,7 @@ SimpleVersionFinder.  It will be named "appname-version.platform.zip"
 
 """
 
+
 import os
 import sys
 import imp
@@ -73,12 +74,17 @@ class bdist_esky(Command):
                      "list of modules to specifically include"),
                     ('excludes=', None,
                      "list of modules to specifically exclude"),
+                    ('include-interpreter', None,
+                     "include bbfreeze python interpreter"),
                    ]
+
+    boolean_options = ["include-interpreter"]
 
     def initialize_options(self):
         self.dist_dir = None
         self.includes = []
         self.excludes = []
+        self.include_interpreter = False
         self.bootstrap_module = None
 
     def finalize_options(self):
@@ -87,74 +93,43 @@ class bdist_esky(Command):
     def run(self):
         fullname = self.distribution.get_fullname()
         platform = get_platform()
-        bsdir = os.path.join(self.dist_dir,"%s.%s"%(fullname,platform,))
-        fdir = os.path.join(bsdir,"%s.%s"%(fullname,platform,))
-        if os.path.exists(bsdir):
-            shutil.rmtree(bsdir)
-        os.makedirs(fdir)
-        self.freeze_scripts(fdir)
-        self.add_data_files(fdir)
-        self.add_package_data(fdir)
-        #  Create the bootstrap environment...
-        bslib_path = os.path.join(bsdir,"library.zip")
-        bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
-        #  ...containing the bootstrapping module
-        code_source = inspect.getsource(esky.bootstrap)
-        code = imp.get_magic() + struct.pack("<i",0)
-        code += marshal.dumps(compile(code_source,"bootstrap.py","exec"))
-        bslib.writestr(zipfile.ZipInfo("bootstrap.pyc",(2000,1,1,0,0,0)),code)
-        #  ...and the main module which uses it
-        if self.bootstrap_module is None:
-            code_source = "from bootstrap import bootstrap\nbootstrap()"
-        else:
-            bsmodule = __import__(self.bootstrap_module)
-            code_source = inspect.getsource(bsmodule)
-        code = imp.get_magic() + struct.pack("<i",0)
-        code += marshal.dumps(compile(code_source,"__main__.py","exec"))
-        bslib.writestr(zipfile.ZipInfo("__main__.pyc",(2000,1,1,0,0,0)),code)
-        bslib.close()
-        manifest = ["library.zip"]
-        if self.distribution.has_scripts():
-            for s in self.distribution.scripts:
-                nm = os.path.basename(s)
-                if nm.endswith(".py") or nm.endswith(".pyw"):
-                    nm = ".".join(nm.split(".")[:-1])
-                if sys.platform == "win32":
-                    nm += ".exe"
-                self.copy_file(os.path.join(fdir,nm),os.path.join(bsdir,nm))
-                manifest.append(nm)
-        for nm in os.listdir(fdir):
-            if is_core_dependency(nm):
-                self.copy_file(os.path.join(fdir,nm),os.path.join(bsdir,nm))
-                manifest.append(nm)
-        f_manifest = open(os.path.join(fdir,"esky-bootstrap.txt"),"wt")
-        for nm in manifest:
-            f_manifest.write(nm)
-            f_manifest.write("\n")
-        f_manifest.close()
+        self.bootstrap_dir = os.path.join(self.dist_dir,
+                                          "%s.%s"%(fullname,platform,))
+        self.freeze_dir = os.path.join(self.bootstrap_dir,
+                                       "%s.%s"%(fullname,platform,))
+        if os.path.exists(self.bootstrap_dir):
+            shutil.rmtree(self.bootstrap_dir)
+        os.makedirs(self.freeze_dir)
+        self.freeze_scripts()
+        self.add_data_files()
+        self.add_package_data()
+        self.add_bootstrap_env()
         #  Zip up the distribution
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
         zf = zipfile.ZipFile(zfname,"w")
-        for (dirpath,dirnames,filenames) in os.walk(bsdir):
+        for (dirpath,dirnames,filenames) in os.walk(self.bootstrap_dir):
             for fn in filenames:
                 fpath = os.path.join(dirpath,fn)
-                zpath = fpath[len(bsdir)+1:]
+                zpath = fpath[len(self.bootstrap_dir)+1:]
                 zf.write(fpath,zpath)
         zf.close()
-        shutil.rmtree(bsdir)
+        shutil.rmtree(self.bootstrap_dir)
 
-    def freeze_scripts(self,fdir):
+    def freeze_scripts(self):
         """Do a standard bbfreeze of the given scripts."""
+        fdir = self.freeze_dir
         f = bbfreeze.Freezer(fdir,includes=self.includes,excludes=self.excludes)
         f.linkmethod = "loader"
+        f.include_py = self.include_interpreter
         f.addModule("esky")
         if self.distribution.has_scripts():
             for s in self.distribution.scripts:
                 f.addScript(s,gui_only=s.endswith(".pyw"))
         f()
 
-    def add_data_files(self,fdir):
+    def add_data_files(self):
         """Add any data_files under the frozen directory."""
+        fdir = self.freeze_dir
         if self.distribution.data_files:
             for datafile in self.distribution.data_files:
                 #  Plain strings get placed in the root dist directory
@@ -170,8 +145,9 @@ class bdist_esky(Command):
                     df_src = convert_path(df_src)
                     self.copy_file(df_src,df_dest)
  
-    def add_package_data(self,fdir):
+    def add_package_data(self):
         """Add any package_data to the frozen library.zip"""
+        fdir = self.freeze_dir
         lib = zipfile.ZipFile(os.path.join(fdir,"library.zip"),"a")
         if self.distribution.package_data:
             for pkg,data in self.distribution.package_data.iteritems():
@@ -214,6 +190,60 @@ class bdist_esky(Command):
         else:
             return ""
 
+    def add_bootstrap_env(self):
+        """Create the bootstrap environment."""
+        #  Create bootstapping library.zip
+        self.copy_to_bootstrap_env("library.zip")
+        bslib_path = os.path.join(self.bootstrap_dir,"library.zip")
+        bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
+        #  ...add the esky bootstrap module
+        code_source = inspect.getsource(esky.bootstrap)
+        code = imp.get_magic() + struct.pack("<i",0)
+        code += marshal.dumps(compile(code_source,"bootstrap.py","exec"))
+        bslib.writestr(zipfile.ZipInfo("bootstrap.pyc",(2000,1,1,0,0,0)),code)
+        #  ...and the main module which will call into it
+        if self.bootstrap_module is None:
+            code_source = "from bootstrap import bootstrap\nbootstrap()"
+        else:
+            bsmodule = __import__(self.bootstrap_module)
+            code_source = inspect.getsource(bsmodule)
+        code = imp.get_magic() + struct.pack("<i",0)
+        code += marshal.dumps(compile(code_source,"__main__.py","exec"))
+        bslib.writestr(zipfile.ZipInfo("__main__.pyc",(2000,1,1,0,0,0)),code)
+        bslib.close()
+        #  Copy each script
+        if self.distribution.has_scripts():
+            for s in self.distribution.scripts:
+                nm = os.path.basename(s)
+                if nm.endswith(".py") or nm.endswith(".pyw"):
+                    nm = ".".join(nm.split(".")[:-1])
+                if sys.platform == "win32":
+                    nm += ".exe"
+                self.copy_to_bootstrap_env(nm)
+        #  Copy the bbfreeze interpreter if necessary
+        if self.include_interpreter:
+            if sys.platform == "win32":
+                self.copy_to_bootstrap_env("py.exe")
+            else:
+                self.copy_to_bootstrap_env("py")
+        #  Copy any core dependencies
+        for nm in os.listdir(self.freeze_dir):
+            if is_core_dependency(nm):
+                self.copy_to_bootstrap_env(nm)
+
+    def copy_to_bootstrap_env(self,nm):
+        """Copy the named file from freeze_dir to bootstrap_dir.
+
+        The filename is also added to the bootstrap manifest.
+        """
+        self.copy_file(os.path.join(self.freeze_dir,nm),
+                       os.path.join(self.bootstrap_dir,nm))
+        f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
+        f_manifest = open(f_manifest,"at")
+        f_manifest.seek(0,os.SEEK_END)
+        f_manifest.write(nm)
+        f_manifest.write("\n")
+        f_manifest.close()
 
 
 distutils.command.__all__.append("bdist_esky")

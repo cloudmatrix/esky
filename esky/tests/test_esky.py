@@ -39,7 +39,7 @@ def test_esky():
                         package_data={"eskytester":["pkgdata.txt"]},
                         script_args=["bdist_esky"])
         dist_setup(version="0.1",scripts=["eskytester/script1.py"],**metadata)
-        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],**metadata)
+        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options={"bdist_esky":{"include_interpreter":True}},**metadata)
         dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],**metadata)
         #  Serve the updates at http://localhost:8000/dist/
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
