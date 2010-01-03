@@ -1,6 +1,7 @@
 
 import sys
 import os
+import unittest
 from os.path import dirname
 import subprocess
 import shutil
@@ -18,7 +19,9 @@ from esky import bdist_esky
 from esky.util import extract_zipfile, get_platform
 
 
-def test_esky():
+class TestEsky(unittest.TestCase):
+
+  def test_esky(self):
     """Build and launch a simple self-testing esky application.
 
     The "eskytester" application can be found next to this file, and the
@@ -66,7 +69,7 @@ def test_esky():
         os.chdir(olddir)
 
  
-def test_esky_locking():
+  def test_esky_locking(self):
     """Test that locking an Esky works correctly."""
     platform = get_platform()
     appdir = tempfile.mkdtemp()
@@ -109,7 +112,7 @@ def test_esky_locking():
         shutil.rmtree(appdir)
 
  
-def test_esky_lock_breaking():
+  def test_esky_lock_breaking(self):
     """Test that breaking the lock on an Esky works correctly."""
     appdir = tempfile.mkdtemp()
     try: 
@@ -154,7 +157,7 @@ def test_esky_lock_breaking():
         shutil.rmtree(appdir)
 
 
-def test_README():
+  def test_README(self):
     """Ensure that the README is in sync with the docstring.
 
     This test should always pass; if the README is out of sync it just updates
