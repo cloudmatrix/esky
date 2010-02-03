@@ -18,6 +18,8 @@ import esky
 from esky import bdist_esky
 from esky.util import extract_zipfile, get_platform
 
+sys.path.append(os.path.dirname(__file__))
+
 
 class TestEsky(unittest.TestCase):
 
