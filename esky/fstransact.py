@@ -142,7 +142,7 @@ else:
             if files_differ(source,target):
                 self.pending.append(("_move",source,target))
             else:
-                self.pending.append(("_remove",target))
+                self.pending.append(("_remove",source))
 
         def _move(self,source,target):
             if sys.platform == "win32" and os.path.exists(target):

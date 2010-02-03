@@ -44,7 +44,7 @@ distutils setup.py file.
 
 To upgrade to a new version "appname-X.Z", esky performs the following steps:
     * extract it into a temporary directory under "updates"
-    * move all bootstrapping files into "appname-X.Z.platform/esky-bootstrap"
+    * move all bootstrapping files into "appname-X.Z.platm/esky-bootstrap"
     * atomically rename it into the main directory as "appname-X.Z.platform"
     * move contents of "appname-X.Z.platform/esky-bootstrap" into the main dir
     * remove the "appname-X.Z.platform/esky-bootstrap" directory

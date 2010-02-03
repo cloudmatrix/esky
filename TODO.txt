@@ -1,3 +1,4 @@
 
- * nothing for the moment...
+ * customisable bootstrap process
+ * hooks for code signing etc
 

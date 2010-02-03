@@ -14,8 +14,8 @@ of bootstrapping into apps made with older versions of esky, since a partial
 update could result in the boostrapper from a new version being forced
 to load an old version.
 
-The code from this module is included in the bootstrapping environment under
-the module name "bootstrap". 
+The code from this module is always included in the bootstrapping environment
+under the module name "bootstrap". 
 
 If I can be bothered doing all this in C, I plan to eventually replace this
 module with a custom program loader. For now, this lets us get up and running

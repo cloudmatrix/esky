@@ -58,7 +58,7 @@ class bdist_esky(Command):
         excludes:  a list of modules to explicitly exclude from the freeze
 
         bootstrap_module:  a custom module to use for esky bootstrapping;
-                           the default just calls esky.bootstrap.bootstap()
+                           the default just calls esky.bootstrap.bootstrap()
 
     
     """
@@ -75,7 +75,7 @@ class bdist_esky(Command):
                     ('excludes=', None,
                      "list of modules to specifically exclude"),
                     ('include-interpreter', None,
-                     "include bbfreeze python interpreter"),
+                     "include bbfreeze custom python interpreter"),
                    ]
 
     boolean_options = ["include-interpreter"]
@@ -123,8 +123,8 @@ class bdist_esky(Command):
         f.include_py = self.include_interpreter
         f.addModule("esky")
         if self.distribution.has_scripts():
-            for s in self.distribution.scripts:
-                f.addScript(s,gui_only=s.endswith(".pyw"))
+            for script in self.distribution.scripts:
+                f.addScript(script,gui_only=script.endswith(".pyw"))
         f()
 
     def add_data_files(self):
@@ -132,7 +132,7 @@ class bdist_esky(Command):
         fdir = self.freeze_dir
         if self.distribution.data_files:
             for datafile in self.distribution.data_files:
-                #  Plain strings get placed in the root dist directory
+                #  Plain strings get placed in the root dist directory.
                 if isinstance(datafile,basestring):
                     datafile = ("",[datafile])
                 (df_dest,df_sources) = datafile
@@ -163,7 +163,10 @@ class bdist_esky(Command):
         lib.close()
 
     def get_package_dir(self,pkg):
-        """Return directory where the given package is location."""
+        """Return directory where the given package is located.
+
+        This was largely swiped from distutils, with some cleanups.
+        """
         inpath = pkg.split(".")
         outpath = []
         if not self.distribution.package_dir:
@@ -191,7 +194,7 @@ class bdist_esky(Command):
             return ""
 
     def add_bootstrap_env(self):
-        """Create the bootstrap environment."""
+        """Create the bootstrap environment inside the frozen dir."""
         #  Create bootstapping library.zip
         self.copy_to_bootstrap_env("library.zip")
         bslib_path = os.path.join(self.bootstrap_dir,"library.zip")
