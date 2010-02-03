@@ -2,7 +2,7 @@
 #  All rights reserved; available under the terms of the BSD License.
 """
 
-  esky.fstransact:  best-effort support for transactional filesystem operations
+  esky.fstransact: best-effort support for transactional filesystem operations
 
 This module provides a uniform interface to various platform-specific 
 mechanisms for doing transactional filesystem operations.  On platforms where
@@ -13,6 +13,7 @@ Currently supported platforms are:
 
     * Windows Vista and later, using MoveFileTransacted and friends
     * err..that's it for the moment, actually
+
 
 """
 
@@ -141,22 +142,25 @@ else:
             if files_differ(source,target):
                 self.pending.append(("_move",source,target))
             else:
-                self.remove(source)
+                self.pending.append(("_remove",target))
 
         def _move(self,source,target):
             if sys.platform == "win32" and os.path.exists(target):
                 #  os.rename won't overwite an existing file on win32.
                 #  We also want to use this on files that are potentially open.
                 #  Renaming the target out of the way is the best we can do :-(
-                os.rename(target,target+".old")
+                target_old = target + ".old"
+                while os.path.exists(target_old):
+                    target_old = target_old + ".old"
+                os.rename(target,target_old)
                 try:
                     os.rename(source,target)
                 except:
-                    os.rename(target+".old",target)
+                    os.rename(target_old,target)
                     raise
                 else:
                     try:
-                        os.unlink(target+".old")
+                        os.unlink(target_old)
                     except EnvironmentError:
                         pass
             else:
@@ -168,15 +172,18 @@ else:
 
         def _copy(self,source,target):
             if sys.platform == "win32" and os.path.exists(target):
-                os.rename(target,target+".old")
+                target_old = target + ".old"
+                while os.path.exists(target_old):
+                    target_old = target_old + ".old"
+                os.rename(target,target_old)
                 try:
                     shutil.copy2(source,target)
                 except:
-                    os.rename(target+".old",target)
+                    os.rename(target_old,target)
                     raise
                 else:
                     try:
-                        os.unlink(target+".old")
+                        os.unlink(target_old)
                     except EnvironmentError:
                         pass
             else:
