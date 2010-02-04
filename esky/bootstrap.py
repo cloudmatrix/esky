@@ -66,8 +66,14 @@ def exists(path):
 def bootstrap(appdir=None):
     """Bootstrap an esky frozen app into newest available version."""
     if appdir is None:
-        #  bbfreeze sets sys.path to [appdir/library.zip,appdir]
-        appdir = sys.path[1]
+        #  Standard bbfreeze set sys.path to [appdir/library.zip,appdir],
+        #  while my patched bbfreeze adds sys.executable as first entry.
+        if len(sys.path) == 2:
+            appdir = sys.path[1]
+        elif len(sys.path) == 3:
+            appdir = sys.path[2]
+        else:
+            raise RuntimeError("unexpected entries on sys.path")
     best_version = get_best_version(appdir)
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
@@ -84,11 +90,18 @@ def bootstrap(appdir=None):
         if exists(pathjoin(appdir,best_version,pydll)):
             sys.executable = target_exe
             sys.argv[0] = target_exe
-            del sys.path[:]
+            if len(sys.path) == 3:
+                del sys.path[:]
+                sys.path.append(target_exe)
+            else:
+                del sys.path[:]
             sys.path.append(pathjoin(appdir,best_version,"library.zip"))
             sys.path.append(pathjoin(appdir,best_version))
             import zipimport
-            importer = zipimport.zipimporter(sys.path[0])
+            try:
+                importer = zipimport.zipimporter(sys.path[0])
+            except ImportError:
+                importer = zipimport.zipimporter(sys.path[1])
             exec importer.get_code("__main__") in {}
         else:
             res = spawnv(P_WAIT,target_exe,[target_exe] + sys.argv[1:])
