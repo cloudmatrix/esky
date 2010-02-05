@@ -61,8 +61,13 @@ def is_core_dependency(filenm):
     """Check whether than named file is a core python dependency.
 
     If it is, then it's required for any frozen program to run (even the 
-    bootstrapper).  Currently this includes only the python DLL.
+    bootstrapper).  Currently this includes only the python DLL and the
+    MSVCRT private assembly.
     """
-    return re.match("^(lib)?python\\d[\\d\\.]*\\.[a-z\\.]*$",filenm)
+    if re.match("^(lib)?python\\d[\\d\\.]*\\.[a-z\\.]*$",filenm):
+        return True
+    if re.match("^Microsoft\\.VC\\d\\d\\.CRT",filenm):
+        return True
+    return False
 
 

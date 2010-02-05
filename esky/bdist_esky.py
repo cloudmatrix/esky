@@ -15,6 +15,7 @@ SimpleVersionFinder.  It will be named "appname-version.platform.zip"
 
 
 import os
+import re
 import sys
 import imp
 import time
@@ -31,6 +32,9 @@ from distutils.core import Command
 from distutils.util import convert_path
 
 import bbfreeze
+if sys.platform == "win32":
+    import bbfreeze.winres
+    from xml.dom import minidom
 
 import esky.bootstrap
 from esky.util import get_platform, is_core_dependency
@@ -60,6 +64,10 @@ class bdist_esky(Command):
         bootstrap_module:  a custom module to use for esky bootstrapping;
                            the default just calls esky.bootstrap.bootstrap()
 
+        bundle_msvcrt:  whether to bundle the MSVCRT DLLs, manifest files etc
+                        as a private assembly.  The default is False; only
+                        those with a valid license to redistriute these files
+                        should enable it.
     
     """
 
@@ -70,6 +78,8 @@ class bdist_esky(Command):
                      "directory to put final built distributions in"),
                     ('bootstrap-module=', None,
                      "module to use for bootstrapping esky apps"),
+                    ('bundle-msvcrt=', None,
+                     "whether to bundle MSVCR as private assembly"),
                     ('includes=', None,
                      "list of modules to specifically include"),
                     ('excludes=', None,
@@ -78,13 +88,14 @@ class bdist_esky(Command):
                      "include bbfreeze custom python interpreter"),
                    ]
 
-    boolean_options = ["include-interpreter"]
+    boolean_options = ["include-interpreter","bundle-msvcrt"]
 
     def initialize_options(self):
         self.dist_dir = None
         self.includes = []
         self.excludes = []
         self.include_interpreter = False
+        self.bundle_msvcrt = False
         self.bootstrap_module = None
 
     def finalize_options(self):
@@ -103,6 +114,8 @@ class bdist_esky(Command):
         self.freeze_scripts()
         self.add_data_files()
         self.add_package_data()
+        if sys.platform == "win32" and self.bundle_msvcrt:
+            self.add_msvcrt_private_assembly()
         self.add_bootstrap_env()
         #  Zip up the distribution
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
@@ -193,6 +206,96 @@ class bdist_esky(Command):
         else:
             return ""
 
+    def add_msvcrt_private_assembly(self):
+        """Add the MSVCRT DLLs, manifest etc as a private SxS assembly.
+
+        This is required for newer Python versions if you want to run on
+        machines that don't have the newer MSCVR runtime installed *and*
+        you don't want to run "vcredist_x86.exe" during your installation
+        process.
+
+        Bundling is only perform on win32 paltforms, and only if you explicitly         enable it.  Before doing so, carefully check whether you have a license
+        to distribute these files.
+        """
+        msvcrt_info = self._get_msvcrt_info()
+        if msvcrt_info is not None:
+            msvcrt_name = msvcrt_info[0]
+            #  Find installed manifest file with matching info
+            for manifest_file in self._find_msvcrt_manifest_files(msvcrt_name):
+                print manifest_file;
+                try:
+                    with open(manifest_file,"rb") as mf:
+                        manifest_data = mf.read()
+                        for info in msvcrt_info:
+                            if info.encode() not in manifest_data:
+                                break
+                        else:
+                            break
+                except EnvironmentError:
+                    pass
+            else:
+                err = "manifest for %s not found" % (msvcrt_info,)
+                raise RuntimeError(err)
+            #  Copy the manifest and matching directory into the freeze dir.
+            #  The manifest file might be next to the dir, inside the dir, or
+            #  in a subdir named "Manifests".  Walk around till we find it.
+            msvcrt_dir = ".".join(manifest_file.split(".")[:-1])
+            if not os.path.isdir(msvcrt_dir):
+                msvcrt_basename = os.path.basename(msvcrt_dir)
+                msvcrt_parent = os.path.dirname(os.path.dirname(msvcrt_dir))
+                msvcrt_dir = os.path.join(msvcrt_parent,msvcrt_basename)
+                if not os.path.isdir(msvcrt_dir):
+                    msvcrt_dir = os.path.join(msvcrt_parent,msvcrt_name)
+                    if not os.path.isdir(msvcrt_dir):
+                        err = "manifest for %s not found" % (msvcrt_info,)
+                        raise RuntimeError(err)
+            priv_dir = os.path.join(self.freeze_dir,msvcrt_name)
+            self.mkpath(priv_dir)
+            manifest_name = msvcrt_name + ".manifest"
+            self.copy_file(manifest_file,os.path.join(priv_dir,manifest_name))
+            for fnm in os.listdir(msvcrt_dir):
+                self.copy_file(os.path.join(msvcrt_dir,fnm),
+                               os.path.join(priv_dir,fnm))
+
+    def _get_msvcrt_info(self):
+        """Get info about the MSVCRT in use by this python executable.
+
+        This parses the name, version and public key token out of the exe
+        manifest and returns them as a tuple.
+        """
+        try:
+            manifest_str = bbfreeze.winres.get_default_app_manifest()
+        except EnvironmentError:
+            return None
+        manifest = minidom.parseString(manifest_str)
+        assembly = manifest.getElementsByTagName("assemblyIdentity")[0]
+        name = assembly.attributes["name"].value
+        version = assembly.attributes["version"].value 
+        pubkey = assembly.attributes["publicKeyToken"].value 
+        return (name,version,pubkey)
+        
+    def _find_msvcrt_manifest_files(self,name):
+        """Search the system for candidate MSVCRT manifest files."""
+        #  Search for redist files in a Visual Studio install
+        progfiles = os.path.expandvars("%PROGRAMFILES%")
+        for dnm in os.listdir(progfiles):
+            if dnm.startswith("Microsoft Visual Studio"):
+                dpath = os.path.join(progfiles,dnm,"VC","redist")
+                for (subdir,_,filenames) in os.walk(dpath):
+                    for fnm in filenames:
+                        if name in fnm and fnm.endswith(".manifest"):
+                            yield os.path.join(subdir,fnm)
+        #  Search for manifests installed in the WinSxS directory
+        winsxs_m = os.path.expandvars("%WINDIR%\\WinSxS\\Manifests")
+        for fnm in os.listdir(winsxs_m):
+            if name in fnm and fnm.endswith(".manifest"):
+                yield os.path.join(winsxs_m,fnm)
+        winsxs = os.path.expandvars("%WINDIR%\\WinSxS")
+        for fnm in os.listdir(winsxs):
+            if name in fnm and fnm.endswith(".manifest"):
+                yield os.path.join(winsxs,fnm)
+        
+
     def add_bootstrap_env(self):
         """Create the bootstrap environment inside the frozen dir."""
         #  Create bootstapping library.zip
@@ -239,8 +342,12 @@ class bdist_esky(Command):
 
         The filename is also added to the bootstrap manifest.
         """
-        self.copy_file(os.path.join(self.freeze_dir,nm),
-                       os.path.join(self.bootstrap_dir,nm))
+        if os.path.isdir(os.path.join(self.freeze_dir,nm)):
+            self.copy_tree(os.path.join(self.freeze_dir,nm),
+                           os.path.join(self.bootstrap_dir,nm))
+        else:
+            self.copy_file(os.path.join(self.freeze_dir,nm),
+                           os.path.join(self.bootstrap_dir,nm))
         f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
         f_manifest = open(f_manifest,"at")
         f_manifest.seek(0,os.SEEK_END)
