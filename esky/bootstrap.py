@@ -102,11 +102,11 @@ def get_best_version(appdir,include_partial_installs=False):
     finds the highest-numbered version that is completely installed.
     """
     #  Find all potential version directories, sorted by version number.
-    #  To be a version directory, it must contain a "library.zip".
+    #  To be a version directory, it must contain an "esky-bootstrap.txt" file.
     candidates = []
     for nm in listdir(appdir):
         (_,ver,_) = split_app_version(nm)
-        if ver and exists(pathjoin(appdir,nm,"library.zip")):
+        if ver and exists(pathjoin(appdir,nm,"esky-bootstrap.txt")):
             ver = parse_version(ver)
             candidates.append((ver,nm))
     candidates = [c[1] for c in sorted(candidates,reverse=True)]

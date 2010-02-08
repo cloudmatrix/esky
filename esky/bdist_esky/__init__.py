@@ -148,6 +148,7 @@ class bdist_esky(Command):
         #  Hand things off to the selected freezer module
         self.freezer_module.freeze(self)
         #  Zip up the distribution
+        print "zipping up the esky"
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
         zf = zipfile.ZipFile(zfname,"w")
         for (dirpath,dirnames,filenames) in os.walk(self.bootstrap_dir):

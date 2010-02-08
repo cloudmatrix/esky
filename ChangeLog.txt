@@ -3,7 +3,7 @@
 v0.3.0:
 
     * added ability to bundle MSVCRT as a private assembly (this is off
-      by default, since you must have a valid license to redistribute it)
+      by default, since you must have a valid license to redistribute it).
     * refactored to support multiple freezing backends.
-        * added support for freezing with py2exe
+        * added support for freezing with py2exe.
 

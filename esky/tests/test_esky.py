@@ -112,7 +112,7 @@ class TestEsky(unittest.TestCase):
     try: 
         vdir = os.path.join(appdir,"testapp-0.1.%s" % (platform,))
         os.mkdir(vdir)
-        open(os.path.join(vdir,"library.zip"),"wb").close()
+        open(os.path.join(vdir,"esky-bootstrap.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         assert e1.name == "testapp"
         assert e1.version == "0.1"
@@ -153,7 +153,7 @@ class TestEsky(unittest.TestCase):
     appdir = tempfile.mkdtemp()
     try: 
         os.mkdir(os.path.join(appdir,"testapp-0.1"))
-        open(os.path.join(appdir,"testapp-0.1","library.zip"),"wb").close()
+        open(os.path.join(appdir,"testapp-0.1","esky-bootstrap.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         e2 = esky.Esky(appdir,"http://example.com/downloads/")
         trigger1 = threading.Event(); trigger2 = threading.Event()
