@@ -2,10 +2,14 @@
 
   esky:  keep frozen apps fresh
 
-Esky is an auto-update framework for frozen Python applications, built on top 
-of bbfreeze.  It provides a simple API through which apps can find, fetch
-and install updates, and a bootstrapping mechanism that keeps the app safe
-in the face of failed or partial updates.
+Esky is an auto-update framework for frozen Python applications.  It provides
+a simple API through which apps can find, fetch and install updates, and a
+bootstrapping mechanism that keeps the app safe in the face of failed or
+partial updates.
+
+Esky is currently compatible with apps frozen using bbfreeze or py2exe. Adding
+support for other freezer programs should be straightforward; patches will be
+gratefully accepted.
 
 The main interface is the 'Esky' class, which represents a frozen app.  An Esky
 must be given the path to the top-level directory of the frozen app, and a
@@ -29,13 +33,13 @@ like this:
     prog.exe                 - esky bootstrapping executable
     updates/                 - work area for fetching/unpacking updates
     appname-X.Y.platform/    - specific version of the application
-        prog.exe             - executable(s) as produced by bbfreeze
-        library.zip          - pure-python modules frozen by bbfreeze
+        prog.exe             - executable(s) as produced by freezer module
+        library.zip          - pure-python frozen modules
         pythonXY.dll         - python DLL
         esky-bootstrap.txt   - list of files expected in the bootstrapping env
         ...other deps...
 
-The "appname-X.Y" directory is simply a bbfrozen app directory with some extra
+The "appname-X.Y" directory is simply a frozen app directory with some extra
 bootstrapping information produced by esky.  To freeze your app in such a
 format, there is a "bdist_esky" command that can be used with a standard
 distutils setup.py file.

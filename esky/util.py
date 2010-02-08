@@ -13,6 +13,9 @@ import zipfile
 
 from distutils.util import get_platform as _distutils_get_platform
 
+from esky.bootstrap import get_best_version, split_app_version, \
+                           join_app_version, parse_version
+
 
 def extract_zipfile(source,target,name_filter=None):
     """Extract the contents of a zipfile into a target directory.

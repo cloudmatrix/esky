@@ -17,13 +17,7 @@ SimpleVersionFinder.  It will be named "appname-version.platform.zip"
 import os
 import re
 import sys
-import imp
-import time
-import zipfile
-import marshal
-import struct
 import shutil
-import inspect
 import zipfile
 from glob import glob
 
@@ -31,13 +25,24 @@ import distutils.command
 from distutils.core import Command
 from distutils.util import convert_path
 
-import bbfreeze
+from esky.util import get_platform, is_core_dependency
 if sys.platform == "win32":
-    import bbfreeze.winres
+    from esky import winres
     from xml.dom import minidom
 
-import esky.bootstrap
-from esky.util import get_platform, is_core_dependency
+
+_FREEZERS = {}
+try:
+    from esky.bdist_esky import f_bbfreeze
+    _FREEZERS["bbfreeze"] = f_bbfreeze
+except ImportError:
+    _FREEZERS["bbfreeze"] = None
+try:
+    from esky.bdist_esky import f_py2exe
+    _FREEZERS["py2exe"] = f_py2exe
+except ImportError:
+    _FREEZERS["py2exe"] = None
+
 
 
 class bdist_esky(Command):
@@ -61,8 +66,14 @@ class bdist_esky(Command):
 
         excludes:  a list of modules to explicitly exclude from the freeze
 
+        freezer_module:  name of freezer module to use; currently only bbfreeze
+                         and py2exe are supported.
+
+        freezer_options: dict of options to pass through to the underlying
+                         freezer module.
+
         bootstrap_module:  a custom module to use for esky bootstrapping;
-                           the default just calls esky.bootstrap.bootstrap()
+                           the default calls esky.bootstrap.common.bootstrap()
 
         bundle_msvcrt:  whether to bundle the MSVCRT DLLs, manifest files etc
                         as a private assembly.  The default is False; only
@@ -76,32 +87,49 @@ class bdist_esky(Command):
     user_options = [
                     ('dist-dir=', 'd',
                      "directory to put final built distributions in"),
+                    ('freezer-module=', None,
+                     "module to use for freezing the application"),
+                    ('freezer-options=', None,
+                     "options to pass to the underlying freezer module"),
                     ('bootstrap-module=', None,
-                     "module to use for bootstrapping esky apps"),
+                     "module to use for bootstrapping the application"),
                     ('bundle-msvcrt=', None,
                      "whether to bundle MSVCR as private assembly"),
                     ('includes=', None,
                      "list of modules to specifically include"),
                     ('excludes=', None,
                      "list of modules to specifically exclude"),
-                    ('include-interpreter', None,
-                     "include bbfreeze custom python interpreter"),
                    ]
 
-    boolean_options = ["include-interpreter","bundle-msvcrt"]
+    boolean_options = ["bundle-msvcrt"]
 
     def initialize_options(self):
         self.dist_dir = None
         self.includes = []
         self.excludes = []
-        self.include_interpreter = False
+        self.freezer_module = None
+        self.freezer_options = {}
         self.bundle_msvcrt = False
         self.bootstrap_module = None
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
+        if self.freezer_module is None:
+            try:
+                freezer = _FREEZERS.itervalues().next()
+            except StopIteration:
+                err = "no supported freezer modules found"
+                err += " (try installing bbfreeze)"
+                raise RuntimeError(err)
+        else:
+            freezer = _FREEZERS.get(self.freezer_module,None)
+            if freezer is None:
+                err = "freezer module not found: '%s'" % (self.freezer_module,)
+                raise RuntimeError(err)
+        self.freezer_module = freezer
 
     def run(self):
+        #  Create the dirs into which to freeze the app
         fullname = self.distribution.get_fullname()
         platform = get_platform()
         self.bootstrap_dir = os.path.join(self.dist_dir,
@@ -111,12 +139,8 @@ class bdist_esky(Command):
         if os.path.exists(self.bootstrap_dir):
             shutil.rmtree(self.bootstrap_dir)
         os.makedirs(self.freeze_dir)
-        self.freeze_scripts()
-        self.add_data_files()
-        self.add_package_data()
-        if sys.platform == "win32" and self.bundle_msvcrt:
-            self.add_msvcrt_private_assembly()
-        self.add_bootstrap_env()
+        #  Hand things off to the selected freezer module
+        self.freezer_module.freeze(self)
         #  Zip up the distribution
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
         zf = zipfile.ZipFile(zfname,"w")
@@ -128,40 +152,45 @@ class bdist_esky(Command):
         zf.close()
         shutil.rmtree(self.bootstrap_dir)
 
-    def freeze_scripts(self):
-        """Do a standard bbfreeze of the given scripts."""
-        fdir = self.freeze_dir
-        f = bbfreeze.Freezer(fdir,includes=self.includes,excludes=self.excludes)
-        f.linkmethod = "loader"
-        f.include_py = self.include_interpreter
-        f.addModule("esky")
+    def get_scripts(self):
+        """Yield paths of all scripts to be included in the freeze."""
         if self.distribution.has_scripts():
-            for script in self.distribution.scripts:
-                f.addScript(script,gui_only=script.endswith(".pyw"))
-        f()
+            for s in self.distribution.scripts:
+                yield s
 
-    def add_data_files(self):
-        """Add any data_files under the frozen directory."""
+    def get_data_files(self):
+        """Yield (source,destination) tuples for data files.
+
+        This method generates the names of all data file to be included in
+        the frozen app.  They should be placed directly into the freeze
+        directory as raw files.
+        """
         fdir = self.freeze_dir
+        if sys.platform == "win32" and self.bundle_msvcrt:
+            for (src,dst) in self.get_msvcrt_private_assembly_files():
+                yield (src,dst)
         if self.distribution.data_files:
             for datafile in self.distribution.data_files:
                 #  Plain strings get placed in the root dist directory.
                 if isinstance(datafile,basestring):
                     datafile = ("",[datafile])
-                (df_dest,df_sources) = datafile
-                if os.path.isabs(df_dest):
-                    raise ValueError("cant freeze absolute data_file paths (%s)" % (df_dest,))
-                df_dest = os.path.join(fdir,convert_path(df_dest))
-                if not os.path.isdir(df_dest):
-                    self.mkpath(df_dest)
-                for df_src in df_sources:
-                    df_src = convert_path(df_src)
-                    self.copy_file(df_src,df_dest)
+                (dst,sources) = datafile
+                if os.path.isabs(dst):
+                    err = "cant freeze absolute data_file paths (%s)"
+                    err = err % (dst,)
+                    raise ValueError(err)
+                dst = convert_path(dst)
+                for src in sources:
+                    src = convert_path(src)
+                    yield (src,os.path.join(dst,os.path.basename(src)))
  
-    def add_package_data(self):
-        """Add any package_data to the frozen library.zip"""
-        fdir = self.freeze_dir
-        lib = zipfile.ZipFile(os.path.join(fdir,"library.zip"),"a")
+    def get_package_data(self):
+        """Yield (source,destination) tuples for package data files.
+
+        This method generates the names of all package data files to be
+        included in the frozen app.  They should be placed in the library.zip
+        or equivalent, alongside the python files for that package.
+        """
         if self.distribution.package_data:
             for pkg,data in self.distribution.package_data.iteritems():
                 pkg_dir = self.get_package_dir(pkg)
@@ -172,8 +201,7 @@ class bdist_esky(Command):
                     dfiles = glob(os.path.join(pkg_dir,convert_path(dpattern)))
                     for nm in dfiles:
                         arcnm = pkg_path + nm[len(pkg_dir):]
-                        lib.write(nm,arcnm)
-        lib.close()
+                        yield (nm,arcnm)
 
     def get_package_dir(self,pkg):
         """Return directory where the given package is located.
@@ -206,13 +234,14 @@ class bdist_esky(Command):
         else:
             return ""
 
-    def add_msvcrt_private_assembly(self):
-        """Add the MSVCRT DLLs, manifest etc as a private SxS assembly.
+    def get_msvcrt_private_assembly_files(self):
+        """Get (source,destination) tuples for the MSVCRT DLLs, manifest etc.
 
-        This is required for newer Python versions if you want to run on
-        machines that don't have the newer MSCVR runtime installed *and*
-        you don't want to run "vcredist_x86.exe" during your installation
-        process.
+        This method generates data_files tuples for the MSVCRT DLLs, manifest
+        and associated paraphernalia.  Including these files is required for
+        newer Python versions if you want to run on machines that don't have
+        the latest C runtime installed *and* you don't want to run the special
+        "vcredist_x86.exe" program during your installation process.
 
         Bundling is only perform on win32 paltforms, and only if you explicitly         enable it.  Before doing so, carefully check whether you have a license
         to distribute these files.
@@ -249,13 +278,11 @@ class bdist_esky(Command):
                     if not os.path.isdir(msvcrt_dir):
                         err = "manifest for %s not found" % (msvcrt_info,)
                         raise RuntimeError(err)
-            priv_dir = os.path.join(self.freeze_dir,msvcrt_name)
-            self.mkpath(priv_dir)
             manifest_name = msvcrt_name + ".manifest"
-            self.copy_file(manifest_file,os.path.join(priv_dir,manifest_name))
+            yield (manifest_file,os.path.join(msvcrt_name,manifest_name))
             for fnm in os.listdir(msvcrt_dir):
-                self.copy_file(os.path.join(msvcrt_dir,fnm),
-                               os.path.join(priv_dir,fnm))
+                yield (os.path.join(msvcrt_dir,fnm),
+                       os.path.join(msvcrt_name,fnm))
 
     def _get_msvcrt_info(self):
         """Get info about the MSVCRT in use by this python executable.
@@ -264,7 +291,7 @@ class bdist_esky(Command):
         manifest and returns them as a tuple.
         """
         try:
-            manifest_str = bbfreeze.winres.get_default_app_manifest()
+            manifest_str = winres.get_app_manifest()
         except EnvironmentError:
             return None
         manifest = minidom.parseString(manifest_str)
@@ -294,66 +321,27 @@ class bdist_esky(Command):
         for fnm in os.listdir(winsxs):
             if name in fnm and fnm.endswith(".manifest"):
                 yield os.path.join(winsxs,fnm)
-        
 
-    def add_bootstrap_env(self):
-        """Create the bootstrap environment inside the frozen dir."""
-        #  Create bootstapping library.zip
-        self.copy_to_bootstrap_env("library.zip")
-        bslib_path = os.path.join(self.bootstrap_dir,"library.zip")
-        bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
-        #  ...add the esky bootstrap module
-        code_source = inspect.getsource(esky.bootstrap)
-        code = imp.get_magic() + struct.pack("<i",0)
-        code += marshal.dumps(compile(code_source,"bootstrap.py","exec"))
-        bslib.writestr(zipfile.ZipInfo("bootstrap.pyc",(2000,1,1,0,0,0)),code)
-        #  ...and the main module which will call into it
-        if self.bootstrap_module is None:
-            code_source = "from bootstrap import bootstrap\nbootstrap()"
-        else:
-            bsmodule = __import__(self.bootstrap_module)
-            code_source = inspect.getsource(bsmodule)
-        code = imp.get_magic() + struct.pack("<i",0)
-        code += marshal.dumps(compile(code_source,"__main__.py","exec"))
-        bslib.writestr(zipfile.ZipInfo("__main__.pyc",(2000,1,1,0,0,0)),code)
-        bslib.close()
-        #  Copy each script
-        if self.distribution.has_scripts():
-            for s in self.distribution.scripts:
-                nm = os.path.basename(s)
-                if nm.endswith(".py") or nm.endswith(".pyw"):
-                    nm = ".".join(nm.split(".")[:-1])
-                if sys.platform == "win32":
-                    nm += ".exe"
-                self.copy_to_bootstrap_env(nm)
-        #  Copy the bbfreeze interpreter if necessary
-        if self.include_interpreter:
-            if sys.platform == "win32":
-                self.copy_to_bootstrap_env("py.exe")
-            else:
-                self.copy_to_bootstrap_env("py")
-        #  Copy any core dependencies
-        for nm in os.listdir(self.freeze_dir):
-            if is_core_dependency(nm):
-                self.copy_to_bootstrap_env(nm)
-
-    def copy_to_bootstrap_env(self,nm):
-        """Copy the named file from freeze_dir to bootstrap_dir.
+    def copy_to_bootstrap_env(self,src,dst=None):
+        """Copy the named file into the bootstrap environment.
 
         The filename is also added to the bootstrap manifest.
         """
-        if os.path.isdir(os.path.join(self.freeze_dir,nm)):
-            self.copy_tree(os.path.join(self.freeze_dir,nm),
-                           os.path.join(self.bootstrap_dir,nm))
+        if dst is None:
+            dst = os.path.basename(src)
+        srcpath = os.path.join(self.freeze_dir,src)
+        dstpath = os.path.join(self.bootstrap_dir,dst)
+        if os.path.isdir(srcpath):
+            self.copy_tree(srcpath,dstpath)
         else:
-            self.copy_file(os.path.join(self.freeze_dir,nm),
-                           os.path.join(self.bootstrap_dir,nm))
+            self.copy_file(srcpath,dstpath)
         f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
         f_manifest = open(f_manifest,"at")
         f_manifest.seek(0,os.SEEK_END)
-        f_manifest.write(nm)
+        f_manifest.write(dst)
         f_manifest.write("\n")
         f_manifest.close()
+        return dstpath
 
 
 distutils.command.__all__.append("bdist_esky")

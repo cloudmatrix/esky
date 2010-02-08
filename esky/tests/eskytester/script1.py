@@ -22,7 +22,6 @@ app = esky.Esky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.version == "0.1"
 assert app.find_update() == "0.3"
-assert not os.path.isfile(os.path.join(app.appdir,"py"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)

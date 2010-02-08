@@ -28,7 +28,6 @@ assert app.version == "0.2"
 assert app.find_update() == "0.3"
 assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
-assert os.path.isfile(os.path.join(app.appdir,"py"+dotexe))
 
 v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:

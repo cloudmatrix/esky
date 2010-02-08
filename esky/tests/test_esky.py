@@ -23,8 +23,12 @@ sys.path.append(os.path.dirname(__file__))
 
 class TestEsky(unittest.TestCase):
 
-  def test_esky(self):
-    """Build and launch a simple self-testing esky application.
+  def test_esky_bbfreeze(self):
+    """Build and launch a self-testing esky application using bbfreeze."""
+    self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
+
+  def _run_eskytester(self,options):
+    """Build and run the eskytester app using the given distutils options.
 
     The "eskytester" application can be found next to this file, and the
     sequence of tests performed range across "script1.py" to "script3.py".
@@ -43,9 +47,9 @@ class TestEsky(unittest.TestCase):
                         data_files=[("data",["eskytester/datafile.txt"])],
                         package_data={"eskytester":["pkgdata.txt"]},
                         script_args=["bdist_esky"])
-        dist_setup(version="0.1",scripts=["eskytester/script1.py"],**metadata)
-        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options={"bdist_esky":{"include_interpreter":True}},**metadata)
-        dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],**metadata)
+        dist_setup(version="0.1",scripts=["eskytester/script1.py"],options=options,**metadata)
+        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options=options,**metadata)
+        dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],options=options,**metadata)
         #  Serve the updates at http://localhost:8000/dist/
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
         threading.Thread(target=server.serve_forever).start()

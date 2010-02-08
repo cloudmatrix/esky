@@ -5,8 +5,9 @@
   esky.bootstrap:  minimal bootstrapping code for esky
 
 This module provides the minimal code necessary to bootstrap a frozen
-application packaged using esky.  It checks the runtime directory to find
-the most appropriate version of the app and then execvs to the frozen exe.
+application packaged using esky.  It checks the base runtime directory to
+find the most appropriate version of the app and then execvs to the frozen
+executable.
 
 This module must use no modules other than builtins, since the stdlib is
 not available in the bootstrapping environment.  It must also be capable
@@ -14,12 +15,15 @@ of bootstrapping into apps made with older versions of esky, since a partial
 update could result in the boostrapper from a new version being forced
 to load an old version.
 
-The code from this module is always included in the bootstrapping environment
-under the module name "bootstrap". 
+The code from this module is always executed in the bootstrapping environment
+before any custom bootstrapping code.  It provides the following functionality
+for use during the bootstrap process:
 
-If I can be bothered doing all this in C, I plan to eventually replace this
-module with a custom program loader. For now, this lets us get up and running
-with minimal effort.
+  Chainloading:         execv, chainload
+  Filesystem querying:  listdir, exists, basename, dirname, pathjoin
+  Version handling:     split_app_version, join_app_version, parse_version,
+                        get_best_version
+       
 
 """
 
@@ -34,6 +38,9 @@ if "posix" in sys.builtin_module_names:
 elif "nt" in  sys.builtin_module_names:
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
     SEP = "\\"
+    def execv(filename,args):
+        res = spawnv(P_WAIT,filename,args)
+        raise SystemExit(res)
 else:
     raise RuntimeError("unsupported platform: " + sys.platform)
 
@@ -63,49 +70,28 @@ def exists(path):
         return True
 
 
-def bootstrap(appdir=None):
-    """Bootstrap an esky frozen app into newest available version."""
-    if appdir is None:
-        #  Standard bbfreeze set sys.path to [appdir/library.zip,appdir],
-        #  while my patched bbfreeze adds sys.executable as first entry.
-        if len(sys.path) == 2:
-            appdir = sys.path[1]
-        elif len(sys.path) == 3:
-            appdir = sys.path[2]
-        else:
-            raise RuntimeError("unexpected entries on sys.path")
+def bootstrap():
+    """Bootstrap an esky frozen app into the newest available version.
+
+    This function searches the application directory to find the highest-
+    numbered version of the application that is fully installed, then
+    chain-loads that version of the application.
+    """
+    appdir = dirname(sys.executable)
     best_version = get_best_version(appdir)
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
-    target_exe = pathjoin(appdir,best_version,basename(sys.executable))
-    if sys.platform != "win32":
-        #  Non-Windows platforms have a functioning, low-overhead execv,
-        #  so we just replace ourself with the target executable.
-        execv(target_exe,[target_exe] + sys.argv[1:])
-    else:
-        #  On Windows, execv is flaky and expensive.  If we're the same python
-        #  version as the target exe, munge sys.path to bootstrap it directly.
-        #  If not, we'll have to spawn the target exe and wait for it to return.
-        pydll = "python%s%s.dll" % sys.version_info[:2]
-        if exists(pathjoin(appdir,best_version,pydll)):
-            sys.executable = target_exe
-            sys.argv[0] = target_exe
-            if len(sys.path) == 3:
-                del sys.path[:]
-                sys.path.append(target_exe)
-            else:
-                del sys.path[:]
-            sys.path.append(pathjoin(appdir,best_version,"library.zip"))
-            sys.path.append(pathjoin(appdir,best_version))
-            import zipimport
-            try:
-                importer = zipimport.zipimporter(sys.path[0])
-            except ImportError:
-                importer = zipimport.zipimporter(sys.path[1])
-            exec importer.get_code("__main__") in {}
-        else:
-            res = spawnv(P_WAIT,target_exe,[target_exe] + sys.argv[1:])
-            raise SystemExit(res)
+    return chainload(pathjoin(appdir,best_version))
+
+
+def chainload(target_dir):
+    """Load and execute the selected version of an application.
+
+    This function replaces the currently-running executable with the equivalent
+    executable from the given target directory.
+    """
+    target_exe = pathjoin(target_dir,basename(sys.executable))
+    execv(target_exe,[target_exe] + sys.argv[1:])
 
 
 def get_best_version(appdir,include_partial_installs=False):

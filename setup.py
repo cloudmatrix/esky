@@ -4,7 +4,6 @@ setup_kwds = {}
 try:
     from setuptools import setup
     setup_kwds["test_suite"] = "esky.tests.test_esky"
-    setup_kwds["install_required"] = ["bbfreeze"]
     if sys.version_info > (3,):
         setup_kwds["use_2to3"] = True
 except ImportError:

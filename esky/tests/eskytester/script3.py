@@ -29,7 +29,6 @@ app.cleanup()
 assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
 assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+platform))
 assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
-assert not os.path.isfile(os.path.join(app.appdir,"py"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script3"+dotexe))
 
