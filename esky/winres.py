@@ -9,7 +9,7 @@ under Windows.
 """
 
 import sys
-from ctypes import *
+from ctypes import WinError, windll, c_char_p
 
 if sys.platform != "win32":
     raise ImportError("winres is only avilable on Windows platforms")
