@@ -37,10 +37,14 @@ if sys.platform == "win32":
     for nm in os.listdir(os.path.dirname(sys.executable)):
         if nm.startswith("Microsoft.") and nm.endswith(".CRT"):
             assert False, "MSVCRT bundled in version dir when it shouldn't be"
-if sys.platform == "win32":
     for nm in os.listdir(app.appdir):
         if nm.startswith("Microsoft.") and nm.endswith(".CRT"):
             assert False, "MSVCRT bundled in appdir when it shouldn't be"
+
+#  On windows, test that we were chainloaded without an execv
+if sys.platform == "win32":
+    assert hasattr(sys,"bootstrap_executable")
+
 
 open("tests-completed","w").close()
 print "TESTS COMPLETED"

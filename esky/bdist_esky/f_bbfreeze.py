@@ -78,7 +78,9 @@ def freeze(dist):
     eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
     eskybscode = imp.get_magic() + struct.pack("<i",0)
     eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
-    #  Store bootstrap code as __main__ in the bootstrap library.zip
+    #  Store bootstrap code as __main__ in the bootstrap library.zip.
+    #  The frozen library.zip might have the loader prepended to it, but
+    #  that gets overwritten here.
     bslib_path = dist.copy_to_bootstrap_env("library.zip")
     bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
     cdate = (2000,1,1,0,0,0)
@@ -86,14 +88,17 @@ def freeze(dist):
     bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
     bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
     bslib.close()
-    #  Copy the loader program for each script
+    #  Copy the loader program for each script.
+    #  We explicitly strip the loader binaries, in case they were made
+    #  by linking to the library.zip.
     for script in dist.get_scripts():
         nm = os.path.basename(script)
         if nm.endswith(".py") or nm.endswith(".pyw"):
             nm = ".".join(nm.split(".")[:-1])
         if sys.platform == "win32":
             nm += ".exe"
-        dist.copy_to_bootstrap_env(nm)
+        exepath = dist.copy_to_bootstrap_env(nm)
+        f.stripBinary(exepath)
     #  Copy the bbfreeze interpreter if necessary
     if f.include_py:
         if sys.platform == "win32":
@@ -110,25 +115,26 @@ def freeze(dist):
 #  python version as the target exe, we can munge sys.path to bootstrap it
 #  into the existing process.
 _CUSTOM_WIN32_CHAINLOADER = """
+_orig_chainload = chainload
 def chainload(target_dir):
-  target_exe = pathjoin(target_dir,basename(sys.executable))
   mydir = dirname(sys.executable)
   pydll = "python%s%s.dll" % sys.version_info[:2]
-  if exists(pathjoin(mydir,pydll)) and exists(pathjoin(target_dir,pydll)):
-      sys.executable = target_exe
-      sys.argv[0] = target_exe
+  if not exists(pathjoin(target_dir,pydll)):
+      _orig_chainload(target_dir)
+  else:
+      sys.bootstrap_executable = sys.executable
+      sys.executable = pathjoin(target_dir,basename(sys.executable))
+      sys.argv[0] = sys.executable
       for i in xrange(len(sys.path)):
           sys.path[i] = sys.path[i].replace(mydir,target_dir)
       import zipimport
       try:
           importer = zipimport.zipimporter(sys.path[0])
-          code = importer.get_code("__main__") in {}
+          code = importer.get_code("__main__")
       except ImportError:
-          execv(target_exe,[target_exe] + sys.argv[1:])
+          _orig_chainload(target_dir)
       else:
           exec code in {}
-  else:
-      execv(target_exe,[target_exe] + sys.argv[1:])
 """
 
 

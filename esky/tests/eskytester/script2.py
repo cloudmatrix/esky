@@ -40,7 +40,6 @@ if sys.platform == "win32":
             break
     else:
         assert False, "MSVCRT not bundled in version dir"
-if sys.platform == "win32":
     for nm in os.listdir(app.appdir):
         if nm.startswith("Microsoft.") and nm.endswith(".CRT"):
             msvcrt_dir = os.path.join(app.appdir,nm)
@@ -61,7 +60,6 @@ if len(sys.argv) == 1:
     app.version_finder.fetch_version("0.3")
     upv3 = app.version_finder.prepare_version("0.3")
     os.rename(upv3,v3dir)
-    os.unlink(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe))
     #  While we're here, check that the bootstrap library hasn't changed
     if os.path.exists(os.path.join(app.appdir,"library.zip")):
         f1 = open(os.path.join(app.appdir,"library.zip"),"r")
@@ -69,6 +67,12 @@ if len(sys.argv) == 1:
         assert f1.read() == f2.read()
         f1.close()
         f2.close()
+        f1 = open(os.path.join(app.appdir,"script2"+dotexe),"r")
+        f2 = open(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),"r")
+        assert f1.read() == f2.read()
+        f1.close()
+        f2.close()
+    os.unlink(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe))
     #  Re-launch the script.
     #  We should still be at version 0.2 after this.
     os.execv(script2,[script2,"rerun"])
