@@ -9,7 +9,7 @@ under Windows.
 """
 
 import sys
-from ctypes import WinError, windll, c_char_p
+from ctypes import WinError, windll, c_char, POINTER
 
 if sys.platform != "win32":
     raise ImportError("winres is only avilable on Windows platforms")
@@ -20,7 +20,7 @@ RT_MANIFEST = 24
 
 
 k32 = windll.kernel32
-k32.LockResource.restype = c_char_p
+k32.LockResource.restype = POINTER(c_char)
 
 # AFAIK 1033 is some sort of "default" language.  Happy to be corrected :-)
 _DEFAULT_RESLANG = 1033
@@ -51,9 +51,10 @@ def load_resource(filename_or_handle,res_type,res_id,res_lang=_DEFAULT_RESLANG):
     r_info = k32.LoadResource(l_handle,r_handle)
     if not r_info:
         raise WinError()
-    resource = k32.LockResource(r_info)
-    if not resource:
+    r_ptr = k32.LockResource(r_info)
+    if not r_ptr:
         raise WinError()
+    resource = r_ptr[0:r_size]
     if free_library:
         k32.FreeLibrary(l_handle)
     return resource
@@ -84,8 +85,6 @@ def get_app_manifest(filename_or_handle=None):
     The manifest is a special XML file that must be embedded in the executable
     in order for it to correclty load SxS assemblies.
     """
-    manifest = load_resource(filename_or_handle,RT_MANIFEST,1)
-    #  The manifest may have some non-xml padding
-    return manifest[:manifest.rfind(">")+1]
+    return load_resource(filename_or_handle,RT_MANIFEST,1)
 
 
