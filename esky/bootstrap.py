@@ -16,14 +16,14 @@ update could result in the boostrapper from a new version being forced
 to load an old version.
 
 The code from this module is always executed in the bootstrapping environment
-before any custom bootstrapping code.  It provides the following functionality
-for use during the bootstrap process:
+before any custom bootstrapping code.  It provides the following functions for
+use during the bootstrap process:
 
   Chainloading:         execv, chainload
-  Filesystem querying:  listdir, exists, basename, dirname, pathjoin
+  Filesystem:           listdir, exists, basename, dirname, pathjoin
   Version handling:     split_app_version, join_app_version, parse_version,
                         get_best_version
-       
+
 
 """
 

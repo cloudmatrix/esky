@@ -2,6 +2,10 @@
 
   esky.winres:  utilities for working with windows EXE resources.
 
+This module provides some wrapper functions for accessing resource in win32
+PE-format executable files.  It requires ctypes and (obviously) only works
+under Windows.
+
 """
 
 import sys
@@ -68,13 +72,13 @@ def add_resource(filename,resource,res_type,res_id,res_lang=_DEFAULT_RESLANG):
     if not l_handle:
         raise WinError()
     res_info = (resource,len(resource))
-    if not k32.UpdateResource(l_handle,res_type,res_id,res_lang,*res_info):
+    if not k32.UpdateResourceW(l_handle,res_type,res_id,res_lang,*res_info):
         raise WinError()
-    if not k32.EndUpdateResource(l_handle,0):
+    if not k32.EndUpdateResourceW(l_handle,0):
         raise WinError()
  
 
-def get_app_manifest(filename_or_handle):
+def get_app_manifest(filename_or_handle=None):
     """Get the default application manifest for frozen Python apps.
 
     The manifest is a special XML file that must be embedded in the executable

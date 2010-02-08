@@ -44,7 +44,6 @@ except ImportError:
     _FREEZERS["py2exe"] = None
 
 
-
 class bdist_esky(Command):
     """Create a frozen application in 'esky' format.
 
@@ -122,11 +121,18 @@ class bdist_esky(Command):
                 err += " (try installing bbfreeze)"
                 raise RuntimeError(err)
         else:
-            freezer = _FREEZERS.get(self.freezer_module,None)
-            if freezer is None:
-                err = "freezer module not found: '%s'" % (self.freezer_module,)
+            try:
+                freezer = _FREEZERS[self.freezer_module]
+            except KeyError:
+                err = "freezer module not supported: '%s'"
+                err = err % (self.freezer_module,)
                 raise RuntimeError(err)
-        self.freezer_module = freezer
+            else:
+                if freezer is None:
+                    err = "freezer module not found: '%s'"
+                    err = err % (self.freezer_module,)
+                    raise RuntimeError(err)
+            self.freezer_module = freezer
 
     def run(self):
         #  Create the dirs into which to freeze the app
@@ -251,7 +257,6 @@ class bdist_esky(Command):
             msvcrt_name = msvcrt_info[0]
             #  Find installed manifest file with matching info
             for manifest_file in self._find_msvcrt_manifest_files(msvcrt_name):
-                print manifest_file;
                 try:
                     with open(manifest_file,"rb") as mf:
                         manifest_data = mf.read()

@@ -9,7 +9,7 @@ a simple API through which apps can find, fetch and install updates, and a
 bootstrapping mechanism that keeps the app safe in the face of failed or
 partial updates.
 
-Esky is currently compatible with apps frozen using bbfreeze or py2exe. Adding
+Esky is currently capable of freezing apps with bbfreeze or py2exe. Adding
 support for other freezer programs should be straightforward; patches will be
 gratefully accepted.
 
@@ -44,7 +44,7 @@ like this:
 The "appname-X.Y" directory is simply a frozen app directory with some extra
 bootstrapping information produced by esky.  To freeze your app in such a
 format, there is a "bdist_esky" command that can be used with a standard
-distutils setup.py file.
+distutils setup.py file; see the docstring for esky.bdist_esky for details.
 
 To upgrade to a new version "appname-X.Z", esky performs the following steps:
     * extract it into a temporary directory under "updates"
@@ -237,7 +237,8 @@ class Esky(object):
                 fullnm = os.path.join(appdir,nm)
                 if os.path.isdir(fullnm):
                     if nm not in ("updates","locked",cur_version):
-                        shutil.rmtree(fullnm)
+                        if nm not in manifest:
+                            shutil.rmtree(fullnm)
                 else:
                     if nm not in manifest:
                         os.unlink(fullnm)

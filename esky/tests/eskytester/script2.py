@@ -41,11 +41,12 @@ if len(sys.argv) == 1:
     os.rename(upv3,v3dir)
     os.unlink(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe))
     #  While we're here, check that the bootstrap library hasn't changed
-    f1 = open(os.path.join(app.appdir,"library.zip"),"r")
-    f2 = open(os.path.join(v3dir,"esky-bootstrap","library.zip"),"r")
-    assert f1.read() == f2.read()
-    f1.close()
-    f2.close()
+    if os.path.exists(os.path.join(app.appdir,"library.zip")):
+        f1 = open(os.path.join(app.appdir,"library.zip"),"r")
+        f2 = open(os.path.join(v3dir,"esky-bootstrap","library.zip"),"r")
+        assert f1.read() == f2.read()
+        f1.close()
+        f2.close()
     #  Re-launch the script.
     #  We should still be at version 0.2 after this.
     os.execv(script2,[script2,"rerun"])

@@ -13,19 +13,36 @@ from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 
 from distutils.core import setup as dist_setup
+from distutils import dir_util
 
 import esky
 from esky import bdist_esky
 from esky.util import extract_zipfile, get_platform
+from esky.fstransact import FSTransaction
+
+try:
+    import bbfreeze
+except ImportError:
+    bbfreeze = None
+try:
+    import py2exe
+except ImportError:
+    py2exe = None
 
 sys.path.append(os.path.dirname(__file__))
 
 
 class TestEsky(unittest.TestCase):
 
-  def test_esky_bbfreeze(self):
-    """Build and launch a self-testing esky application using bbfreeze."""
-    self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
+  if bbfreeze is not None:
+    def test_esky_bbfreeze(self):
+        """Build and launch a self-testing esky application using bbfreeze."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
+
+  if py2exe is not None:
+    def test_esky_py2exe(self):
+        """Build and launch a self-testing esky application using py2exe."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
   def _run_eskytester(self,options):
     """Build and run the eskytester app using the given distutils options.
@@ -39,18 +56,30 @@ class TestEsky(unittest.TestCase):
         deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
         os.chdir(os.path.join(esky_root,"esky","tests"))
+        #  Clean up after previous test runs.
         if os.path.isdir(deploydir):
             shutil.rmtree(deploydir)
-        #  Build three increasing versions of the test package
+        for version in ("0.1","0.2","0.3"):
+            build_dir = os.path.join("dist","eskytester-%s.%s")
+            build_dir = build_dir % (version,platform,)
+            if os.path.isdir(build_dir):
+                shutil.rmtree(build_dir)
+        dir_util._path_created.clear()
+        #  Build three increasing versions of the test package.
+        #  Version 0.2 will include a bundled MSVCRT on win32
         metadata = dict(name="eskytester",packages=["eskytester"],author="rfk",
                         description="the esky test package",
                         data_files=[("data",["eskytester/datafile.txt"])],
                         package_data={"eskytester":["pkgdata.txt"]},
                         script_args=["bdist_esky"])
+        options2 = options.copy()
+        options2["bdist_esky"] = options["bdist_esky"].copy()
+        options2["bdist_esky"]["bundle_msvcrt"] = True
         dist_setup(version="0.1",scripts=["eskytester/script1.py"],options=options,**metadata)
-        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options=options,**metadata)
+        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options=options2,**metadata)
         dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],options=options,**metadata)
         #  Serve the updates at http://localhost:8000/dist/
+        print "running local update server"
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
         threading.Thread(target=server.serve_forever).start()
         #  Set up the deployed esky environment for the initial version
@@ -65,6 +94,7 @@ class TestEsky(unittest.TestCase):
             cmd = os.path.join(deploydir,"script1.exe")
         else:
             cmd = os.path.join(deploydir,"script1")
+        print "spawning eskytester application"
         p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout)
@@ -182,4 +212,188 @@ class TestEsky(unittest.TestCase):
             f = open(readme,"wb")
             f.write(esky.__doc__)
             f.close()
+
+class TestFSTransact(unittest.TestCase):
+    """Testcases for FSTransact."""
+
+    def setUp(self):
+        self.testdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.testdir)
+
+    def path(self,path):
+        return os.path.join(self.testdir,path)
+
+    def setContents(self,path,contents=""):
+        if not os.path.isdir(os.path.dirname(self.path(path))):
+            os.makedirs(os.path.dirname(self.path(path)))
+        with open(self.path(path),"wb") as f:
+            f.write(contents)
+
+    def assertContents(self,path,contents):
+        with open(self.path(path),"rb") as f:
+            self.assertEquals(f.read(),contents)
+
+    def test_move_file(self):
+        self.setContents("file1","hello world")
+        trn = FSTransaction()
+        trn.move(self.path("file1"),self.path("file2"))
+        self.assertContents("file1","hello world")
+        self.assertFalse(os.path.exists(self.path("file2")))
+        trn.commit()
+        self.assertContents("file2","hello world")
+        self.assertFalse(os.path.exists(self.path("file1")))
+
+    def test_copy_file(self):
+        self.setContents("file1","hello world")
+        trn = FSTransaction()
+        trn.copy(self.path("file1"),self.path("file2"))
+        self.assertContents("file1","hello world")
+        self.assertFalse(os.path.exists(self.path("file2")))
+        trn.commit()
+        self.assertContents("file1","hello world")
+        self.assertContents("file2","hello world")
+
+    def test_move_dir(self):
+        self.setContents("dir1/file1","hello world")
+        self.setContents("dir1/file2","how are you?")
+        self.setContents("dir1/subdir/file3","fine thanks")
+        trn = FSTransaction()
+        trn.move(self.path("dir1"),self.path("dir2"))
+        self.assertContents("dir1/file1","hello world")
+        self.assertFalse(os.path.exists(self.path("dir2")))
+        trn.commit()
+        self.assertContents("dir2/file1","hello world")
+        self.assertContents("dir2/file2","how are you?")
+        self.assertContents("dir2/subdir/file3","fine thanks")
+        self.assertFalse(os.path.exists(self.path("dir1")))
+
+    def test_copy_dir(self):
+        self.setContents("dir1/file1","hello world")
+        self.setContents("dir1/file2","how are you?")
+        self.setContents("dir1/subdir/file3","fine thanks")
+        trn = FSTransaction()
+        trn.copy(self.path("dir1"),self.path("dir2"))
+        self.assertContents("dir1/file1","hello world")
+        self.assertFalse(os.path.exists(self.path("dir2")))
+        trn.commit()
+        self.assertContents("dir2/file1","hello world")
+        self.assertContents("dir2/file2","how are you?")
+        self.assertContents("dir2/subdir/file3","fine thanks")
+        self.assertContents("dir1/file1","hello world")
+        self.assertContents("dir1/file2","how are you?")
+        self.assertContents("dir1/subdir/file3","fine thanks")
+
+    def test_remove(self):
+        self.setContents("dir1/file1","hello there world")
+        trn = FSTransaction()
+        trn.remove(self.path("dir1/file1"))
+        self.assertTrue(os.path.exists(self.path("dir1/file1")))
+        trn.commit()
+        self.assertFalse(os.path.exists(self.path("dir1/file1")))
+        self.assertTrue(os.path.exists(self.path("dir1")))
+        trn = FSTransaction()
+        trn.remove(self.path("dir1"))
+        trn.commit()
+        self.assertFalse(os.path.exists(self.path("dir1")))
+
+    def test_remove_abort(self):
+        self.setContents("dir1/file1","hello there world")
+        trn = FSTransaction()
+        trn.remove(self.path("dir1/file1"))
+        self.assertTrue(os.path.exists(self.path("dir1/file1")))
+        trn.abort()
+        self.assertTrue(os.path.exists(self.path("dir1/file1")))
+        trn = FSTransaction()
+        trn.remove(self.path("dir1"))
+        trn.abort()
+        self.assertTrue(os.path.exists(self.path("dir1/file1")))
+        trn = FSTransaction()
+        trn.remove(self.path("dir1"))
+        trn.commit()
+        self.assertFalse(os.path.exists(self.path("dir1")))
+
+    def test_move_dir_exists(self):
+        self.setContents("dir1/file0","zero zero zero")
+        self.setContents("dir1/file1","hello world")
+        self.setContents("dir1/file2","how are you?")
+        self.setContents("dir1/subdir/file3","fine thanks")
+        self.setContents("dir2/file1","different contents")
+        self.setContents("dir2/file3","a different file")
+        self.setContents("dir1/subdir/file3","fine thanks")
+        trn = FSTransaction()
+        trn.move(self.path("dir1"),self.path("dir2"))
+        self.assertContents("dir1/file1","hello world")
+        trn.commit()
+        self.assertContents("dir2/file0","zero zero zero")
+        self.assertContents("dir2/file1","hello world")
+        self.assertContents("dir2/file2","how are you?")
+        self.assertFalse(os.path.exists(self.path("dir2/file3")))
+        self.assertContents("dir2/subdir/file3","fine thanks")
+        self.assertFalse(os.path.exists(self.path("dir1")))
+
+    def test_copy_dir_exists(self):
+        self.setContents("dir1/file0","zero zero zero")
+        self.setContents("dir1/file1","hello world")
+        self.setContents("dir1/file2","how are you?")
+        self.setContents("dir1/subdir/file3","fine thanks")
+        self.setContents("dir2/file1","different contents")
+        self.setContents("dir2/file3","a different file")
+        self.setContents("dir1/subdir/file3","fine thanks")
+        trn = FSTransaction()
+        trn.copy(self.path("dir1"),self.path("dir2"))
+        self.assertContents("dir1/file1","hello world")
+        trn.commit()
+        self.assertContents("dir2/file0","zero zero zero")
+        self.assertContents("dir2/file1","hello world")
+        self.assertContents("dir2/file2","how are you?")
+        self.assertFalse(os.path.exists(self.path("dir2/file3")))
+        self.assertContents("dir2/subdir/file3","fine thanks")
+        self.assertContents("dir1/file0","zero zero zero")
+        self.assertContents("dir1/file1","hello world")
+        self.assertContents("dir1/file2","how are you?")
+        self.assertContents("dir1/subdir/file3","fine thanks")
+
+    def test_move_dir_over_file(self):
+        self.setContents("dir1/file0","zero zero zero")
+        self.setContents("dir2","actually a file")
+        trn = FSTransaction()
+        trn.move(self.path("dir1"),self.path("dir2"))
+        self.assertContents("dir1/file0","zero zero zero")
+        trn.commit()
+        self.assertContents("dir2/file0","zero zero zero")
+        self.assertFalse(os.path.exists(self.path("dir1")))
+
+    def test_copy_dir_over_file(self):
+        self.setContents("dir1/file0","zero zero zero")
+        self.setContents("dir2","actually a file")
+        trn = FSTransaction()
+        trn.copy(self.path("dir1"),self.path("dir2"))
+        self.assertContents("dir1/file0","zero zero zero")
+        trn.commit()
+        self.assertContents("dir2/file0","zero zero zero")
+        self.assertContents("dir1/file0","zero zero zero")
+
+    def test_move_file_over_dir(self):
+        self.setContents("file0","zero zero zero")
+        self.setContents("dir2/myfile","hahahahaha!")
+        trn = FSTransaction()
+        trn.move(self.path("file0"),self.path("dir2"))
+        self.assertContents("file0","zero zero zero")
+        self.assertContents("dir2/myfile","hahahahaha!")
+        trn.commit()
+        self.assertContents("dir2","zero zero zero")
+        self.assertFalse(os.path.exists(self.path("file0")))
+
+    def test_copy_file_over_dir(self):
+        self.setContents("file0","zero zero zero")
+        self.setContents("dir2/myfile","hahahahaha!")
+        trn = FSTransaction()
+        trn.copy(self.path("file0"),self.path("dir2"))
+        self.assertContents("file0","zero zero zero")
+        self.assertContents("dir2/myfile","hahahahaha!")
+        trn.commit()
+        self.assertContents("dir2","zero zero zero")
+        self.assertContents("file0","zero zero zero")
 
