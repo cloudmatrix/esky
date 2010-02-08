@@ -76,7 +76,9 @@ def freeze(dist):
             lib.write(src,arcnm)
         lib.close()
     else:
-        raise RuntimeError("zipfile=None can't be used package_data (yet...)")
+        for (src,arcnm) in dist.get_package_data():
+            err = "zipfile=None can't be used with package_data (yet...)"
+            raise RuntimeError(err)
     #  There's no need to copy library.zip into the bootstrap env, as the
     #  chainloader will run before it tries to look for it.
     #  Create the bootstraping code, using custom code if specified.
