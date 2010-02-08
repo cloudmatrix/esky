@@ -1,6 +1,8 @@
 
 include LICENSE.txt
 include TODO.txt
+include ChangeLog.txt
+include README.txt
 recursive-include esky/tests *.py
 recursive-include esky/tests *.txt
 

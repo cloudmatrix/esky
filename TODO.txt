@@ -1,4 +1,4 @@
 
- * customisable bootstrap process
- * hooks for code signing etc
+ * test customisable bootstrap process
+ * hooks for code signing etc in the build process
 
