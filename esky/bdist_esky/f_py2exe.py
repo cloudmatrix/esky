@@ -28,8 +28,23 @@ from esky.util import is_core_dependency
 from esky import winres
 
 
+#  Hack to make win32com work seamlessly with py2exe
+try:
+    import py2exe.mf as modulefinder
+    import win32com
+    for p in win32com.__path__[1:]:
+        modulefinder.AddPackagePath("win32com", p)
+    for extra in ["win32com.shell"]: #,"win32com.mapi"
+        __import__(extra)
+        m = sys.modules[extra]
+        for p in m.__path__[1:]:
+           modulefinder.AddPackagePath(extra, p)
+except ImportError:
+     pass
+
+
 def freeze(dist):
-    """Freeze the given distribution data using bbfreeze."""
+    """Freeze the given distribution data using py2exe."""
     includes = dist.includes
     excludes = dist.excludes
     options = dist.freezer_options
