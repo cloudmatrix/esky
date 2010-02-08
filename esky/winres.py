@@ -38,7 +38,7 @@ def load_resource(filename_or_handle,res_type,res_id,res_lang=_DEFAULT_RESLANG):
         if not isinstance(filename,unicode):
             filename = filename.decode(sys.getfilesystemencoding())
         l_handle = k32.LoadLibraryExW(filename,None,LOAD_LIBRARY_AS_DATAFILE)
-        free_library = Tree
+        free_library = True
     else:
         l_handle = filename_or_handle
         free_library = False
