@@ -101,7 +101,10 @@ def freeze(dist):
                      len(code),
                      ) + "\000" + code + "\000"
     #  Copy the loader program for each script into the bootstrap env, and
-    #  insert the bootstrap code into it as a resource
+    #  insert the bootstrap code into it as a resource.
+    #  This appears to have the happy side-effect of stripping any extra
+    #  data from the end of the exe, which is exactly what we want when
+    #  bundling all the deps in an attached zipfile.
     for script in dist.get_scripts():
         nm = os.path.basename(script)
         if nm.endswith(".py") or nm.endswith(".pyw"):
