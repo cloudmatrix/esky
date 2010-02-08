@@ -69,7 +69,7 @@ def is_core_dependency(filenm):
     """
     if re.match("^(lib)?python\\d[\\d\\.]*\\.[a-z\\.]*$",filenm):
         return True
-    if re.match("^Microsoft\\.VC\\d\\d\\.CRT",filenm):
+    if filenm.startswith("Microsoft.") and filenm.endswith(".CRT"):
         return True
     return False
 

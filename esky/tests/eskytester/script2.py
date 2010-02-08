@@ -29,6 +29,28 @@ assert app.find_update() == "0.3"
 assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
 
+#  Test that MSVCRT was bundled correctly
+if sys.platform == "win32":
+    versiondir = os.path.dirname(sys.executable)
+    for nm in os.listdir(versiondir):
+        if nm.startswith("Microsoft.") and nm.endswith(".CRT"):
+            msvcrt_dir = os.path.join(versiondir,nm)
+            assert os.path.isdir(msvcrt_dir)
+            assert len(os.listdir(msvcrt_dir)) >= 2
+            break
+    else:
+        assert False, "MSVCRT not bundled in version dir"
+if sys.platform == "win32":
+    for nm in os.listdir(app.appdir):
+        if nm.startswith("Microsoft.") and nm.endswith(".CRT"):
+            msvcrt_dir = os.path.join(app.appdir,nm)
+            assert os.path.isdir(msvcrt_dir)
+            assert len(os.listdir(msvcrt_dir)) >= 2
+            break
+    else:
+        assert False, "MSVCRT not bundled in app dir"
+
+
 v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
     app.cleanup()
