@@ -1,5 +1,13 @@
 
 
+v0.3.1:
+
+    * added a few well-known hacks to get py2exe to play nice with common
+      third-party packages.
+    * implemented a custom chainload() function for py2exe.
+    * added more version-handling utility functions: get_all_versions,
+      is_version_dir, is_installed_version_dir
+
 v0.3.0:
 
     * added ability to bundle MSVCRT as a private assembly (this is off
