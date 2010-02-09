@@ -150,9 +150,10 @@ def freeze(dist):
         code_source.append("bootstrap()")
     else:
         bsmodule = __import__(dist.bootstrap_module)
-        for submod in dist.boostrap_module.split(".")[1:]:
+        for submod in dist.bootstrap_module.split(".")[1:]:
             bsmodule = getattr(bsmodule,submod)
         code_source.append(inspect.getsource(bsmodule))
+        code_source.append("raise RuntimeError('didnt chainload')")
     code_source = "\n".join(code_source)
     code = marshal.dumps([compile(code_source,"__main__.py","exec")])
     coderes = struct.pack("iiii",
@@ -162,7 +163,7 @@ def freeze(dist):
                      len(code),
                      ) + "\000" + code + "\000"
     #  We bundle the python DLL into all bootstrap executables, even if it's
-    #  not bundled in the frozen distribution.  This helps keep the boostrap
+    #  not bundled in the frozen distribution.  This helps keep the bootstrap
     #  env small and minimises the chances of something going wrong.
     pydll = u"python%d%d.dll" % sys.version_info[:2]
     frozen_pydll = os.path.join(dist.freeze_dir,pydll)

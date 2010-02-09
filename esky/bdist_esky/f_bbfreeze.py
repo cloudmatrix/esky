@@ -66,10 +66,12 @@ def freeze(dist):
     if dist.bootstrap_module is None:
         code_source.append("bootstrap()")
     else:
+        code_source.append("__name__ = '__main__'")
         bsmodule = __import__(dist.bootstrap_module)
-        for submod in dist.boostrap_module.split(".")[1:]:
+        for submod in dist.bootstrap_module.split(".")[1:]:
             bsmodule = getattr(bsmodule,submod)
         code_source.append(inspect.getsource(bsmodule))
+        code_source.append("raise RuntimeError('didnt chainload')")
     code_source = "\n".join(code_source)
     maincode = imp.get_magic() + struct.pack("<i",0)
     maincode += marshal.dumps(compile(code_source,"__main__.py","exec"))
@@ -134,7 +136,7 @@ def chainload(target_dir):
       except ImportError:
           _orig_chainload(target_dir)
       else:
-          exec code in {}
+          exec code in {"__name__":"__main__"}
 """
 
 
