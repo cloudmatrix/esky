@@ -27,10 +27,14 @@ import esky
 from esky.util import is_core_dependency
 from esky import winres
 
-
-#  Hack to make win32com work seamlessly with py2exe
 try:
     import py2exe.mf as modulefinder
+except ImportError:
+    modulefinder = None
+
+#  Hack to make win32com work seamlessly with py2exe
+if modulefinder is not None:
+  try:
     import win32com
     for p in win32com.__path__[1:]:
         modulefinder.AddPackagePath("win32com", p)
@@ -39,8 +43,41 @@ try:
         m = sys.modules[extra]
         for p in m.__path__[1:]:
            modulefinder.AddPackagePath(extra, p)
-except ImportError:
+  except ImportError:
      pass
+
+
+class custom_py2exe(py2exe): 
+    """Custom py2exe command subclass.
+
+    This py2exe command subclass incorporates some well-known py2exe "hacks"
+    to make common third-party packages work better.
+    """
+
+    def create_modulefinder(self):
+        mf = py2exe.create_modulefinder(self)
+        self.__mf = mf
+        return mf
+
+    def build_manifest(self,target,template):
+        (mfest,mid) = py2exe.build_manifest(self,target,template)
+        #  Hack to get proper UI theme when freezing wxPython
+        if mfest is not None:
+            if "wx" in self.__mf.modules:
+                mfest = mfest.replace("</assembly>","""
+                    <dependency>
+                      <dependentAssembly>
+                        <assemblyIdentity
+                         type="win32"
+                         name="Microsoft.Windows.Common-Controls"
+                         version="6.0.0.0"
+                         processorArchitecture="*"
+                         publicKeyToken="6595b64144ccf1df"
+                         language="*" />
+                      </dependentAssembly>
+                   </dependency>
+                 </assembly>""")
+        return (mfest,mid)
 
 
 def freeze(dist):
@@ -68,7 +105,7 @@ def freeze(dist):
     if "zipfile" in options:
         dist.distribution.zipfile = options.pop("zipfile")
     #  Create the py2exe cmd and adjust its options
-    cmd = py2exe(dist.distribution)
+    cmd = custom_py2exe(dist.distribution)
     cmd.includes = includes
     cmd.excludes = excludes
     if "bundle_files" not in options and "zipfile" not in options:
