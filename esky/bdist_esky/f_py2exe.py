@@ -174,7 +174,8 @@ sys.modules["esky.bootstrap"] = __fake()
 _CUSTOM_WIN32_CHAINLOADER = """
 _orig_chainload = chainload
 def chainload(target_dir):
-  # winres imports sys, so do it here to avoid issues with local varialbes.
+  # winres imports sys, making it a local variable.
+  # Grab it here to avoid UnboundLocal errors
   import sys
   # careful to escape percent-sign, this gets interpolated below
   pydll = "python%%s%%s.dll" %% sys.version_info[:2]
@@ -228,8 +229,9 @@ def chainload(target_dir):
               codestart += 1
           codestart += 1
           codelist = marshal.loads(data[codestart:codestart+codesz])
+          locals = {}; globals = {"__name__":"__main__","sys":sys}
           for code in codelist:
-              exec code in {}, locals()
+              exec code in globals, locals
 """ % (inspect.getsource(winres).replace("\n","\n"+" "*6),)
 
 
