@@ -139,18 +139,19 @@ class Esky(object):
 
     lock_timeout = 60*60  # 1 hour
 
-    def __init__(self,appdir,version_finder):
+    def __init__(self,appdir,version_finder=None):
         if os.path.isfile(appdir):
             appdir = os.path.dirname(os.path.dirname(appdir))
         self.appdir = appdir
         self.reinitialize()
         self._lock_count = 0
         workdir = os.path.join(appdir,"updates")
-        if isinstance(version_finder,basestring):
-            version_finder = SimpleVersionFinder(download_url=version_finder)
-        version_finder.appname = self.name
-        version_finder.platform = self.platform
-        version_finder.workdir = workdir
+        if version_finder is not None:
+            if isinstance(version_finder,basestring):
+               version_finder = SimpleVersionFinder(download_url=version_finder)
+            version_finder.appname = self.name
+            version_finder.platform = self.platform
+            version_finder.workdir = workdir
         self.version_finder = version_finder
 
     def reinitialize(self):
@@ -267,7 +268,8 @@ class Esky(object):
                 else:
                     if nm not in manifest:
                         os.unlink(fullnm)
-            self.version_finder.cleanup()
+            if self.version_finder is not None:
+                self.version_finder.cleanup()
         finally:
             self.unlock()
 
@@ -277,6 +279,8 @@ class Esky(object):
         This method returns either None, or a string giving the version of
         the newest available update.
         """
+        if self.version_finder is None:
+            raise NoVersionFinderError
         best_version = None
         best_version_p = parse_version(self.version)
         for version in self.version_finder.find_versions():
@@ -288,6 +292,8 @@ class Esky(object):
 
     def fetch_update(self,version):
         """Fetch the specified updated version of the app."""
+        if self.version_finder is None:
+            raise NoVersionFinderError
         return self.version_finder.fetch_version(version)
 
     def install_update(self,version):

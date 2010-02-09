@@ -25,4 +25,8 @@ class EskyVersionError(Error):
     """Error thrown when an invalid version is requested."""
     pass
 
+class NoVersionFinderError(Error):
+    """Error thrown when trying to find updates without a VersionFinder."""
+    pass
+
 
