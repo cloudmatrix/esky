@@ -93,7 +93,7 @@ class bdist_esky(Command):
                     ('bootstrap-module=', None,
                      "module to use for bootstrapping the application"),
                     ('bundle-msvcrt=', None,
-                     "whether to bundle MSVCR as private assembly"),
+                     "whether to bundle MSVCRT as private assembly"),
                     ('includes=', None,
                      "list of modules to specifically include"),
                     ('excludes=', None,
