@@ -257,8 +257,7 @@ class Esky(object):
                 cur_version = new_version
             #  Now we can safely remove anything that's not part of the
             #  current version's bootstrap env.
-            manifest = os.path.join(appdir,cur_version,"esky-bootstrap.txt")
-            manifest = [ln.strip() for ln in open(manifest,"rt")]
+            manifest = self._version_manifest(cur_version)
             for nm in os.listdir(appdir):
                 fullnm = os.path.join(appdir,nm)
                 if os.path.isdir(fullnm):
@@ -302,6 +301,19 @@ class Esky(object):
         If the specified version is not available locally, it will be fetched
         before proceeding.
         """
+        if self.version_finder is None:
+            raise NoVersionFinderError
+        self.install_version(version)
+        self.uninstall_version(self.version)
+        self.reinitialize()
+
+    def install_version(self,version):
+        """Install the specified version of the app.
+
+        This fetches the specified version if necessary, then makes it
+        available as a version directory inside the app directory.  It 
+        does not modify any other installed versions.
+        """
         #  Extract update then rename into position in main app directory
         target = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target)
@@ -329,29 +341,8 @@ class Esky(object):
                     if not is_core_dependency(nm) and nm != "library.zip":
                         trn.move(os.path.join(bootstrap,nm),
                                  os.path.join(self.appdir,nm))
-                #  Remove the bootstrap dir; the new version is now active
+                #  Remove the bootstrap dir; the new version is now installed
                 trn.remove(bootstrap)
-                #  Remove anything that doesn't belong in the main app dir
-                manifest = os.path.join(target,"esky-bootstrap.txt")
-                manifest = [ln.strip() for ln in open(manifest,"rt")]
-                for nm in os.listdir(self.appdir):
-                    fullnm = os.path.join(self.appdir,nm)
-                    if nm not in manifest and not os.path.isdir(fullnm):
-                        trn.remove(fullnm)
-                #  Remove/disable the old version.
-                #  On win32 we can't remove in-use files, so just clobber
-                #  library.zip and leave to rest to a cleanup() call.
-                oldv = join_app_version(self.name,self.version,self.platform)
-                oldv = os.path.join(self.appdir,oldv)
-                if sys.platform == "win32":
-                    trn.remove(os.path.join(oldv,"library.zip"))
-                else:
-                    for (dirp,dirnms,filenms) in os.walk(oldv,topdown=False):
-                        for fn in filenms:
-                            trn.remove(os.path.join(dirp,fn))
-                        for dn in dirnms:
-                            trn.remove(os.path.join(dirp,dn))
-                    trn.remove(oldv)
             except Exception:
                 trn.abort()
                 raise
@@ -359,6 +350,49 @@ class Esky(object):
                 trn.commit()
         finally:
             self.unlock()
-        self.reinitialize()
 
+    def uninstall_version(self,version): 
+        """Uninstall the specified version of the app."""
+        target_name = join_app_version(self.name,version,self.platform)
+        target = os.path.join(self.appdir,target_name)
+        self.lock()
+        try:
+            if not os.path.exists(target):
+                return
+            trn = FSTransaction()
+            try:
+                #  Get set of all files that must stay in the main appdir
+                to_keep = set()
+                for vname in os.listdir(self.appdir):
+                    if vname != target_name:
+                        to_keep.update(self._version_manifest(vname))
+                #  Remove files used only by the version being removed
+                to_rem = self._version_manifest(target_name) - to_keep
+                for nm in to_rem:
+                    fullnm = os.path.join(self.appdir,nm)
+                    trn.remove(fullnm)
+                #  Remove/disable the version.
+                #  To avoid trying to remove in-use files, we just clobber
+                #  the esky-bootstrap.txt file and leave the rest to cleanup().
+                trn.remove(os.path.join(target,"esky-bootstrap.txt"))
+            except Exception:
+                trn.abort()
+                raise
+            else:
+                trn.commit()
+        finally:
+            self.unlock()
+
+    def _version_manifest(self,vdir):
+        """Get the bootstrap manifest for the given version directory.
+
+        This is the set of files/directories that the given version expects
+        to be in the main app directory
+        """
+        mpath = os.path.join(self.appdir,vdir,"esky-bootstrap.txt")
+        try:
+            with open(mpath,"rt") as mf:
+                return set(ln.strip() for ln in mf)
+        except IOError:
+            return set()
 

@@ -85,7 +85,7 @@ else:
     assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
     assert os.path.isfile(os.path.join(app.appdir,"script3"+dotexe))
     assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
-    assert not os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+platform,"library.zip"))
+    assert not os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+platform,"esky-bootstrap.txt"))
     assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
     script3 = os.path.join(app.appdir,"script3"+dotexe)
     os.execv(script3,[script3])
