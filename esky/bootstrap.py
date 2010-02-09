@@ -22,7 +22,7 @@ use during the bootstrap process:
   Chainloading:         execv, chainload
   Filesystem:           listdir, exists, basename, dirname, pathjoin
   Version handling:     split_app_version, join_app_version, parse_version,
-                        get_best_version
+                        get_all_version, get_best_version
 
 
 """
@@ -95,18 +95,17 @@ def chainload(target_dir):
 
 
 def get_best_version(appdir,include_partial_installs=False):
-    """Get the best usable version from within the given appdir.
+    """Get the best usable version directory from inside the given appdir.
 
     In the common case there is only a single version directory, but failed
     or partial updates can result in several being present.  This function
     finds the highest-numbered version that is completely installed.
     """
     #  Find all potential version directories, sorted by version number.
-    #  To be a version directory, it must contain an "esky-bootstrap.txt" file.
     candidates = []
     for nm in listdir(appdir):
         (_,ver,_) = split_app_version(nm)
-        if ver and exists(pathjoin(appdir,nm,"esky-bootstrap.txt")):
+        if ver and is_version_dir(pathjoin(appdir,nm)):
             ver = parse_version(ver)
             candidates.append((ver,nm))
     candidates = [c[1] for c in sorted(candidates,reverse=True)]
@@ -119,12 +118,54 @@ def get_best_version(appdir,include_partial_installs=False):
     if include_partial_installs:
         return candidates[0]
     #  If there are several candidate versions, we need to find the best
-    #  one whose 'esky-bootstrap' dir has been completely removed.
+    #  one that is completely installed.
     while candidates:
         nm = candidates.pop(0)
-        if not exists(pathjoin(appdir,nm,"esky-bootstrap")):
+        if is_installed_version_dir(pathjoin(appdir,nm)):
             return nm
     return None
+
+
+def get_all_versions(appdir,include_partial_installs=False):
+    """Get a list of all usable version directories inside the given appdir.
+
+    The list will be in order from most-recent to least-recent.  The head
+    of the list will be the same directory as returned by get_best_version.
+    """
+    #  Find all potential version directories, sorted by version number.
+    candidates = []
+    for nm in listdir(appdir):
+        (_,ver,_) = split_app_version(nm)
+        if ver and is_version_dir(pathjoin(appdir,nm)):
+            ver = parse_version(ver)
+            candidates.append((ver,nm))
+    candidates = [c[1] for c in sorted(candidates,reverse=True)]
+    #  Filter out any that are not completely installed.
+    if not include_partial_installs:
+        i = 0
+        while i < len(candidates):
+            if not is_installed_version_dir(pathjoin(appdir,candidates[i])):
+                del candidates[i]
+            else:
+                i += 1
+    return candidates
+
+
+def is_version_dir(vdir):
+    """Check whether the given directory contains an esky app version.
+
+    Currently, it only need contain the "esky-bootstrap.txt" file.
+    """
+    return exists(pathjoin(vdir,"esky-bootstrap.txt"))
+
+
+def is_installed_version_dir(vdir):
+    """Check whether the given version directory is fully installed.
+
+    Currently, a completed installation is indicated by the lack of an
+    "esky-bootstrap" directory.
+    """
+    return not exists(pathjoin(vdir,"esky-bootstrap"))
 
 
 def split_app_version(s):
