@@ -1,0 +1,6 @@
+*.pyc
+*~
+*.swp
+esky/tests/dist
+esky/tests/build
+esky/tests/deploy*
