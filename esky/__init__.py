@@ -145,14 +145,20 @@ class Esky(object):
         self.appdir = appdir
         self.reinitialize()
         self._lock_count = 0
-        workdir = os.path.join(appdir,"updates")
+        self.version_finder = version_finder
+
+    def _get_version_finder(self):
+        return self.__version_finder
+    def _set_version_finder(self,version_finder):
+        workdir = os.path.join(self.appdir,"updates")
         if version_finder is not None:
             if isinstance(version_finder,basestring):
                version_finder = SimpleVersionFinder(download_url=version_finder)
             version_finder.appname = self.name
             version_finder.platform = self.platform
             version_finder.workdir = workdir
-        self.version_finder = version_finder
+        self.__version_finder = version_finder
+    version_finder = property(_get_version_finder,_set_version_finder)
 
     def reinitialize(self):
         """Reinitialize internal state by poking around in the app directory.
