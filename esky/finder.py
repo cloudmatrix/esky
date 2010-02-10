@@ -115,7 +115,7 @@ class SimpleVersionFinder(VersionFinder):
 
     def find_versions(self):
         downloads = self.open_url(self.download_url).read()
-        version_re = "(?P<version>[a-zA-Z0-9\\.-]+)"
+        version_re = "(?P<version>[a-zA-Z0-9\\.-_]+)"
         version_re = join_app_version(self.appname,version_re,self.platform)
         link_re = "href=['\"](?P<href>(.*/)?%s.zip)['\"]" % (version_re,)
         for match in re.finditer(link_re,downloads):
