@@ -270,6 +270,7 @@ def chainload(target_dir):
           locals = {}; globals = {"__name__":"__main__","sys":sys}
           for code in codelist:
               exec code in globals, locals
+          sys.exit(0)
 """ % (inspect.getsource(winres).replace("\n","\n"+" "*6),)
 
 

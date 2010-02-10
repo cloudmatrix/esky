@@ -137,6 +137,7 @@ def chainload(target_dir):
           _orig_chainload(target_dir)
       else:
           exec code in {"__name__":"__main__"}
+          sys.exit(0)
 """
 
 
