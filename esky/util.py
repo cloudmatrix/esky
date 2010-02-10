@@ -28,6 +28,8 @@ def extract_zipfile(source,target,name_filter=None):
     """
     zf = zipfile.ZipFile(source,"r")
     for nm in zf.namelist():
+        if nm.endswith("/"):
+            continue
         if name_filter:
             outfilenm = os.path.join(target,name_filter(nm))
         else:
