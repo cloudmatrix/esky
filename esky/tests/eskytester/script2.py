@@ -80,7 +80,7 @@ else:
     #  Recover from the broken upgrade
     assert len(sys.argv) == 2
     assert os.path.isdir(v3dir)
-    app.install_update("0.3")
+    app.auto_update()
     assert not os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
     assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
     assert os.path.isfile(os.path.join(app.appdir,"script3"+dotexe))

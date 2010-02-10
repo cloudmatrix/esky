@@ -1,7 +1,11 @@
 
 
-v0.3.1:
+v0.4.0:
 
+    * some backwards-incompatible API changes:
+        * replace Esky.install_update(v) with Esky.auto_update()
+        * new utility methods Esky.install_version(v)/Esky.uninstall_version(v)
+        * rename Esky.fetch_update(v) to Esky.fetch_version(v)
     * added a few well-known hacks to get py2exe to play nice with common
       third-party packages.
     * implemented a custom chainload() function for py2exe.

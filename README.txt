@@ -18,9 +18,7 @@ for an app automatically updating itself would look something like this:
 
     if hasattr(sys,"frozen"):
         app = esky.Esky(sys.executable,"http://example.com/downloads/")
-        new_version = app.find_update()
-        if new_version is not None:
-            app.install_update(new_version)
+        app.auto_update()
         app.cleanup()
 
 A simple default VersionFinder is provided that hits a specified URL to get

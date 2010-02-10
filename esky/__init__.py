@@ -20,9 +20,7 @@ for an app automatically updating itself would look something like this:
 
     if hasattr(sys,"frozen"):
         app = esky.Esky(sys.executable,"http://example.com/downloads/")
-        new_version = app.find_update()
-        if new_version is not None:
-            app.install_update(new_version)
+        app.auto_update()
         app.cleanup()
 
 A simple default VersionFinder is provided that hits a specified URL to get
@@ -91,8 +89,8 @@ call the "cleanup" method on their esky.
 """
 
 __ver_major__ = 0
-__ver_minor__ = 3
-__ver_patch__ = 1
+__ver_minor__ = 4
+__ver_patch__ = 0
 __ver_sub__ = ""
 __version__ = "%d.%d.%d%s" % (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 
@@ -126,9 +124,8 @@ class Esky(object):
 
         if hasattr(sys,"frozen"):
             app = esky.Esky(sys.executable,"http://example.com/downloads/")
-            new_version = app.find_update()
-            if new_version is not None:
-                app.install_update(new_version)
+            app.auto_update()
+            app.cleanup()
 
     The first argument must be either the top-level application directory,
     or the path of an executable from that application.  The second argument
@@ -259,7 +256,7 @@ class Esky(object):
             #  to accidentally delete their dependencies.
             if cur_version != new_version:
                 (_,v,_) = split_app_version(new_version)
-                self.install_update(v)
+                self.install_version(v)
                 cur_version = new_version
             #  Now we can safely remove anything that's not part of the
             #  current version's bootstrap env.
@@ -278,6 +275,17 @@ class Esky(object):
         finally:
             self.unlock()
 
+    def auto_update(self):
+        """Automatically install the latest version of the app."""
+        if self.version_finder is None:
+            raise NoVersionFinderError
+        version = self.find_update()
+        if version is not None:
+            self.fetch_version(version)
+            self.install_version(version)
+            self.uninstall_version(self.version)
+            self.reinitialize()
+
     def find_update(self):
         """Check for an available update to this app.
 
@@ -295,23 +303,12 @@ class Esky(object):
                 best_version = version
         return best_version
 
-    def fetch_update(self,version):
+    def fetch_version(self,version):
         """Fetch the specified updated version of the app."""
         if self.version_finder is None:
             raise NoVersionFinderError
-        return self.version_finder.fetch_version(version)
-
-    def install_update(self,version):
-        """Install the specified updated version of the app.
-
-        If the specified version is not available locally, it will be fetched
-        before proceeding.
-        """
-        if self.version_finder is None:
-            raise NoVersionFinderError
-        self.install_version(version)
-        self.uninstall_version(self.version)
-        self.reinitialize()
+        if not self.version_finder.has_version(version):
+            self.version_finder.fetch_version(version)
 
     def install_version(self,version):
         """Install the specified version of the app.

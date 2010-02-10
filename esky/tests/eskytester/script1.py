@@ -25,7 +25,8 @@ assert app.find_update() == "0.3"
 assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
-app.install_update("0.2")
+app.install_version("0.2")
+app.reinitialize()
 assert app.name == "eskytester"
 assert app.version == "0.2"
 assert app.find_update() == "0.3"
