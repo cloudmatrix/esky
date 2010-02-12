@@ -281,10 +281,11 @@ class Esky(object):
             raise NoVersionFinderError
         version = self.find_update()
         if version is not None:
-            self.fetch_version(version)
-            self.install_version(version)
-            self.uninstall_version(self.version)
-            self.reinitialize()
+            if parse_version(version) > parse_version(self.version):
+                self.fetch_version(version)
+                self.install_version(version)
+                self.uninstall_version(self.version)
+                self.reinitialize()
 
     def find_update(self):
         """Check for an available update to this app.
