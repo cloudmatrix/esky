@@ -7,7 +7,7 @@ v0.4.0:
         * new utility methods Esky.install_version(v)/Esky.uninstall_version(v)
         * rename Esky.fetch_update(v) to Esky.fetch_version(v)
     * added a few well-known hacks to get py2exe to play nice with common
-      third-party packages.
+      third-party packages (win32com, wxPython).
     * implemented a custom chainload() function for py2exe.
     * added more version-handling utility functions: get_all_versions,
       is_version_dir, is_installed_version_dir
