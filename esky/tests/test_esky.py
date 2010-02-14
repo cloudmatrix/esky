@@ -32,6 +32,15 @@ except ImportError:
 sys.path.append(os.path.dirname(__file__))
 
 
+if not hasattr(HTTPServer,"shutdown"):
+    import socket
+    def socketserver_shutdown(self):
+        try:
+            self.socket.close()
+        except socket.error:
+            pass
+
+
 class TestEsky(unittest.TestCase):
 
   if bbfreeze is not None:
@@ -103,6 +112,7 @@ class TestEsky(unittest.TestCase):
         os.unlink("tests-completed")
     finally:
         os.chdir(olddir)
+        server.shutdown()
 
  
   def test_esky_locking(self):
