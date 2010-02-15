@@ -131,9 +131,11 @@ class bdist_esky(Command):
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
         if self.freezer_module is None:
-            try:
-                freezer = _FREEZERS.itervalues().next()
-            except StopIteration:
+            for freezer_module in ("py2exe","bbfreeze","cxfreeze"):
+                freezer = _FREEZERS[freezer_module]
+                if freezer is not None:
+                    break
+            else:
                 err = "no supported freezer modules found"
                 err += " (try installing bbfreeze)"
                 raise RuntimeError(err)
