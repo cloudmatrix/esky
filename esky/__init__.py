@@ -266,14 +266,39 @@ class Esky(object):
                 if os.path.isdir(fullnm):
                     if nm not in ("updates","locked",cur_version):
                         if nm not in manifest:
-                            shutil.rmtree(fullnm)
+                            self._try_remove(fullnm)
                 else:
                     if nm not in manifest:
-                        os.unlink(fullnm)
+                        self._try_remove(fullnm)
             if self.version_finder is not None:
                 self.version_finder.cleanup()
         finally:
             self.unlock()
+
+    def _try_remove(self,path):
+        """Try to remove the file/directory at the given path.
+
+        This method attempts to remove the file or directory at the given path,
+        but will fail silently under a number of conditions:
+
+            * if a file is locked or permission is denied
+            * if a directory cannot be emptied of all contents
+            * if the path appears on sys.path
+
+        """
+        if path not in sys.path:
+            try:
+                if os.path.isdir(path):
+                    for nm in os.listdir(path):
+                        self._try_remove(os.path.join(path,nm))
+                    os.rmdir(path)
+                else:
+                    os.unlink(path)
+            except EnvironmentError, e:
+                if e.errno not in self._errors_to_ignore:
+                    raise
+    _errors_to_ignore = (errno.ENOENT, errno.EPERM, errno.EACCES, errno.ENOTDIR,
+                         errno.EISDIR, errno.EINVAL, errno.ENOTEMPTY,)
 
     def auto_update(self):
         """Automatically install the latest version of the app."""

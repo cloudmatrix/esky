@@ -1,6 +1,4 @@
 
- * don't delete files that appear on sys.path
- * catch and ignore common OSErrors in Esky.cleanup()
  * respect various distutils settings e.g. verbose, dry_run
  * tests for customisable bootstrap process
  * hooks for code signing etc in the build process
