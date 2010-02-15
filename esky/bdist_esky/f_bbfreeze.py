@@ -140,6 +140,8 @@ def chainload(target_dir):
       except ImportError:
           _orig_chainload(target_dir)
       else:
+          sys.modules.pop("esky",None)
+          sys.modules.pop("esky.bootstrap",None)
           exec code in {"__name__":"__main__"}
           sys.exit(0)
 """

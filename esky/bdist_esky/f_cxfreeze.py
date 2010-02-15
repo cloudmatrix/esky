@@ -162,6 +162,8 @@ def chainload(target_dir):
           except ImportError:
               pass
           else:
+              sys.modules.pop("esky",None)
+              sys.modules.pop("esky.bootstrap",None)
               #  Adjust various cxfreeze global vars
               global DIR_NAME, FILE_NAME, EXCLUSIVE_ZIP_FILE_NAME
               global SHARED_ZIP_FILE_NAME, INITSCRIPT_ZIP_FILE_NAME

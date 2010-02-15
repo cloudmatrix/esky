@@ -260,7 +260,7 @@ def chainload(target_dir):
           (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",data[:headsz])
           assert magic == 0x78563412
           # TODO: what do I need to do for "optimized" and "unbuffered"?
-          # do these matter for run-of-the-mill exes?
+          # Do these matter for run-of-the-mill exes?
           codestart = headsz
           # skip over the archive name
           while data[codestart] != "\\0":
