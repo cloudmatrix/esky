@@ -6,9 +6,11 @@ v0.4.0:
         * replace Esky.install_update(v) with Esky.auto_update()
         * new utility methods Esky.install_version(v)/Esky.uninstall_version(v)
         * rename Esky.fetch_update(v) to Esky.fetch_version(v)
-    * added a few well-known hacks to get py2exe to play nice with common
-      third-party packages (win32com, wxPython).
-    * implemented a custom chainload() function for py2exe.
+    * added support for freezing with cx_Freeze.
+    * improved support for freezing with py2exe:
+        * added a few well-known hacks to get it to play nice with common
+          third-party packages (win32com, wxPython).
+        * implemented a custom chainload() function to avoid using execv()
     * added more version-handling utility functions: get_all_versions,
       is_version_dir, is_installed_version_dir
 
