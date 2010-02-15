@@ -46,6 +46,10 @@ def freeze(dist):
         f.addScript(script,gui_only=script.endswith(".pyw"))
     if "include_py" not in options:
         f.include_py = False
+    if "linkmethod" not in options:
+        #  Since we're going to zip it up, the benefits of hard- or sym-linking
+        #  the loader exe will mostly be lost.
+        f.linkmethod = "loader"
     f()
     #  Copy data files into the freeze dir
     for (src,dst) in dist.get_data_files():
