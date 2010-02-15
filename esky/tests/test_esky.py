@@ -1,4 +1,6 @@
 
+from __future__ import with_statement
+
 import sys
 import os
 import unittest
@@ -43,6 +45,7 @@ if not hasattr(HTTPServer,"shutdown"):
             self.socket.close()
         except socket.error:
             pass
+    HTTPServer.shutdown = socketserver_shutdown
 
 
 class TestEsky(unittest.TestCase):
@@ -100,7 +103,9 @@ class TestEsky(unittest.TestCase):
         #  Serve the updates at http://localhost:8000/dist/
         print "running local update server"
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
-        threading.Thread(target=server.serve_forever).start()
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
         #  Set up the deployed esky environment for the initial version
         zfname = os.path.join("dist","eskytester-0.1.%s.zip"%(platform,))
         os.mkdir(deploydir)

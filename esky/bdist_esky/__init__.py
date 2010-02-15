@@ -13,6 +13,8 @@ SimpleVersionFinder.  It will be named "appname-version.platform.zip"
 
 """
 
+from __future__ import with_statement
+
 
 import os
 import re

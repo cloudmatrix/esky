@@ -10,6 +10,10 @@ import os
 import re
 import shutil
 import zipfile
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
 
 from distutils.util import get_platform as _distutils_get_platform
 
@@ -27,6 +31,11 @@ def extract_zipfile(source,target,name_filter=None):
     in the target directory.
     """
     zf = zipfile.ZipFile(source,"r")
+    if hasattr(zf,"open"):
+        zf_open = zf.open
+    else:
+        def zf_open(nm,mode):
+            return StringIO(zf.read(nm))
     for nm in zf.namelist():
         if nm.endswith("/"):
             continue
@@ -36,7 +45,7 @@ def extract_zipfile(source,target,name_filter=None):
             outfilenm = os.path.join(target,nm)
         if not os.path.isdir(os.path.dirname(outfilenm)):
             os.makedirs(os.path.dirname(outfilenm))
-        infile = zf.open(nm,"r")
+        infile = zf_open(nm,"r")
         try:
             outfile = open(outfilenm,"wb")
             try:

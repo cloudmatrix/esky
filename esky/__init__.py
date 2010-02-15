@@ -88,6 +88,8 @@ call the "cleanup" method on their esky.
 
 """
 
+from __future__ import with_statement
+
 __ver_major__ = 0
 __ver_minor__ = 4
 __ver_patch__ = 0
@@ -231,7 +233,11 @@ class Esky(object):
         self._lock_count -= 1
         if self._lock_count == 0:
             if threading:
-               threadid = str(threading.currentThread().ident)
+               curthread = threading.currentThread()
+               try:
+                   threadid = curthread.ident
+               except AttributeError:
+                   threadid = curthread.getName()
             else:
               threadid = "0"
             myid = "%s-%s-%s" % (socket.gethostname(),os.getpid(),threadid)
