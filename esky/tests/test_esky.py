@@ -28,6 +28,10 @@ try:
     import py2exe
 except ImportError:
     py2exe = None
+try:
+    import cx_Freeze
+except ImportError:
+    cx_Freeze = None
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -53,6 +57,11 @@ class TestEsky(unittest.TestCase):
         """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
+  if cx_Freeze is not None:
+    def test_esky_cxfreeze(self):
+        """Build and launch a self-testing esky application using cx_Freeze."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
+
   def _run_eskytester(self,options):
     """Build and run the eskytester app using the given distutils options.
 
@@ -60,6 +69,7 @@ class TestEsky(unittest.TestCase):
     sequence of tests performed range across "script1.py" to "script3.py".
     """
     olddir = os.path.abspath(os.curdir)
+    server = None
     try:
         platform = get_platform()
         deploydir = "deploy.%s" % (platform,)
@@ -112,7 +122,8 @@ class TestEsky(unittest.TestCase):
         os.unlink("tests-completed")
     finally:
         os.chdir(olddir)
-        server.shutdown()
+        if server:
+            server.shutdown()
 
  
   def test_esky_locking(self):

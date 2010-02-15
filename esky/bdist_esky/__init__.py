@@ -31,6 +31,14 @@ if sys.platform == "win32":
     from xml.dom import minidom
 
 
+#  setuptools likes to be imported before anything else that
+#  might monkey-patch distutils.
+try:
+    import setuptools
+except ImportError:
+    pass
+
+
 _FREEZERS = {}
 try:
     from esky.bdist_esky import f_bbfreeze
@@ -42,6 +50,15 @@ try:
     _FREEZERS["py2exe"] = f_py2exe
 except ImportError:
     _FREEZERS["py2exe"] = None
+try:
+    from esky.bdist_esky import f_cxfreeze
+    _FREEZERS["cxfreeze"] = f_cxfreeze
+    _FREEZERS["cx_Freeze"] = f_cxfreeze
+    _FREEZERS["cx_freeze"] = f_cxfreeze
+except ImportError:
+    _FREEZERS["cxfreeze"] = None
+    _FREEZERS["cx_Freeze"] = None
+    _FREEZERS["cx_freeze"] = None
 
 
 class bdist_esky(Command):
