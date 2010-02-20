@@ -6,6 +6,8 @@ v0.4.0:
        * replace Esky.install_update(v) with Esky.auto_update().
        * new utility methods Esky.install_version(v)/Esky.uninstall_version(v).
        * rename Esky.fetch_update(v) to Esky.fetch_version(v)
+    * made all VersionFinder methods take the target esky as first argument
+      (in preparation for differential update support in a later version).
     * added support for freezing with cx_Freeze.
     * improved support for freezing with py2exe:
        * added a few well-known hacks to get it to play nice with common

@@ -157,6 +157,10 @@ class Esky(object):
         self.__version_finder = version_finder
     version_finder = property(_get_version_finder,_set_version_finder)
 
+    def _get_update_dir(self):
+        """Get the directory path in which self.version_finder can work."""
+        return os.path.join(self.appdir,"updates")
+
     def reinitialize(self):
         """Reinitialize internal state by poking around in the app directory.
 
@@ -275,7 +279,7 @@ class Esky(object):
                     if nm not in manifest:
                         self._try_remove(fullnm)
             if self.version_finder is not None:
-                self.version_finder.cleanup()
+                self.version_finder.cleanup(self)
         finally:
             self.unlock()
 
@@ -326,7 +330,7 @@ class Esky(object):
             raise NoVersionFinderError
         best_version = None
         best_version_p = parse_version(self.version)
-        for version in self.version_finder.find_versions():
+        for version in self.version_finder.find_versions(self):
             version_p = parse_version(version)
             if version_p > best_version_p:
                 best_version_p = version_p
@@ -337,8 +341,8 @@ class Esky(object):
         """Fetch the specified updated version of the app."""
         if self.version_finder is None:
             raise NoVersionFinderError
-        if not self.version_finder.has_version(version):
-            self.version_finder.fetch_version(version)
+        if not self.version_finder.has_version(self,version):
+            self.version_finder.fetch_version(self,version)
 
     def install_version(self,version):
         """Install the specified version of the app.
@@ -351,9 +355,9 @@ class Esky(object):
         target = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target)
         if not os.path.exists(target):
-            if not self.version_finder.has_version(version):
-                self.version_finder.fetch_version(version)
-            source = self.version_finder.prepare_version(version)
+            if not self.version_finder.has_version(self,version):
+                self.version_finder.fetch_version(self,version)
+            source = self.version_finder.prepare_version(self,version)
         self.lock()
         try:
             if not os.path.exists(target):
