@@ -112,7 +112,7 @@ except ImportError:
 
 from esky.errors import *
 from esky.fstransact import FSTransaction
-from esky.finder import SimpleVersionFinder
+from esky.finder import DefaultVersionFinder
 from esky.util import is_core_dependency, split_app_version, join_app_version,\
                       parse_version, get_best_version
 
@@ -133,7 +133,7 @@ class Esky(object):
     or the path of an executable from that application.  The second argument
     is a VersionFinder object that will be used to search for updates.  If
     a string it passed, it is assumed to be a URL and is passed to a new 
-    SimpleVersionFinder instance.
+    DefaultVersionFinder instance.
     """
 
     lock_timeout = 60*60  # 1 hour
@@ -152,10 +152,8 @@ class Esky(object):
         workdir = os.path.join(self.appdir,"updates")
         if version_finder is not None:
             if isinstance(version_finder,basestring):
-               version_finder = SimpleVersionFinder(download_url=version_finder)
-            version_finder.appname = self.name
-            version_finder.platform = self.platform
-            version_finder.workdir = workdir
+               kwds = {"download_url":version_finder}
+               version_finder = DefaultVersionFinder(**kwds)
         self.__version_finder = version_finder
     version_finder = property(_get_version_finder,_set_version_finder)
 

@@ -5,8 +5,8 @@
   esky.finder:  VersionFinder implementations for esky
 
 This module provides the default VersionFinder implementations for esky. The
-abstract base class 'VersionFinder' defines the expected interface, while 
-'SimpleVersionFinder' provides a simple default implementation that hits a
+abstract base class "VersionFinder" defines the expected interface, while 
+"DefaultVersionFinder" provides a simple default implementation that hits a
 specified URL to look for new versions.
 
 """
@@ -77,8 +77,8 @@ class VersionFinder(object):
         raise NotImplementedError
 
 
-class SimpleVersionFinder(VersionFinder):
-    """VersionFinder implementing simple download scheme.
+class DefaultVersionFinder(VersionFinder):
+    """VersionFinder implementing simple default download scheme.
 
     SimpleVersionFinder expects to be given a download url, which it will
     hit looking for new versions packaged as zipfiles.  These are simply

@@ -9,7 +9,7 @@ This command will freeze the given scripts and package them into a zipfile
 named with the application name, version and platform.
 
 The resulting zipfile is conveniently in the format expected by the default
-SimpleVersionFinder.  It will be named "appname-version.platform.zip"
+DefaultVersionFinder.  It will be named "appname-version.platform.zip"
 
 """
 
