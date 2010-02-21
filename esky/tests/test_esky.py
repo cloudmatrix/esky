@@ -110,8 +110,8 @@ class TestEsky(unittest.TestCase):
         zfname = os.path.join("dist","eskytester-0.1.%s.zip"%(platform,))
         os.mkdir(deploydir)
         extract_zipfile(zfname,deploydir)
-        #  Run the first script, which will perform the necessary tests
-        #  and write "tests-completed" file when done.
+        #  Run the first script, which will perform the necessary tests,
+        #  launch script2 and script3, and write the file "tests-completed".
         if os.path.exists("tests-completed"):
             os.unlink("tests-completed")
         if sys.platform == "win32":
@@ -238,6 +238,7 @@ class TestEsky(unittest.TestCase):
             f = open(readme,"wb")
             f.write(esky.__doc__)
             f.close()
+
 
 class TestFSTransact(unittest.TestCase):
     """Testcases for FSTransact."""
