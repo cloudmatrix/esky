@@ -57,8 +57,7 @@ if len(sys.argv) == 1:
     assert not os.path.isdir(v3dir)
     script2 = os.path.join(app.appdir,"script2"+dotexe)
     #  Simulate a broken upgrade.
-    app.version_finder.fetch_version(app,"0.3")
-    upv3 = app.version_finder.prepare_version(app,"0.3")
+    upv3 = app.version_finder.fetch_version(app,"0.3")
     os.rename(upv3,v3dir)
     #  While we're here, check that the bootstrap library hasn't changed
     if os.path.exists(os.path.join(app.appdir,"library.zip")):

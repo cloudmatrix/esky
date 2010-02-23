@@ -40,9 +40,6 @@ class VersionFinder(object):
 
         has_version:  check that the specified version is available locally
 
-        prepare_version:  extract the specific version into a directory
-                          that can be linked into the application
-
     """
 
     def __init__(self):
@@ -57,16 +54,13 @@ class VersionFinder(object):
         raise NotImplementedError
 
     def fetch_version(self,app,version):
-        """Fetch a specific version of the app into local storage."""
+        """Fetch a specific version of the app into a local directory."""
         raise NotImplementedError
 
     def has_version(self,app,version):
         """Check whether a specific version of the app is available locally."""
         raise NotImplementedError
 
-    def prepare_version(self,version):
-        """Extract a specific version of the app into a local directory."""
-        raise NotImplementedError
 
 
 class DefaultVersionFinder(VersionFinder):
@@ -89,6 +83,7 @@ class DefaultVersionFinder(VersionFinder):
         self.version_urls = {}
 
     def _workdir(self,app,nm):
+        """Get full path of named working directory, inside the given app."""
         workdir = os.path.join(app._get_update_dir(),nm)
         try:
             os.makedirs(workdir)
@@ -103,7 +98,10 @@ class DefaultVersionFinder(VersionFinder):
             os.unlink(os.path.join(dldir,nm))
         updir = self._workdir(app,"unpack")
         for nm in os.listdir(updir):
-            os.unlink(os.path.join(updir,nm))
+            shutil.rmtree(os.path.join(updir,nm))
+        rddir = self._workdir(app,"ready")
+        for nm in os.listdir(rddir):
+            shutil.rmtree(os.path.join(rddir,nm))
 
     def open_url(self,url):
         return urllib2.urlopen(url)
@@ -118,7 +116,6 @@ class DefaultVersionFinder(VersionFinder):
         return self.version_urls.keys()
 
     def fetch_version(self,app,version):
-        self._workdir(app,"downloads")
         try:
             url = self.version_urls[version]
         except KeyError:
@@ -140,19 +137,28 @@ class DefaultVersionFinder(VersionFinder):
             infile.close()
             outfile.close()
             os.rename(outfilenm,self._download_name(app,version))
+        return self._prepare_version(app,version)
 
     def _download_name(self,app,version):
         version = join_app_version(app.name,version,app.platform)
         return os.path.join(self._workdir(app,"downloads"),"%s.zip"%(version,))
 
-    def has_version(self,app,version):
-        return os.path.exists(self._download_name(app,version))
+    def _ready_name(self,app,version):
+        version = join_app_version(app.name,version,app.platform)
+        return os.path.join(self._workdir(app,"ready"),version)
 
-    def prepare_version(self,app,version):
+    def _prepare_version(self,app,version):
+        """Prepare the request version from downloaded data.
+
+        This method is responsible for unzipping the downloaded version
+        and making it available as a local directory.  When I implement
+        differential updates it will also be responsible for applying them.
+        """
         uppath = self._workdir(app,"unpack")
         dlpath = self._download_name(app,version)
+        rdpath = self._ready_name(app,version)
         vdir = join_app_version(app.name,version,app.platform)
-        #  Anything in the root of the zipfile is part of the boostrap
+        #  Anything in the root of the zipfile is part of the bootstrap
         #  env, so it gets placed in a special directory.
         def name_filter(nm):
             if not nm.startswith(vdir):
@@ -162,6 +168,12 @@ class DefaultVersionFinder(VersionFinder):
         bspath = os.path.join(uppath,vdir,"esky-bootstrap")
         if not os.path.isdir(bspath):
             os.makedirs(bspath)
-        return os.path.join(uppath,vdir)
+        os.rename(os.path.join(uppath,vdir),rdpath)
+        os.unlink(dlpath)
+        return rdpath
+
+    def has_version(self,app,version):
+        return os.path.exists(self._ready_name(app,version))
+
 
 

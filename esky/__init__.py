@@ -355,9 +355,7 @@ class Esky(object):
         target = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target)
         if not os.path.exists(target):
-            if not self.version_finder.has_version(self,version):
-                self.version_finder.fetch_version(self,version)
-            source = self.version_finder.prepare_version(self,version)
+            source = self.version_finder.fetch_version(self,version)
         self.lock()
         try:
             if not os.path.exists(target):
