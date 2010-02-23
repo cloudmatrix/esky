@@ -94,16 +94,22 @@ def freeze(dist):
     for exc in options.pop("excludes",()):
         excludes.append(exc)
     #  py2exe expects some arguments on the main distribution object.
-    #  We handl data_files ourselves, so fake it out for py2exe.
+    #  We handle data_files ourselves, so fake it out for py2exe.
     dist.distribution.console = []
     dist.distribution.windows = []
     my_data_files = dist.distribution.data_files
     dist.distribution.data_files = []
-    for script in dist.get_scripts():
-        if script.endswith(".pyw"):
-            dist.distribution.windows.append(script)
+    for exe in dist.get_executables():
+        #  Pass any executable kwds through to py2exe.
+        #  We handle "icon" and "gui_only" ourselves.
+        s = exe._kwds.copy()
+        s["script"] = exe.script
+        if exe.icon is not None and "icon_resources" not in s:
+            s["icon_resources"] = [(1,exe.icon)]
+        if exe.gui_only:
+            dist.distribution.windows.append(s)
         else:
-            dist.distribution.console.append(script)
+            dist.distribution.console.append(s)
     if "zipfile" in options:
         dist.distribution.zipfile = options.pop("zipfile")
     #  Create the py2exe cmd and adjust its options
@@ -175,11 +181,8 @@ def freeze(dist):
     else:
         pydll_bytes = None
     #  Copy the loader program for each script into the bootstrap env.
-    for script in dist.get_scripts():
-        nm = os.path.basename(script)
-        if nm.endswith(".py") or nm.endswith(".pyw"):
-            nm = ".".join(nm.split(".")[:-1]) + ".exe"
-        exepath = dist.copy_to_bootstrap_env(nm)
+    for exe in dist.get_executables():
+        exepath = dist.copy_to_bootstrap_env(exe.name)
         #  Insert the bootstrap code into the exe as a resource.
         #  This appears to have the happy side-effect of stripping any extra
         #  data from the end of the exe, which is exactly what we want when

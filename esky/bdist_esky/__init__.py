@@ -64,6 +64,48 @@ except ImportError:
     _FREEZERS["cx_freeze"] = None
 
 
+class Executable(str):
+    """Class to hold information about a specific executable.
+
+    This class provides a uniform way to specify extra meta-data about
+    a frozen executable.  By setting various keyword arguments, you can
+    specify e.g. the icon, and whether it is a gui-only script.
+
+    This is a subclass of str() so that it can appear directly in the
+    "scripts" argument of the setup() function; I know it's ugly, but
+    it works.
+    """
+
+    def __new__(cls,script,**kwds):
+        return str.__new__(cls,script)
+
+    def __init__(self,script,icon=None,gui_only=None,**kwds):
+        str.__init__(script)
+        self.script = script
+        self.icon = icon
+        self._gui_only = gui_only
+        self._kwds = kwds
+
+    @property
+    def name(self):
+        nm = os.path.basename(self.script)
+        if nm.endswith(".py"):
+            nm = nm[:-3]
+        elif nm.endswith(".pyw"):
+            nm = nm[:-4]
+        if sys.platform == "win32":
+            nm += ".exe"
+        return nm
+
+    @property
+    def gui_only(self):
+        if self._gui_only is None:
+            return self.script.endswith(".pyw")
+        else:
+            return self._gui_only
+
+
+
 class bdist_esky(Command):
     """Create a frozen application in 'esky' format.
 
@@ -181,11 +223,14 @@ class bdist_esky(Command):
         zf.close()
         shutil.rmtree(self.bootstrap_dir)
 
-    def get_scripts(self):
-        """Yield paths of all scripts to be included in the freeze."""
+    def get_executables(self):
+        """Yield an Executable instance for each script to be frozen."""
         if self.distribution.has_scripts():
             for s in self.distribution.scripts:
-                yield s
+                if isinstance(s,Executable):
+                    yield s
+                else:
+                    yield Executable(s)
 
     def get_data_files(self):
         """Yield (source,destination) tuples for data files.

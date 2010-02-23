@@ -14,9 +14,12 @@ v0.4.0:
        * added a few well-known hacks to get it to play nice with common
          third-party packages (win32com, wxPython).
        * implemented a custom chainload() function to avoid using execv().
+    * added ability to set the icon on each executable, for freezer
+      modules that suppot it.
     * added more version-handling utility functions: get_all_versions,
       is_version_dir, is_installed_version_dir.
     * made Esky.cleanup() catch and ignore common errors.
+    * added support for Python 3 (via distribute's "use_2to3" flag)
 
 v0.3.0:
 

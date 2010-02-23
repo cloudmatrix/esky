@@ -57,11 +57,11 @@ def freeze(dist):
     kwds["targetDir"] = dist.freeze_dir
     #  Build an Executable object for each script
     executables = []
-    for script in dist.get_scripts():
+    for exe in dist.get_executables():
         base = None
-        if script.endswith(".pyw") and sys.platform == "win32":
+        if exe.gui_only and sys.platform == "win32":
             base = "Win32GUI"
-        executables.append(cx_Freeze.Executable(script,base=base))
+        executables.append(cx_Freeze.Executable(exe.script,base=base,icon=exe.icon,**exe._kwds))
     #  Freeze up the executables
     f = cx_Freeze.Freezer(executables,**kwds)
     f.Freeze()
@@ -106,13 +106,8 @@ def freeze(dist):
     eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
     #  Copy the loader program for each script into the bootstrap env, and
     #  append the bootstrapping code to it as a zipfile.
-    for script in dist.get_scripts():
-        nm = os.path.basename(script)
-        if nm.endswith(".py") or nm.endswith(".pyw"):
-            nm = ".".join(nm.split(".")[:-1])
-        if sys.platform == "win32":
-            nm += ".exe"
-        exepath = dist.copy_to_bootstrap_env(nm)
+    for exe in dist.get_executables():
+        exepath = dist.copy_to_bootstrap_env(exe.name)
         bslib = zipfile.PyZipFile(exepath,"a",zipfile.ZIP_STORED)
         cdate = (2000,1,1,0,0,0)
         bslib.writestr(zipfile.ZipInfo(INITNAME+".pyc",cdate),maincode)

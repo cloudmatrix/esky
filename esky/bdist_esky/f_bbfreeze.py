@@ -42,8 +42,8 @@ def freeze(dist):
     for (nm,val) in options.iteritems():
         setattr(f,nm,val)
     f.addModule("esky")
-    for script in dist.get_scripts():
-        f.addScript(script,gui_only=script.endswith(".pyw"))
+    for exe in dist.get_executables():
+        f.addScript(exe.script,gui_only=exe.gui_only)
     if "include_py" not in options:
         f.include_py = False
     if "linkmethod" not in options:
@@ -97,13 +97,8 @@ def freeze(dist):
     #  Copy the loader program for each script.
     #  We explicitly strip the loader binaries, in case they were made
     #  by linking to the library.zip.
-    for script in dist.get_scripts():
-        nm = os.path.basename(script)
-        if nm.endswith(".py") or nm.endswith(".pyw"):
-            nm = ".".join(nm.split(".")[:-1])
-        if sys.platform == "win32":
-            nm += ".exe"
-        exepath = dist.copy_to_bootstrap_env(nm)
+    for exe in dist.get_executables():
+        exepath = dist.copy_to_bootstrap_env(exe.name)
         f.stripBinary(exepath)
     #  Copy the bbfreeze interpreter if necessary
     if f.include_py:
