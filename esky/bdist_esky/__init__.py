@@ -135,8 +135,8 @@ class bdist_esky(Command):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
         if self.freezer_module is None:
             for freezer_module in ("py2exe","bbfreeze","cxfreeze"):
-                freezer = _FREEZERS[freezer_module]
-                if freezer is not None:
+                self.freezer_module = _FREEZERS[freezer_module]
+                if self.freezer_module is not None:
                     break
             else:
                 err = "no supported freezer modules found"
