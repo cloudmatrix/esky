@@ -121,7 +121,7 @@ class TestEsky(unittest.TestCase):
         print "spawning eskytester application"
         p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         (stdout,_) = p.communicate()
-        sys.stdout.write(stdout)
+        sys.stdout.write(stdout.decode())
         assert p.returncode == 0
         assert os.path.exists("tests-completed")
         os.unlink("tests-completed")
@@ -229,14 +229,14 @@ class TestEsky(unittest.TestCase):
     readme = os.path.join(dirname(dirname(dirname(__file__))),"README.txt")
     if not os.path.isfile(readme):
         f = open(readme,"wb")
-        f.write(esky.__doc__)
+        f.write(esky.__doc__.encode())
         f.close()
     else:
         f = open(readme,"rb")
         if f.read() != esky.__doc__:
             f.close()
             f = open(readme,"wb")
-            f.write(esky.__doc__)
+            f.write(esky.__doc__.encode())
             f.close()
 
 
@@ -256,11 +256,11 @@ class TestFSTransact(unittest.TestCase):
         if not os.path.isdir(os.path.dirname(self.path(path))):
             os.makedirs(os.path.dirname(self.path(path)))
         with open(self.path(path),"wb") as f:
-            f.write(contents)
+            f.write(contents.encode())
 
     def assertContents(self,path,contents):
         with open(self.path(path),"rb") as f:
-            self.assertEquals(f.read(),contents)
+            self.assertEquals(f.read().decode(),contents)
 
     def test_move_file(self):
         self.setContents("file1","hello world")

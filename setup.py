@@ -8,14 +8,14 @@ if sys.version_info > (3,):
 else:
     from distutils.core import setup
 
-
+#  This awfulness is all in aid of grabbing the version number out
+#  of the source code, rather than having to repeat it here.  Basically,
+#  we parse out all lines starting with "__version__" and execute them.
 try:
     next = next
 except NameError:
     def next(i):
         return i.next()
-
-
 info = {}
 try:
     src = open("esky/__init__.py")
@@ -44,7 +44,7 @@ LONG_DESC = info["__doc__"]
 
 PACKAGES = ["esky","esky.bdist_esky","esky.tests","esky.tests.eskytester"]
 EXT_MODULES = []
-PKG_DATA = {}
+PKG_DATA = {"esky.tests.eskytester":["pkgdata.txt","datafile.txt"]}
 
 setup(name=NAME,
       version=VERSION,

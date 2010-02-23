@@ -8,7 +8,7 @@ Importing this module makes "bdist_esky" available as a distutils command.
 This command will freeze the given scripts and package them into a zipfile
 named with the application name, version and platform.
 
-The resulting zipfile is conveniently in the format expected by the default
+The resulting zipfile is conveniently in the format expected by the class
 DefaultVersionFinder.  It will be named "appname-version.platform.zip"
 
 """
@@ -34,7 +34,8 @@ if sys.platform == "win32":
 
 
 #  setuptools likes to be imported before anything else that
-#  might monkey-patch distutils.
+#  might monkey-patch distutils.  We don't actually use it,
+#  this is just to avoid errors.
 try:
     import setuptools
 except ImportError:

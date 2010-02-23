@@ -107,7 +107,8 @@ class DefaultVersionFinder(VersionFinder):
         return urllib2.urlopen(url)
 
     def find_versions(self,app):
-        downloads = self.open_url(self.download_url).read()
+        # TODO: would be nice not to have to guess encoding here.
+        downloads = self.open_url(self.download_url).read().decode("utf-8")
         version_re = "(?P<version>[a-zA-Z0-9\\.-_]+)"
         version_re = join_app_version(app.name,version_re,app.platform)
         link_re = "href=['\"](?P<href>(.*/)?%s.zip)['\"]" % (version_re,)

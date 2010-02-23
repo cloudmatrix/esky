@@ -4,7 +4,7 @@
 
   esky.winres:  utilities for working with windows EXE resources.
 
-This module provides some wrapper functions for accessing resource in win32
+This module provides some wrapper functions for accessing resources in win32
 PE-format executable files.  It requires ctypes and (obviously) only works
 under Windows.
 
@@ -24,7 +24,8 @@ RT_MANIFEST = 24
 k32 = windll.kernel32
 k32.LockResource.restype = POINTER(c_char)
 
-# AFAIK 1033 is some sort of "default" language.  Happy to be corrected :-)
+# AFAIK 1033 is some sort of "default" language.
+# Is it (LANG_NEUTRAL,SUBLANG_NEUTRAL)?
 _DEFAULT_RESLANG = 1033
 
 
@@ -85,7 +86,11 @@ def get_app_manifest(filename_or_handle=None):
     """Get the default application manifest for frozen Python apps.
 
     The manifest is a special XML file that must be embedded in the executable
-    in order for it to correclty load SxS assemblies.
+    in order for it to correctly load SxS assemblies.
+
+    Called without arguments, this function reads the manifest from the
+    current python executable.  Pass the filename or handle of a different
+    executable if you want a different manifest.
     """
     return load_resource(filename_or_handle,RT_MANIFEST,1)
 

@@ -18,7 +18,6 @@ Although transactions are not supported on POSIX platforms, the way Esky
 structures its filesystem operations means that the program is always safe
 as long as you can atomically replace a file.
 
-
 """
 
 import sys
