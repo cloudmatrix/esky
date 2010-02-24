@@ -58,6 +58,28 @@ def extract_zipfile(source,target,name_filter=None):
         os.chmod(outfilenm,mode)
 
 
+def create_zipfile(source,target,name_filter=None,compress=None):
+    """Bundle the contents of a given directory into a zipfile.
+
+    The argument 'source' names the directory to read, while 'target' names
+    the zipfile to be written. If given, the optional argument 'name_filter'
+    must be a function mapping names from the source to names in the zipfile.
+    """
+    if not compress:
+        compress_type = zipfile.ZIP_STORED
+    else:
+        compress_type = zipfile.ZIP_DEFLATED
+    zf = zipfile.ZipFile(target,"w")
+    for (dirpath,dirnames,filenames) in os.walk(source):
+        for fn in filenames:
+            fpath = os.path.join(dirpath,fn)
+            zpath = fpath[len(source)+1:]
+            if name_filter:
+                zpath = name_filter(zpath)
+            zf.write(fpath,zpath,compress_type)
+    zf.close()
+
+
 def get_platform():
     """Get the platform identifier for the current platform.
 

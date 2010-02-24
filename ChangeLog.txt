@@ -1,5 +1,10 @@
 
 
+v0.4.1:
+
+    * added utility function create_zipfile(dir,zipfile)
+
+
 v0.4.0:
 
     * some backwards-incompatible API changes:

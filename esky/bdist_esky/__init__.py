@@ -27,7 +27,7 @@ import distutils.command
 from distutils.core import Command
 from distutils.util import convert_path
 
-from esky.util import get_platform, is_core_dependency
+from esky.util import get_platform, is_core_dependency, create_zipfile
 if sys.platform == "win32":
     from esky import winres
     from xml.dom import minidom
@@ -214,13 +214,7 @@ class bdist_esky(Command):
         #  Zip up the distribution
         print "zipping up the esky"
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
-        zf = zipfile.ZipFile(zfname,"w")
-        for (dirpath,dirnames,filenames) in os.walk(self.bootstrap_dir):
-            for fn in filenames:
-                fpath = os.path.join(dirpath,fn)
-                zpath = fpath[len(self.bootstrap_dir)+1:]
-                zf.write(fpath,zpath)
-        zf.close()
+        create_zipfile(self.bootstrap_dir,zfname,compress=True)
         shutil.rmtree(self.bootstrap_dir)
 
     def get_executables(self):
