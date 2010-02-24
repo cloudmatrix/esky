@@ -2,7 +2,13 @@
 
 v0.4.1:
 
-    * added utility function create_zipfile(dir,zipfile)
+    * added module esky.patch for diffing and patching frozen apps:
+       * files can be diffed via bsdiff if cx-bsdiff is installed.
+       * files can be patched via bsdiff with no external dependencies.
+       * provides a generic file format for diffing/patching directories.
+           * patch sizes are equivalent to bsdiffing the zipfile, but quicker
+             to produce and use less memory to apply.
+    * added utility function create_zipfile(dir,zipfile).
 
 
 v0.4.0:
