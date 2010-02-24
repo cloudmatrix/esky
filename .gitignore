@@ -4,3 +4,5 @@
 esky/tests/dist
 esky/tests/build
 esky/tests/deploy*
+esky/tests/patch-test-temp
+build/

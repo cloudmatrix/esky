@@ -10,6 +10,9 @@ import shutil
 import zipfile
 import threading
 import tempfile
+import urllib2
+import hashlib
+import tarfile
 import time
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
@@ -18,6 +21,7 @@ from distutils.core import setup as dist_setup
 from distutils import dir_util
 
 import esky
+import esky.patch
 from esky import bdist_esky
 from esky.util import extract_zipfile, get_platform
 from esky.fstransact import FSTransaction
@@ -129,7 +133,6 @@ class TestEsky(unittest.TestCase):
         os.chdir(olddir)
         if server:
             server.shutdown()
-
  
   def test_esky_locking(self):
     """Test that locking an Esky works correctly."""
@@ -423,4 +426,76 @@ class TestFSTransact(unittest.TestCase):
         trn.commit()
         self.assertContents("dir2","zero zero zero")
         self.assertContents("file0","zero zero zero")
+
+
+class TestPatch(unittest.TestCase):
+    """Testcases for esky.patch."""
+ 
+    _TEST_FILES = (
+        ("pyenchant-1.2.0.tar.gz","2fefef0868b110b1da7de89c08344dd2"),
+        ("pyenchant-1.5.2.tar.gz","fa1e4f3f3c473edd98c7bb0e46eea352"),
+        ("pyenchant-1.6.0.tar.gz","3fd7336989764d8d379a367236518439"),
+    )
+
+    _TEST_FILES_URL = "http://pypi.python.org/packages/source/p/pyenchant/"
+
+    def setUp(self):
+        self.tests_root = dirname(__file__)
+        self.tfdir = tfdir = os.path.join(self.tests_root,"patch-test-files")
+        self.workdir = workdir = os.path.join(self.tests_root,"patch-test-temp")
+        if not os.path.isdir(tfdir):
+            os.makedirs(tfdir)
+        if not os.path.isdir(workdir):
+            os.makedirs(workdir)
+        #  Ensure we have the expected test files.
+        #  Download from PyPI if necessary.
+        for (tfname,hash) in self._TEST_FILES:
+            tfpath = os.path.join(tfdir,tfname)
+            if not os.path.exists(tfpath):
+                data = urllib2.urlopen(self._TEST_FILES_URL+tfname).read()
+                assert hashlib.md5(data).hexdigest() == hash
+                with open(tfpath,"wb") as f:
+                    f.write(data)
+
+    def test_diffing_back_and_forth(self):
+        for (tf1,_) in self._TEST_FILES:
+            for (tf2,_) in self._TEST_FILES:
+                path1 = self._extract(tf1,"source")
+                path2 = self._extract(tf2,"target")
+                with open(os.path.join(self.workdir,"patch"),"wb") as f:
+                    esky.patch.write_patch(path1,path2,f)
+                if tf1 != tf2:
+                    self.assertNotEquals(esky.patch.calculate_digest(path1),
+                                         esky.patch.calculate_digest(path2))
+                with open(os.path.join(self.workdir,"patch"),"rb") as f:
+                    esky.patch.apply_patch(path1,f)
+                self.assertEquals(esky.patch.calculate_digest(path1),
+                                  esky.patch.calculate_digest(path2))
+
+    def test_apply_patch(self):
+        path1 = self._extract("pyenchant-1.2.0.tar.gz","source")
+        path2 = self._extract("pyenchant-1.6.0.tar.gz","target")
+        path1 = os.path.join(path1,"pyenchant-1.2.0")
+        path2 = os.path.join(path2,"pyenchant-1.6.0")
+        with open(os.path.join(self.tfdir,"v1.2.0_to_v1.6.0.patch"),"rb") as f:
+            esky.patch.apply_patch(path1,f)
+        self.assertEquals(esky.patch.calculate_digest(path1),
+                         esky.patch.calculate_digest(path2))
+        
+
+    def _extract(self,filename,dest):
+        dest = os.path.join(self.workdir,dest)
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+        f = tarfile.open(os.path.join(self.tfdir,filename),"r:gz")
+        try:
+            f.extractall(dest)
+        finally:
+            f.close()
+        return dest
+        
+
+    def tearDown(self):
+        shutil.rmtree(self.workdir)
+
 

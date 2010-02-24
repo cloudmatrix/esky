@@ -88,20 +88,26 @@ class DiffError(Error):
 #  Commands used in the directory patching protocol.  Each of these is
 #  encoded as a vint in the patch stream; unless we get really out of
 #  control that should mean one byte per command.
+#
+#  It's very important that you don't reorder these commands.  Their order
+#  in this list determines what byte each command is assigned, so doing
+#  anything but adding to the end will break all existing patches!
+#
 _COMMANDS = [
- "END",         # END():               stop processing at this point
- "SET_PATH",    # SET_PATH(path):      set current target path 
- "JOIN_PATH",   # JOIN_PATH(path):     join path to the current target
- "POP_PATH",    # POP_PATH(h):         pop one level off current target
- "VERIFY_MD5",  # VERIFY_MD5(dgst):    check md5 digest of current target
- "REMOVE",      # REMOVE():            remove the current target
- "MAKEDIR",     # MAKEDIR():           make directory at current target
- "COPY_FROM",   # COPY_FROM(path):     copy file/dir at path to current target
- "PF_COPY",     # PF_COPY(n):          patch file; copy n bytes from input
- "PF_SKIP",     # PF_SKIP(n):          patch file; skip n bytes from input
- "PF_INS_RAW",  # PF_INS_RAW(bytes):   patch file; insert raw bytes 
- "PF_INS_BZ2",  # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
- "PF_BSDIFF4",  # PF_BSDIFF4(n,ptch):  patch file; bsdiff4 from n input bytes
+ "END",           # END():               stop processing at this point
+ "SET_PATH",      # SET_PATH(path):      set current target path 
+ "JOIN_PATH",     # JOIN_PATH(path):     join path to the current target
+ "POP_PATH",      # POP_PATH(h):         pop one level off current target
+ "POP_JOIN_PATH", # POP_JOIN_PATH(path): pop the current path, then join
+ "VERIFY_MD5",    # VERIFY_MD5(dgst):    check md5 digest of current target
+ "REMOVE",        # REMOVE():            remove the current target
+ "MAKEDIR",       # MAKEDIR():           make directory at current target
+ "COPY_FROM",     # COPY_FROM(path):     copy item at path to current target
+ "PF_COPY",       # PF_COPY(n):          patch file; copy n bytes from input
+ "PF_SKIP",       # PF_SKIP(n):          patch file; skip n bytes from input
+ "PF_INS_RAW",    # PF_INS_RAW(bytes):   patch file; insert raw bytes 
+ "PF_INS_BZ2",    # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
+ "PF_BSDIFF4",    # PF_BSDIFF4(n,ph):    patch file; bsdiff4 from n input bytes
 ]
 
 # Make commands available as global variables
@@ -339,6 +345,17 @@ class Patcher(object):
         self.target = os.path.dirname(self.target)
         self._check_path()
 
+    def _do_POP_JOIN_PATH(self):
+        """Execute the POP_JOIN_PATH command.
+
+        This pops one name component from the current target path, then
+        joins the path read from the command stream.
+        """
+        self._check_end_patch()
+        while self.target.endswith(os.sep):
+            self.target = self.target[:-1]
+        self.target = os.path.dirname(self.target)
+        self._check_path()
     def _do_VERIFY_MD5(self):
         """Execute the VERIFY_MD5 command.
 
@@ -518,6 +535,7 @@ def _write_patch(source,target,stream):
                     at_path = True
                 _write_patch(s_nm,t_nm,stream)
             if at_path:
+                # TODO: work out how to use POP_JOIN_PATH here.
                 write_command(stream,POP_PATH)
         #  Remove anything that's no longer in the target dir
         if os.path.isdir(source):
@@ -540,23 +558,28 @@ def _write_patch(source,target,stream):
                 #  will produce slightly bigger patches but we avoid
                 #  running out of memory for large files.
                 tdata = tfile.read(DIFF_WINDOW_SIZE)
-                while tdata:
-                    sdata = ""
-                    if sfile is not None:
-                        sdata = sfile.read(DIFF_WINDOW_SIZE)
-                    #  Look for a shared prefix.
-                    i = 0; maxi = min(len(tdata),len(sdata))
-                    while i < maxi and tdata[i] == sdata[i]:
-                        i += 1
-                    #  Copy it in directly, unless it's tiny.
-                    if i > 8:
-                        write_command(stream,PF_COPY)
-                        write_vint(stream,i)
-                        tdata = tdata[i:]; sdata = sdata[i:]
-                    #  Write the rest of the block as a diff
-                    if tdata:
-                        _write_file_patch(sdata,tdata,stream)
-                    tdata = tfile.read(DIFF_WINDOW_SIZE)
+                if not tdata:
+                    #  The file is empty, do a raw insert.
+                    write_command(stream,PF_INS_RAW)
+                    write_bytes(stream,"")
+                else:
+                    while tdata:
+                        sdata = ""
+                        if sfile is not None:
+                            sdata = sfile.read(DIFF_WINDOW_SIZE)
+                        #  Look for a shared prefix.
+                        i = 0; maxi = min(len(tdata),len(sdata))
+                        while i < maxi and tdata[i] == sdata[i]:
+                            i += 1
+                        #  Copy it in directly, unless it's tiny.
+                        if i > 8:
+                            write_command(stream,PF_COPY)
+                            write_vint(stream,i)
+                            tdata = tdata[i:]; sdata = sdata[i:]
+                        #  Write the rest of the block as a diff
+                        if tdata:
+                            _write_file_patch(sdata,tdata,stream)
+                        tdata = tfile.read(DIFF_WINDOW_SIZE)
             finally:
                 tfile.close()
                 if sfile:
@@ -586,6 +609,8 @@ def _find_similar_sibling(source,target,nm):
         #  For directories, decide similarity based on the number of
         #  entry names they have in common.  This is very simple but should
         #  work well for the use cases we're facing in esky.
+        if not os.path.isdir(source):
+            return None
         t_names = set(os.listdir(t_nm))
         best = (0,None)
         for sibnm in os.listdir(source):
