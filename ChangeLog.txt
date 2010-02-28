@@ -1,14 +1,17 @@
 
 
-v0.4.1:
+v0.5.0:
 
+    * replaced Esky.version with Esky.cur_version and Esky.best_version;
+      previously a running app could not determine its current version after
+      performing an upgrade.
+    * added utility function create_zipfile(dir,zipfile).
     * added module esky.patch for diffing and patching frozen apps:
        * provides a generic file format for diffing/patching directories.
            * can recurse into compressed zipfiles, giving patches an order
              of magnitude smaller than produced by naively applying bsdiff.
        * individual files are diffed via bsdiff if cx-bsdiff is installed.
        * bsdiff-based patches can be applied with no external dependencies
-    * added utility function create_zipfile(dir,zipfile).
 
 
 v0.4.0:

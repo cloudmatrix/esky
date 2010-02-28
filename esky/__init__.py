@@ -91,7 +91,7 @@ call the "cleanup" method on their esky.
 from __future__ import with_statement
 
 __ver_major__ = 0
-__ver_minor__ = 4
+__ver_minor__ = 5
 __ver_patch__ = 0
 __ver_sub__ = ""
 __version__ = "%d.%d.%d%s" % (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
@@ -138,10 +138,14 @@ class Esky(object):
 
     lock_timeout = 60*60  # 1 hour
 
-    def __init__(self,appdir,version_finder=None):
-        if os.path.isfile(appdir):
-            appdir = os.path.dirname(os.path.dirname(appdir))
-        self.appdir = appdir
+    def __init__(self,appdir_or_exe,version_finder=None):
+        if os.path.isfile(appdir_or_exe):
+            vdir = os.path.basename(os.path.dirname(appdir_or_exe))
+            self.name,self.cur_version,self.platform = split_app_version(vdir)
+            self.appdir = os.path.dirname(os.path.dirname(appdir_or_exe))
+        else:
+            self.cur_version = None
+            self.appdir = appdir_or_exe
         self.reinitialize()
         self._lock_count = 0
         self.version_finder = version_finder
@@ -171,7 +175,8 @@ class Esky(object):
         best_version = get_best_version(self.appdir)
         if best_version is None:
             raise EskyBrokenError("no frozen versions found")
-        self.name,self.version,self.platform = split_app_version(best_version)
+        details = split_app_version(best_version)
+        self.name,self.best_version,self.platform = details
 
     def lock(self,num_retries=0):
         """Lock the application directory for exclusive write access.
@@ -257,27 +262,28 @@ class Esky(object):
         appdir = self.appdir
         self.lock()
         try:
-            cur_version = get_best_version(appdir)
+            best_version = get_best_version(appdir)
             new_version = get_best_version(appdir,include_partial_installs=True)
             #  If there's a partial install we must complete it, since it
             #  could have left exes in the bootstrap env and we don't want
             #  to accidentally delete their dependencies.
-            if cur_version != new_version:
+            if best_version != new_version:
                 (_,v,_) = split_app_version(new_version)
                 self.install_version(v)
-                cur_version = new_version
+                best_version = new_version
             #  Now we can safely remove anything that's not part of the
-            #  current version's bootstrap env.
-            manifest = self._version_manifest(cur_version)
+            #  best version's bootstrap env.  Exceptions are the best
+            #  version itself, and the currently-executing version.
+            manifest = self._version_manifest(best_version)
+            manifest.add("updates")
+            manifest.add("locked")
+            manifest.add(best_version)
+            if self.cur_version:
+                manifest.add(self.cur_version)
             for nm in os.listdir(appdir):
-                fullnm = os.path.join(appdir,nm)
-                if os.path.isdir(fullnm):
-                    if nm not in ("updates","locked",cur_version):
-                        if nm not in manifest:
-                            self._try_remove(fullnm)
-                else:
-                    if nm not in manifest:
-                        self._try_remove(fullnm)
+                if nm not in manifest:
+                    fullnm = os.path.join(appdir,nm)
+                    self._try_remove(fullnm)
             if self.version_finder is not None:
                 self.version_finder.cleanup(self)
         finally:
@@ -314,11 +320,11 @@ class Esky(object):
             raise NoVersionFinderError
         version = self.find_update()
         if version is not None:
-            if parse_version(version) > parse_version(self.version):
-                self.fetch_version(version)
-                self.install_version(version)
-                self.uninstall_version(self.version)
-                self.reinitialize()
+            assert parse_version(version) > parse_version(self.best_version)
+            self.fetch_version(version)
+            self.install_version(version)
+            self.uninstall_version(self.best_version)
+            self.reinitialize()
 
     def find_update(self):
         """Check for an available update to this app.
@@ -329,7 +335,7 @@ class Esky(object):
         if self.version_finder is None:
             raise NoVersionFinderError
         best_version = None
-        best_version_p = parse_version(self.version)
+        best_version_p = parse_version(self.best_version)
         for version in self.version_finder.find_versions(self):
             version_p = parse_version(version)
             if version_p > best_version_p:

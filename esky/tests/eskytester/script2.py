@@ -24,7 +24,7 @@ eskytester.yes_my_data_is_installed()
 assert sys.frozen
 app = esky.Esky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
-assert app.version == "0.2"
+assert app.cur_version == app.best_version == "0.2"
 assert app.find_update() == "0.3"
 assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
 assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
