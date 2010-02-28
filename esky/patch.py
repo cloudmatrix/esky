@@ -179,9 +179,11 @@ def _write_zipfile_metadata(stream,zfin):
     members as the given zipfile, but where they all have zero length.
     """
     zfout = zipfile.ZipFile(stream,"w")
-    for zinfo in zfin.infolist():
-        zfout.writestr(zinfo,"")
-    zfout.close()
+    try:
+        for zinfo in zfin.infolist():
+            zfout.writestr(zinfo,"")
+    finally:
+        zfout.close()
 
 
 def paths_differ(path1,path2):
@@ -636,6 +638,7 @@ class Patcher(object):
                     while data:
                         self.outfile.write(data)
                         data = f.read(1024*16)
+                zfmeta[0].close()
                 shutil.rmtree(workdir)
         self._context_stack.append(end_contents)
         self._context_stack.append(end_metadata)
@@ -643,7 +646,11 @@ class Patcher(object):
             #  Begin by writing the current zipfile metadata to a temp file.
             #  This will be patched, then end_metadata() will be called.
             with open(m_temp,"wb") as f:
-                _write_zipfile_metadata(f,zipfile.ZipFile(self.target))
+                zf = zipfile.ZipFile(self.target)
+                try:
+                    _write_zipfile_metadata(f,zf)
+                finally:
+                    zf.close()
             extract_zipfile(self.target,t_temp)
             self.root_dir = workdir
             self.target = m_temp
@@ -769,6 +776,7 @@ class Differ(object):
         if os.path.isdir(source):
             for nm in os.listdir(source):
                 if not os.path.exists(os.path.join(target,nm)):
+                    # TODO: don't do this if we moved it as a sibling above
                     self._write_command(JOIN_PATH)
                     self._write_path(nm)
                     self._write_command(REMOVE)
@@ -818,26 +826,30 @@ class Differ(object):
                 s_zf.close()
                 self._diff_binary_file(source,target)
             else:
-                self._write_command(PF_REC_ZIP)
-                with _tempdir() as workdir:
-                    #  Write commands to transform source metadata file into
-                    #  target metadata file.
-                    s_meta = os.path.join(workdir,"s_meta")
-                    with open(s_meta,"wb") as f:
-                        _write_zipfile_metadata(f,s_zf)
-                    t_meta = os.path.join(workdir,"t_meta")
-                    with open(t_meta,"wb") as f:
-                        _write_zipfile_metadata(f,t_zf)
-                    self._diff_binary_file(s_meta,t_meta)
-                    self._write_command(END)
-                    #  Write commands to transform source contents directory
-                    #  into target contents directory.
-                    s_workdir = os.path.join(workdir,"source")
-                    t_workdir = os.path.join(workdir,"target")
-                    extract_zipfile(source,s_workdir)
-                    extract_zipfile(target,t_workdir)
-                    self._diff(s_workdir,t_workdir)
-                    self._write_command(END)
+                try:
+                    self._write_command(PF_REC_ZIP)
+                    with _tempdir() as workdir:
+                        #  Write commands to transform source metadata file
+                        #  into target metadata file.
+                        s_meta = os.path.join(workdir,"s_meta")
+                        with open(s_meta,"wb") as f:
+                            _write_zipfile_metadata(f,s_zf)
+                        t_meta = os.path.join(workdir,"t_meta")
+                        with open(t_meta,"wb") as f:
+                            _write_zipfile_metadata(f,t_zf)
+                        self._diff_binary_file(s_meta,t_meta)
+                        self._write_command(END)
+                        #  Write commands to transform source contents
+                        #  directory into target contents directory.
+                        s_workdir = os.path.join(workdir,"source")
+                        t_workdir = os.path.join(workdir,"target")
+                        extract_zipfile(source,s_workdir)
+                        extract_zipfile(target,t_workdir)
+                        self._diff(s_workdir,t_workdir)
+                        self._write_command(END)
+                finally:
+                    t_zf.close() 
+                    s_zf.close() 
 
 
     def _diff_binary_file(self,source,target):

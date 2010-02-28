@@ -31,31 +31,34 @@ def extract_zipfile(source,target,name_filter=None):
     in the target directory.
     """
     zf = zipfile.ZipFile(source,"r")
-    if hasattr(zf,"open"):
-        zf_open = zf.open
-    else:
-        def zf_open(nm,mode):
-            return StringIO(zf.read(nm))
-    for nm in zf.namelist():
-        if nm.endswith("/"):
-            continue
-        if name_filter:
-            outfilenm = os.path.join(target,name_filter(nm))
+    try:
+        if hasattr(zf,"open"):
+            zf_open = zf.open
         else:
-            outfilenm = os.path.join(target,nm)
-        if not os.path.isdir(os.path.dirname(outfilenm)):
-            os.makedirs(os.path.dirname(outfilenm))
-        infile = zf_open(nm,"r")
-        try:
-            outfile = open(outfilenm,"wb")
+            def zf_open(nm,mode):
+                return StringIO(zf.read(nm))
+        for nm in zf.namelist():
+            if nm.endswith("/"):
+                continue
+            if name_filter:
+                outfilenm = os.path.join(target,name_filter(nm))
+            else:
+                outfilenm = os.path.join(target,nm)
+            if not os.path.isdir(os.path.dirname(outfilenm)):
+                os.makedirs(os.path.dirname(outfilenm))
+            infile = zf_open(nm,"r")
             try:
-                shutil.copyfileobj(infile,outfile)
+                outfile = open(outfilenm,"wb")
+                try:
+                    shutil.copyfileobj(infile,outfile)
+                finally:
+                    outfile.close()
             finally:
-                outfile.close()
-        finally:
-            infile.close()
-        mode = zf.getinfo(nm).external_attr >> 16L
-        os.chmod(outfilenm,mode)
+                infile.close()
+            mode = zf.getinfo(nm).external_attr >> 16L
+            os.chmod(outfilenm,mode)
+    finally:
+        zf.close()
 
 
 def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
