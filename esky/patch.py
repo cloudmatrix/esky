@@ -15,7 +15,7 @@ the following functions:
 
   apply_patch(tgtpath,stream):
 
-      reach a patch from the file-like object "stream" and apply it to the
+      read a patch from the file-like object "stream" and apply it to the
       directory (or file) at "tgtpath".  For directories, the patch is
       applied *in-situ*.  If you want to guard against patches that fail to
       apply, patch a copy then copy it back over the original.
@@ -77,7 +77,8 @@ HIGHEST_VERSION = 1
 from esky.errors import Error
 from esky.util import extract_zipfile, create_zipfile
 
-__all__ = ["PatchError","DiffError","main","write_patch","apply_patch"]
+__all__ = ["PatchError","DiffError","main","write_patch","apply_patch",
+           "Differ","Patcher"]
 
 
 class PatchError(Error):
@@ -223,7 +224,7 @@ def calculate_digest(target,hash=hashlib.md5):
     """Calculate the digest of the given path.
 
     If the target is a file, its digest is calculated as normal.  If it is
-    a directory, it is calculated from the names of digests of its contents.
+    a directory, it is calculated from the names and digests of its contents.
     """
     d = hash()
     if os.path.isfile(target):
@@ -798,7 +799,7 @@ class Differ(object):
         """
         try:
             zf = zipfile.ZipFile(path,"r")
-        except (zipfile.BadZipFile,zipfile.LargeZipFile):
+        except (zipfile.BadZipfile,zipfile.LargeZipFile):
             return None
         else:
             # Diffing empty zipfiles is kinda pointless
