@@ -199,7 +199,7 @@ class Esky(object):
         #  Do I already own the lock?
         if os.path.exists(os.path.join(lockdir,myid)):
             #  Update file mtime to keep it safe from breakers
-            open(os.path.join(lockdir,myid),"wb").close()
+            os.utime(os.path.join(lockdir,myid),None)
             self._lock_count += 1
             return True
         #  Try to make the "locked" directory.
