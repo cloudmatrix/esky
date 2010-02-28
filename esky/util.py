@@ -58,25 +58,49 @@ def extract_zipfile(source,target,name_filter=None):
         os.chmod(outfilenm,mode)
 
 
-def create_zipfile(source,target,name_filter=None,compress=None):
+def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
     """Bundle the contents of a given directory into a zipfile.
 
     The argument 'source' names the directory to read, while 'target' names
-    the zipfile to be written. If given, the optional argument 'name_filter'
-    must be a function mapping names from the source to names in the zipfile.
+    the zipfile to be written.
+
+    If given, the optional argument 'get_zipinfo' must be a function mapping
+    filenames to ZipInfo objects.  It may also return None to indicate that
+    defaults should be used.
+
+    If given, the optional argument 'members' must be an iterable yeilding
+    names or ZipInfo objects.  Files will be added to the archive in the
+    order specified by this function.
+
+    If the optional argument 'compress' is given, it must be a bool indicating
+    whether to compress the files by default.  The default is no compression.
     """
     if not compress:
         compress_type = zipfile.ZIP_STORED
     else:
         compress_type = zipfile.ZIP_DEFLATED
-    zf = zipfile.ZipFile(target,"w")
-    for (dirpath,dirnames,filenames) in os.walk(source):
-        for fn in filenames:
-            fpath = os.path.join(dirpath,fn)
-            zpath = fpath[len(source)+1:]
-            if name_filter:
-                zpath = name_filter(zpath)
-            zf.write(fpath,zpath,compress_type)
+    zf = zipfile.ZipFile(target,"w",compression=compress_type)
+    if members is None:
+        def gen_members():
+            for (dirpath,dirnames,filenames) in os.walk(source):
+                for fn in filenames:
+                    yield os.path.join(dirpath,fn)[len(source)+1:]
+        members = gen_members()
+    for fpath in members:
+        if isinstance(fpath,zipfile.ZipInfo):
+            zinfo = fpath
+            fpath = os.path.join(source,zinfo.filename)
+        else:
+            if get_zipinfo:
+                zinfo = get_zipinfo(fpath)
+            else:
+                zinfo = None
+            fpath = os.path.join(source,fpath)
+        if zinfo is None:
+            zf.write(fpath,fpath[len(source)+1:])
+        else:
+            with open(fpath,"rb") as f:
+                zf.writestr(zinfo,f.read())
     zf.close()
 
 

@@ -24,22 +24,22 @@ the following functions:
 This module can also be executed as a script (e.g. "python -m esky.patch ...")
 to calculate or apply patches from the command-line:
 
-  python -m esky.patch diff dir1 dir2 dir1_to_dir2.patch
+  python -m esky.patch diff <source> <target> <patch>
 
-      generate a patch to transform dir1 into dir2 and write it into the
-      given filename (or stdout if not specified).
+      generate a patch to transform <source> into <target>, and write it into
+      file <patch> (or stdout if not specified).
 
-  python -m esky.patch patch dir1 dirs.patch
+  python -m esky.patch patch <source> <patch>
 
-      transform dir1 by applying the patches in the given file (or stdin if
-      not specified.  The modifications are made in-place.
+      transform <source> by applying the patches in the file <patch> (or
+      stdin if not specified.  The modifications are made in-place.
 
 To patch or diff zipfiles as though they were a directory, pass the "-z" or
 "--zipped" option on the command-line, e.g:
 
-  python -m esky.patch --zipped diff dir1.zip dir2.zip dir1_to_dir2.patch
+  python -m esky.patch --zipped diff <source>.zip <target>.zip <patch>
 
-This can be useful for generate differential esky updates by hand, when you
+This can be useful for generating differential esky updates by hand, when you
 already have the corresponding zip files.
 
 """
@@ -70,6 +70,10 @@ except ImportError:
 #  memory use (and bsdiff is a memory hog at the best of times...)
 DIFF_WINDOW_SIZE = 1024 * 1024 * 4
 
+#  Highest patch version that can be processed by this module.
+HIGHEST_VERSION = 1
+
+
 from esky.errors import Error
 from esky.util import extract_zipfile, create_zipfile
 
@@ -87,7 +91,7 @@ class DiffError(Error):
 
 #  Commands used in the directory patching protocol.  Each of these is
 #  encoded as a vint in the patch stream; unless we get really out of
-#  control that should mean one byte per command.
+#  control and have more than 127 commands, this means one byte per command.
 #
 #  It's very important that you don't reorder these commands.  Their order
 #  in this list determines what byte each command is assigned, so doing
@@ -103,6 +107,7 @@ _COMMANDS = [
  "REMOVE",        # REMOVE():            remove the current target
  "MAKEDIR",       # MAKEDIR():           make directory at current target
  "COPY_FROM",     # COPY_FROM(path):     copy item at path to current target
+ "MOVE_FROM",     # MOVE_FROM(path):     move item at path to current target
  "PF_COPY",       # PF_COPY(n):          patch file; copy n bytes from input
  "PF_SKIP",       # PF_SKIP(n):          patch file; skip n bytes from input
  "PF_INS_RAW",    # PF_INS_RAW(bytes):   patch file; insert raw bytes 
@@ -157,6 +162,26 @@ def _write_vint(stream,x):
         stream.write(chr(b | 128))
         x = x >> 7
     stream.write(chr(x))
+
+
+def _read_zipfile_metadata(stream):
+    """Read zipfile metadata from the given stream.
+
+    The result is a zipfile.ZipFile object where all members are zero length.
+    """
+    return zipfile.ZipFile(stream,"r")
+
+
+def _write_zipfile_metadata(stream,zfin):
+    """Write zipfile metadata to the given stream.
+
+    For simplicity, the metadata is represented as a zipfile with the same
+    members as the given zipfile, but where they all have zero length.
+    """
+    zfout = zipfile.ZipFile(stream,"w")
+    for zinfo in zfin.infolist():
+        zfout.writestr(zinfo,"")
+    zfout.close()
 
 
 def paths_differ(path1,path2):
@@ -223,17 +248,22 @@ class Patcher(object):
     def __init__(self,target,commands,dry_run=False):
         target = os.path.abspath(target)
         self.target = target
+        self.new_target = None
         self.commands = commands
         self.root_dir = self.target
         self.infile = None
         self.outfile = None
         self.dry_run = dry_run
+        self._workdir = tempfile.mkdtemp()
+        self._context_stack = []
 
     def __del__(self):
         if self.infile:
             self.infile.close()
         if self.outfile:
             self.outfile.close()
+        if self._workdir and shutil:
+            shutil.rmtree(self._workdir)
 
     def _read(self,size):
         """Read the given number of bytes from the command stream."""
@@ -316,12 +346,37 @@ class Patcher(object):
             if not path.startswith(self.root_dir + os.sep):
                 raise PatchError("traversed outside root_dir")
 
+    def _blank_state(self):
+        """Save current state, then blank it out.
+
+        The previous state is returned.
+        """
+        state = self._save_state()
+        self.infile = None
+        self.outfile = None
+        self.new_target = None
+        return state
+        
+    def _save_state(self):
+        """Return the current state, for later restoration."""
+        return (self.target,self.root_dir,self.infile,self.outfile,self.new_target)
+
+    def _restore_state(self,state):
+        """Restore the object to a previously-saved state."""
+        (self.target,self.root_dir,self.infile,self.outfile,self.new_target) = state
+
     def patch(self):
         """Interpret and apply patch commands to the target.
 
         This is a simple command loop that dispatches to the _do_<CMD>
-        methods defined below.
+        methods defined below.  Each such method returns True to continue
+        processing, and False to exit the command loop.
         """
+        if not self._read(8) == "ESKYPTCH":
+            raise PatchError("not an esky patch file")
+        version = self._read_int()
+        if version > HIGHEST_VERSION:
+            raise PatchError("esky patch version %d not supported"%(version,))
         docmd = lambda: True
         while docmd():
             cmd = self._read_command()
@@ -330,10 +385,15 @@ class Patcher(object):
     def _do_END(self):
         """Execute the END command.
 
-        This simply commits any outstanding file patches.
+        If there are entries on the context stack, this pops and executes
+        the topmost entry.  Otherwise, it exits the main command loop.
         """
         self._check_end_patch()
-        return False
+        if self._context_stack:
+            self._context_stack.pop()()
+            return True
+        else:
+            return False
 
     def _do_SET_PATH(self):
         """Execute the SET_PATH command.
@@ -434,7 +494,7 @@ class Patcher(object):
         This reads a path from the command stream, and copies whatever is
         at that path to the current target path.  The source path is
         interpreted relative to the directory containing the current path;
-        this caters for the common case of copy a file within the same
+        this caters for the common case of copying a file within the same
         directory.
         """
         self._check_end_patch()
@@ -450,6 +510,27 @@ class Patcher(object):
                 shutil.copy2(source_path,self.target)
             else:
                 shutil.copytree(source_path,self.target)
+        return True
+
+    def _do_MOVE_FROM(self):
+        """Execute the MOVE_FROM command.
+
+        This reads a path from the command stream, and moves whatever is
+        at that path to the current target path.  The source path is
+        interpreted relative to the directory containing the current path;
+        this caters for the common case of moving a file within the same
+        directory.
+        """
+        self._check_end_patch()
+        source_path = os.path.join(os.path.dirname(self.target),self._read_path())
+        self._check_path(source_path)
+        if not self.dry_run:
+            if os.path.exists(self.target):
+                if os.path.isdir(self.target):
+                    shutil.rmtree(self.target)
+                else:
+                    os.unlink(self.target)
+            os.rename(source_path,self.target)
         return True
 
     def _do_PF_COPY(self):
@@ -520,6 +601,54 @@ class Patcher(object):
             self.outfile.write(bsdiff4_patch(source,patch))
         return True
 
+    def _do_PF_REC_ZIP(self):
+        """Execute the PF_REC_ZIP command.
+
+        This patches the current target by treating it as a zipfile and
+        recursing into it.  It extracts the source file to a temp directory,
+        then reads commands and applies them to that directory.
+
+        This command expects two END-terminated blocks of sub-commands.  The
+        first block patches the zipfile metadata, and the second patches the
+        actual contents of the zipfile.
+        """
+        self._check_begin_patch()
+        if not self.dry_run:
+            workdir = os.path.join(self._workdir,str(len(self._context_stack)))
+            os.mkdir(workdir)
+            t_temp = os.path.join(workdir,"contents")
+            m_temp = os.path.join(workdir,"meta")
+            z_temp = os.path.join(workdir,"result.zip")
+        cur_state = self._blank_state()
+        zfmeta = [None]
+        #  First we process a set of commands to generate the zipfile metadata.
+        def end_metadata():
+            if not self.dry_run:
+                zfmeta[0] = _read_zipfile_metadata(m_temp)
+                self.target = t_temp
+        #  Then we process a set of commands to patch the actual contents.
+        def end_contents():
+            self._restore_state(cur_state)
+            if not self.dry_run:
+                create_zipfile(t_temp,z_temp,members=zfmeta[0].infolist())
+                with open(z_temp,"rb") as f:
+                    data = f.read(1024*16)
+                    while data:
+                        self.outfile.write(data)
+                        data = f.read(1024*16)
+                shutil.rmtree(workdir)
+        self._context_stack.append(end_contents)
+        self._context_stack.append(end_metadata)
+        if not self.dry_run:
+            #  Begin by writing the current zipfile metadata to a temp file.
+            #  This will be patched, then end_metadata() will be called.
+            with open(m_temp,"wb") as f:
+                _write_zipfile_metadata(f,zipfile.ZipFile(self.target))
+            extract_zipfile(self.target,t_temp)
+            self.root_dir = workdir
+            self.target = m_temp
+        return True
+
 
 class Differ(object):
     """Class generating our patch protocol.
@@ -542,6 +671,11 @@ class Differ(object):
         _write_vint(self.outfile,i)
 
     def _write_command(self,cmd):
+        """Write the given command to the stream.
+
+        This does some simple optimisations to collapse sequences of commands
+        into a single command - current only around path manipulation.
+        """
         if cmd == POP_PATH:
             if self._pending_pop_path:
                 _write_vint(self.outfile,POP_PATH)
@@ -573,6 +707,8 @@ class Differ(object):
         protocol commands to transform 'source' into 'target' will be generated
         and written sequentially to the output file.
         """
+        self._write("ESKYPTCH")
+        self._write_int(HIGHEST_VERSION)
         self._diff(source,target)
         self._write_command(SET_PATH)
         self._write_bytes("")
@@ -615,7 +751,10 @@ class Differ(object):
                     at_path = True
                     self._write_command(JOIN_PATH)
                     self._write_path(nm)
-                    self._write_command(COPY_FROM)
+                    if os.path.exists(os.path.join(target,sibnm)):
+                        self._write_command(COPY_FROM)
+                    else:
+                        self._write_command(MOVE_FROM)
                     self._write_path(sibnm)
             #  Recursively diff against the selected source directory
             if paths_differ(s_nm,t_nm):
@@ -638,9 +777,9 @@ class Differ(object):
     def _diff_file(self,source,target):
         """Generate patch commands for when the target is a file."""
         if paths_differ(source,target):
-            #if target.endswith(".zip") and source.endswith(".zip"):
-            #    self._diff_dotzip_file(source,target)
-            #else:
+            if target.endswith(".zip") and source.endswith(".zip"):
+                self._diff_dotzip_file(source,target)
+            else:
                 self._diff_binary_file(source,target)
 
     def _open_and_check_zipfile(self,path):
@@ -649,7 +788,6 @@ class Differ(object):
         Returns either the ZipFile object, or None if we can't diff it
         as a zipfile.
         """
-        return None
         try:
             zf = zipfile.ZipFile(path,"r")
         except (zipfile.BadZipFile,zipfile.LargeZipFile):
@@ -664,7 +802,7 @@ class Differ(object):
                 zf.close()
                 return None
             # Can't currently handle zipfiles with prepended data
-            if zf.filelist[0].header_offset == 0:
+            if zf.filelist[0].header_offset != 0:
                 zf.close()
                 return None
             # Hooray! Looks like something we can use.
@@ -681,19 +819,27 @@ class Differ(object):
                 self._diff_binary_file(source,target)
             else:
                 self._write_command(PF_REC_ZIP)
-                self._write_zipfile_metadata(s_zf,t_zf)
                 with _tempdir() as workdir:
+                    #  Write commands to transform source metadata file into
+                    #  target metadata file.
+                    s_meta = os.path.join(workdir,"s_meta")
+                    with open(s_meta,"wb") as f:
+                        _write_zipfile_metadata(f,s_zf)
+                    t_meta = os.path.join(workdir,"t_meta")
+                    with open(t_meta,"wb") as f:
+                        _write_zipfile_metadata(f,t_zf)
+                    self._diff_binary_file(s_meta,t_meta)
+                    self._write_command(END)
+                    #  Write commands to transform source contents directory
+                    #  into target contents directory.
                     s_workdir = os.path.join(workdir,"source")
                     t_workdir = os.path.join(workdir,"target")
                     extract_zipfile(source,s_workdir)
                     extract_zipfile(target,t_workdir)
                     self._diff(s_workdir,t_workdir)
-                self._write_command(END)
+                    self._write_command(END)
 
-    def _write_zipfile_metadata(self,s_zf,t_zf):
-        """Write zipfile metadata differences to the stream."""
-        pass
-                
+
     def _diff_binary_file(self,source,target):
         """Diff a generic binary file.
 
@@ -801,6 +947,14 @@ class Differ(object):
             else:
                 self._write_int(arg)
 
+
+class _tempdir(object):
+    def __init__(self):
+        self.path = tempfile.mkdtemp()
+    def __enter__(self):
+        return self.path
+    def __exit__(self,*args):
+        shutil.rmtree(self.path)
 
 
 if cx_bsdiff is not None:
