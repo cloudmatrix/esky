@@ -477,7 +477,7 @@ class Patcher(object):
                 shutil.rmtree(self.target)
             elif os.path.exists(self.target):
                 os.unlink(self.target)
-        os.makedirs(self.target)
+            os.makedirs(self.target)
         return True
 
     def _do_REMOVE(self):
