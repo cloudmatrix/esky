@@ -921,7 +921,7 @@ class Differ(object):
             if not os.path.isdir(source):
                 return None
             t_names = set(os.listdir(t_nm))
-            best = (0,None)
+            best = (2,None)
             for sibnm in os.listdir(source):
                 if not os.path.isdir(os.path.join(source,sibnm)):
                     continue
