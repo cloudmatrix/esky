@@ -27,7 +27,9 @@ import distutils.command
 from distutils.core import Command
 from distutils.util import convert_path
 
-from esky.util import get_platform, is_core_dependency, create_zipfile
+import esky.patch
+from esky.util import get_platform, is_core_dependency, create_zipfile, \
+                      split_app_version, join_app_version
 if sys.platform == "win32":
     from esky import winres
     from xml.dom import minidom
@@ -35,7 +37,7 @@ if sys.platform == "win32":
 
 #  setuptools likes to be imported before anything else that
 #  might monkey-patch distutils.  We don't actually use it,
-#  this is just to avoid errors.
+#  this is just to avoid errors with cx_Freeze.
 try:
     import setuptools
 except ImportError:
@@ -197,6 +199,7 @@ class bdist_esky(Command):
                     err = err % (self.freezer_module,)
                     raise RuntimeError(err)
             self.freezer_module = freezer
+
 
     def run(self):
         #  Create the dirs into which to freeze the app
@@ -411,6 +414,67 @@ class bdist_esky(Command):
         return dstpath
 
 
+class bdist_esky_patch(Command):
+    """Create a patch for a frozen application in 'esky' format.
+
+    This distutils command can be used to create a patch file between two
+    versions of an application frozen with esky.  Such a patch can be used
+    for differential updates between application versions.
+    """
+
+    user_options = [
+                    ('dist-dir=', 'd',
+                     "directory to put final built distributions in"),
+                    ('from-version=', None,
+                     "version against which to produce patch"),
+                   ]
+
+    def initialize_options(self):
+        self.dist_dir = None
+        self.from_version = None
+
+    def finalize_options(self):
+        self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
+
+    def run(self):
+        fullname = self.distribution.get_fullname()
+        platform = get_platform()
+        vdir = "%s.%s" % (fullname,platform,)
+        appname = split_app_version(vdir)[0]
+        #  Ensure we have current versions esky, as target for patch.
+        target_esky = os.path.join(self.dist_dir,vdir+".zip")
+        if not os.path.exists(target_esky):
+            self.run_command("bdist_esky")
+        #  Generate list of source eskys to patch against.
+        if self.from_version:
+            source_vdir = join_app_version(appname,self.from_version,platform)
+            source_eskys = [os.path.join(self.dist_dir,source_vdir+".zip")]
+        else:
+            source_eskys = []
+            for nm in os.listdir(self.dist_dir):
+                if target_esky.endswith(nm):
+                    continue
+                if nm.startswith(appname+"-") and nm.endswith(platform+".zip"):
+                    source_eskys.append(os.path.join(self.dist_dir,nm))
+        #  Write each patch, transparently unzipping the esky
+        for source_esky in source_eskys:
+            target_vdir = os.path.basename(source_esky)[:-4]
+            target_version = split_app_version(target_vdir)[1]
+            patchfile = vdir+".from-%s.patch" % (target_version,)
+            patchfile = os.path.join(self.dist_dir,patchfile)
+            print "patching", target_esky, "against", source_esky, "=>", patchfile
+            if not self.dry_run:
+                try:
+                    esky.patch.main(["-z","diff",source_esky,target_esky,patchfile])
+                except:
+                    import traceback
+                    traceback.print_exc()
+                    raise
+
+
+#  Monkey-patch distutils to include our commands by default.
 distutils.command.__all__.append("bdist_esky")
+distutils.command.__all__.append("bdist_esky_patch")
 sys.modules["distutils.command.bdist_esky"] = sys.modules["esky.bdist_esky"]
+sys.modules["distutils.command.bdist_esky_patch"] = sys.modules["esky.bdist_esky"]
 
