@@ -17,11 +17,13 @@ import stat
 import urllib2
 import zipfile
 import shutil
-from urlparse import urljoin
+import tempfile
+from urlparse import urlparse, urljoin
 
 from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
 from esky.util import extract_zipfile
+from esky.patch import apply_patch, PatchError
 
 
 class VersionFinder(object):
@@ -80,7 +82,7 @@ class DefaultVersionFinder(VersionFinder):
     def __init__(self,download_url):
         self.download_url = download_url
         super(DefaultVersionFinder,self).__init__()
-        self.version_urls = {}
+        self.version_graph = VersionGraph()
 
     def _workdir(self,app,nm):
         """Get full path of named working directory, inside the given app."""
@@ -93,6 +95,7 @@ class DefaultVersionFinder(VersionFinder):
         return workdir
 
     def cleanup(self,app):
+        # TODO: hang onto the latest downloaded version
         dldir = self._workdir(app,"downloads")
         for nm in os.listdir(dldir):
             os.unlink(os.path.join(dldir,nm))
@@ -107,74 +110,231 @@ class DefaultVersionFinder(VersionFinder):
         return urllib2.urlopen(url)
 
     def find_versions(self,app):
+        version_re = "[a-zA-Z0-9\\.-_]+"
+        appname_re = "(?P<version>%s)" % (version_re,)
+        appname_re = join_app_version(app.name,appname_re,app.platform)
+        filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
+        filename_re = filename_re % (appname_re,version_re,)
+        link_re = "href=['\"](?P<href>(.*/)?%s)['\"]" % (filename_re,)
         # TODO: would be nice not to have to guess encoding here.
         downloads = self.open_url(self.download_url).read().decode("utf-8")
-        version_re = "(?P<version>[a-zA-Z0-9\\.-_]+)"
-        version_re = join_app_version(app.name,version_re,app.platform)
-        link_re = "href=['\"](?P<href>(.*/)?%s.zip)['\"]" % (version_re,)
         for match in re.finditer(link_re,downloads):
-            self.version_urls[match.group("version")] = match.group("href")
-        return self.version_urls.keys()
+            version = match.group("version")
+            href = match.group("href")
+            from_version = match.group("from_version")
+            # TODO: try to assign costs based on file size.
+            if from_version is None:
+                cost = 40
+            else:
+                cost = 1
+            self.version_graph.add_link(from_version,version,href,cost)
+        return self.version_graph.get_versions(app.best_version)
 
     def fetch_version(self,app,version):
-        try:
-            url = self.version_urls[version]
-        except KeyError:
-            raise EskyVersionError(version)
-        infile = self.open_url(urljoin(self.download_url,url))
-        outfilenm = self._download_name(app,version)+".part"
-        outfile = open(outfilenm,"wb")
-        try:
-            data = infile.read(1024*512)
-            while data:
-                outfile.write(data)
-                data = infile.read(1024*512)
-        except Exception:
-            infile.close()
-            outfile.close()
-            os.unlink(outfilenm)
-            raise
-        else:
-            infile.close()
-            outfile.close()
-            os.rename(outfilenm,self._download_name(app,version))
-        return self._prepare_version(app,version)
+        #  There's always the possibility that a patch fails to apply.
+        #  _prepare_version will remove such patches from the version graph;
+        #  we loop until we find a path that applies, or we run out of options.
+        while True:
+            path = self.version_graph.get_best_path(app.best_version,version)
+            if path is None:
+                raise EskyVersionError(version)
+            local_path = []
+            for url in path:
+                local_path.append(self._fetch_file(app,url))
+            try:
+                self._prepare_version(app,version,local_path)
+            except PatchError:
+                pass
+            return self._ready_name(app,version)
 
-    def _download_name(self,app,version):
-        version = join_app_version(app.name,version,app.platform)
-        return os.path.join(self._workdir(app,"downloads"),"%s.zip"%(version,))
+    def _fetch_file(self,app,url):
+        infile = self.open_url(urljoin(self.download_url,url))
+        nm = os.path.basename(urlparse(url).path)
+        outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
+        if not os.path.exists(outfilenm):
+            partfilenm = outfilenm + ".part"
+            partfile = open(partfilenm,"wb")
+            try:
+                data = infile.read(1024*512)
+                while data:
+                    partfile.write(data)
+                    data = infile.read(1024*512)
+            except Exception:
+                infile.close()
+                partfile.close()
+                os.unlink(partfilenm)
+                raise
+            else:
+                infile.close()
+                partfile.close()
+                os.rename(partfilenm,outfilenm)
+        return outfilenm
+
+    def _prepare_version(self,app,version,path):
+        """Prepare the requested version from downloaded data.
+
+        This method is responsible for unzipping downloaded versions, applying
+        patches and so-forth, and making the result available as a local
+        directory ready for renaming into the appdir.
+        """
+        uppath = tempfile.mkdtemp(dir=self._workdir(app,"unpack"))
+        best_vdir = join_app_version(app.name,app.best_version,app.platform)
+        best_vdir = os.path.join(app.appdir,best_vdir)
+        if not path:
+            shutil.copytree(best_vdir,uppath)
+        else:
+            if path[0].endswith(".patch"):
+                shutil.copytree(best_vdir,uppath)
+                patches = path
+            else:
+                extract_zipfile(path[0],uppath)
+                patches = path[1:]
+            for patchfile in patches:
+                try:
+                    with open(patchfile,"rb") as f:
+                        apply_patch(uppath,f)
+                except PatchError:
+                    self.version_graph.remove_all_links(patchfile)
+                    raise
+        # Move anything that's not the version dir into esky-bootstrap
+        vdir = join_app_version(app.name,version,app.platform)
+        bspath = os.path.join(uppath,vdir,"esky-bootstrap")
+        if not os.path.isdir(bspath):
+            os.makedirs(bspath)
+        for nm in os.listdir(uppath):
+            if nm != vdir:
+                os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
+        # Make it available for upgrading
+        rdpath = self._ready_name(app,version)
+        if os.path.exists(rdpath):
+            shutil.rmtree(rdpath)
+        os.rename(os.path.join(uppath,vdir),rdpath)
+        for filenm in path:
+            os.unlink(filenm)
+
+    def has_version(self,app,version):
+        return os.path.exists(self._ready_name(app,version))
 
     def _ready_name(self,app,version):
         version = join_app_version(app.name,version,app.platform)
         return os.path.join(self._workdir(app,"ready"),version)
 
-    def _prepare_version(self,app,version):
-        """Prepare the request version from downloaded data.
 
-        This method is responsible for unzipping the downloaded version
-        and making it available as a local directory.  When I implement
-        differential updates it will also be responsible for applying them.
+class VersionGraph(object):
+    """Class for managing links between different versions.
+
+    This class implements a simple graph-based approach to planning upgrades
+    between versions.  It allow syou to specify "links" from one version to
+    another, each with an associated cost.  You can then do a graph traversal
+    to find the lowest-cose route between two versions.
+
+    There is always a special source node with value None, which it is possible
+    to reach at zero cost from any other version.  Use this to represent a full
+    download, which can reach a specific version from any other version.
+    """
+
+    def __init__(self):
+        self._links = {None:{}}
+
+    def add_link(self,source,target,via,cost):
+        """Add a link from source to target."""
+        assert target is not None
+        if source not in self._links:
+            self._links[source] = {}
+        if target not in self._links:
+            self._links[target] = {}
+        from_source = self._links[source]
+        to_target = from_source.setdefault(target,{})
+        if via in to_target:
+            to_target[via] = min(to_target[via],cost)
+        else:
+            to_target[via] = cost
+
+    def remove_all_links(self,via):
+        for source in self._links:
+            for target in self._links[source]:
+                self._links[source][target].pop(via)
+
+    def get_versions(self,source):
+        """List all versions reachable from the given source version."""
+        # TODO: be more efficient here
+        best_paths = self.get_best_paths(source)
+        return [k for (k,v) in best_paths.iteritems() if k and v]
+
+    def get_best_path(self,source,target):
+        """Get the best path from source to target.
+
+        This method returns a list of "via" links representing the lowest-cost
+        path from source to target.
         """
-        uppath = self._workdir(app,"unpack")
-        dlpath = self._download_name(app,version)
-        rdpath = self._ready_name(app,version)
-        vdir = join_app_version(app.name,version,app.platform)
-        #  Anything in the root of the zipfile is part of the bootstrap
-        #  env, so it gets placed in a special directory.
-        def name_filter(nm):
-            if not nm.startswith(vdir):
-                return os.path.join(vdir,"esky-bootstrap",nm)
-            return nm
-        extract_zipfile(dlpath,uppath,name_filter)
-        bspath = os.path.join(uppath,vdir,"esky-bootstrap")
-        if not os.path.isdir(bspath):
-            os.makedirs(bspath)
-        os.rename(os.path.join(uppath,vdir),rdpath)
-        os.unlink(dlpath)
-        return rdpath
+        return self.get_best_paths(source)[target]
 
-    def has_version(self,app,version):
-        return os.path.exists(self._ready_name(app,version))
+    def get_best_paths(self,source):
+        """Get the best path from source to every other version.
 
+        This returns a dictionary mapping versions to lists of "via" links.
+        Each entry gives the lowest-cost path from the given source version
+        to that version.
+        """
+        remaining = set(v for v in self._links)
+        best_costs = dict((v,_inf) for v in remaining)
+        best_paths = dict((v,None) for v in remaining)
+        best_costs[source] = 0
+        best_paths[source] = []
+        best_costs[None] = 0
+        best_paths[None] = []
+        while remaining:
+            (cost,best) = sorted((best_costs[v],v) for v in remaining)[0]
+            if cost is _inf:
+                break
+            remaining.remove(best)
+            for v in self._links[best]:
+                (v_cost,v_link) = self._get_best_link(best,v)
+                if cost + v_cost < best_costs[v]:
+                    best_costs[v] = cost + v_cost
+                    best_paths[v] = best_paths[best] + [v_link]
+        return best_paths
+                
+    def _get_best_link(self,source,target):
+        if source not in self._links:
+            return (_inf,None)
+        if target not in self._links[source]:
+            return (_inf,None)
+        vias = self._links[source][target]
+        if not vias:
+            return None
+        vias = sorted((cost,via) for (via,cost) in vias.iteritems())
+        return vias[0]
+
+
+class _Inf(object):
+    """Object that is greater than everything."""
+    def __lt__(self,other):
+        return False
+    def __le__(self,other):
+        return False
+    def __gt__(self,other):
+        return True
+    def __ge__(self,other):
+        return True
+    def __eq__(self,other):
+        return other is self
+    def __ne__(self,other):
+        return other is not self
+    def __cmp___(self,other):
+        return 1
+    def __add__(self,other):
+        return self
+    def __radd__(self,other):
+        return self
+    def __iadd__(self,other):
+        return self
+    def __sub__(self,other):
+        return self
+    def __rsub__(self,other):
+        return self
+    def __isub__(self,other):
+        return self
+_inf = _Inf()
 
 
