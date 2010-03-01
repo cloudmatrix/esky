@@ -117,6 +117,7 @@ _COMMANDS = [
  "PF_INS_BZ2",    # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
  "PF_BSDIFF4",    # PF_BSDIFF4(n,p):     patch file; bsdiff4 from n input bytes
  "PF_REC_ZIP",    # PF_REC_ZIP(m,cs):    patch file; recurse into zipfile
+ "CHMOD",         # CHMOD(mode):        set mode of current target
 ]
 
 # Make commands available as global variables
@@ -659,6 +660,18 @@ class Patcher(object):
             self.target = m_temp
         return True
 
+    def _do_CHMOD(self):
+        """Execute the CHMOD command.
+
+        This reads an integer from the command stream, and sets the mode
+        of the current target to that integer.
+        """
+        self._check_end_patch()
+        mod = self._read_int()
+        if not self.dry_run:
+            os.chmod(self.target,mod)
+        return True
+
 
 class Differ(object):
     """Class generating our patch protocol.
@@ -748,6 +761,7 @@ class Differ(object):
         """Generate patch commands for when the target is a directory."""
         if not os.path.isdir(source):
             self._write_command(MAKEDIR)
+        moved_sources = []
         for nm in os.listdir(target):
             s_nm = os.path.join(source,nm)
             t_nm = os.path.join(target,nm)
@@ -767,6 +781,7 @@ class Differ(object):
                         self._write_command(COPY_FROM)
                     else:
                         self._write_command(MOVE_FROM)
+                        moved_sources.append(sibnm)
                     self._write_path(sibnm)
             #  Recursively diff against the selected source directory
             if paths_differ(s_nm,t_nm):
@@ -781,11 +796,21 @@ class Differ(object):
         if os.path.isdir(source):
             for nm in os.listdir(source):
                 if not os.path.exists(os.path.join(target,nm)):
-                    # TODO: don't do this if we moved it as a sibling above
-                    self._write_command(JOIN_PATH)
-                    self._write_path(nm)
-                    self._write_command(REMOVE)
-                    self._write_command(POP_PATH)
+                    if not nm in moved_sources:
+                        self._write_command(JOIN_PATH)
+                        self._write_path(nm)
+                        self._write_command(REMOVE)
+                        self._write_command(POP_PATH)
+        #  Adjust mode if necessary
+        t_mod = os.stat(target).st_mode
+        if os.path.isdir(source):
+            s_mod = os.stat(source).st_mode
+            if s_mod != t_mod:
+                self._write_command(CHMOD)
+                self._write_int(t_mod)
+        else:
+            self._write_command(CHMOD)
+            self._write_int(t_mod)
 
     def _diff_file(self,source,target):
         """Generate patch commands for when the target is a file."""
@@ -794,6 +819,16 @@ class Differ(object):
                 self._diff_dotzip_file(source,target)
             else:
                 self._diff_binary_file(source,target)
+        #  Adjust mode if necessary
+        t_mod = os.stat(target).st_mode
+        if os.path.isfile(source):
+            s_mod = os.stat(source).st_mode
+            if s_mod != t_mod:
+                self._write_command(CHMOD)
+                self._write_int(t_mod)
+        else:
+            self._write_command(CHMOD)
+            self._write_int(t_mod)
 
     def _open_and_check_zipfile(self,path):
         """Open the given path as a zipfile, and check its suitability.
