@@ -717,6 +717,8 @@ class Differ(object):
         protocol commands to transform 'source' into 'target' will be generated
         and written sequentially to the output file.
         """
+        source = os.path.abspath(source)
+        target = os.path.abspath(target)
         self._write("ESKYPTCH")
         self._write_int(HIGHEST_VERSION)
         self._diff(source,target)
