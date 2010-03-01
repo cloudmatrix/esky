@@ -1,5 +1,4 @@
 
-
 v0.5.0:
 
     * replaced Esky.version with Esky.cur_version and Esky.best_version;
@@ -12,6 +11,7 @@ v0.5.0:
              of magnitude smaller than produced by naively applying bsdiff.
        * individual files are diffed via bsdiff if cx-bsdiff is installed.
        * bsdiff-based patches can be applied with no external dependencies
+    * added support for differential updates in DefaultVersionFinder.
 
 
 v0.4.0:

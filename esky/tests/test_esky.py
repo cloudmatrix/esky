@@ -92,18 +92,19 @@ class TestEsky(unittest.TestCase):
                 shutil.rmtree(build_dir)
         dir_util._path_created.clear()
         #  Build three increasing versions of the test package.
-        #  Version 0.2 will include a bundled MSVCRT on win32
+        #  Version 0.2 will include a bundled MSVCRT on win32.
+        #  Version 0.3 will be distributed as a patch.
         metadata = dict(name="eskytester",packages=["eskytester"],author="rfk",
                         description="the esky test package",
                         data_files=[("data",["eskytester/datafile.txt"])],
-                        package_data={"eskytester":["pkgdata.txt"]},
-                        script_args=["bdist_esky"])
+                        package_data={"eskytester":["pkgdata.txt"]},)
         options2 = options.copy()
         options2["bdist_esky"] = options["bdist_esky"].copy()
         options2["bdist_esky"]["bundle_msvcrt"] = True
-        dist_setup(version="0.1",scripts=["eskytester/script1.py"],options=options,**metadata)
-        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options=options2,**metadata)
-        dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],options=options,**metadata)
+        dist_setup(version="0.1",scripts=["eskytester/script1.py"],options=options,script_args=["bdist_esky"],**metadata)
+        dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options=options2,script_args=["bdist_esky"],**metadata)
+        dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],options=options,script_args=["bdist_esky_patch"],**metadata)
+        os.unlink(os.path.join("dist","eskytester-0.3.%s.zip"%(platform,)))
         #  Serve the updates at http://localhost:8000/dist/
         print "running local update server"
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)

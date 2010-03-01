@@ -52,6 +52,7 @@ if sys.platform == "win32":
 
 v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
+    # This is the first time we've run this script.
     app.cleanup()
     assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
     assert not os.path.isdir(v3dir)
@@ -76,6 +77,7 @@ if len(sys.argv) == 1:
     #  We should still be at version 0.2 after this.
     os.execv(script2,[script2,"rerun"])
 else:
+    # This is the second time we've run this script.
     #  Recover from the broken upgrade
     assert len(sys.argv) == 2
     assert os.path.isdir(v3dir)
