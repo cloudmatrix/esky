@@ -178,13 +178,11 @@ class DefaultVersionFinder(VersionFinder):
         directory ready for renaming into the appdir.
         """
         uppath = tempfile.mkdtemp(dir=self._workdir(app,"unpack"))
-        best_vdir = join_app_version(app.name,app.best_version,app.platform)
-        best_vdir = os.path.join(app.appdir,best_vdir)
         if not path:
-            shutil.copytree(best_vdir,uppath)
+            self._copy_best_version(app,uppath)
         else:
             if path[0].endswith(".patch"):
-                shutil.copytree(best_vdir,uppath)
+                self._copy_best_version(app,uppath)
                 patches = path
             else:
                 extract_zipfile(path[0],uppath)
@@ -211,6 +209,19 @@ class DefaultVersionFinder(VersionFinder):
         os.rename(os.path.join(uppath,vdir),rdpath)
         for filenm in path:
             os.unlink(filenm)
+
+    def _copy_best_version(self,app,uppath):
+        best_vdir = join_app_version(app.name,app.best_version,app.platform)
+        source = os.path.join(app.appdir,best_vdir)
+        shutil.copytree(source,os.path.join(uppath,best_vdir))
+        with open(os.path.join(source,"esky-bootstrap.txt"),"r") as manifest:
+            for nm in manifest:
+                nm = nm.strip()
+                bspath = os.path.join(app.appdir,nm)
+                if os.path.isdir(bspath):
+                    shutil.copytree(bspath,os.path.join(uppath,nm))
+                else:
+                    shutil.copy2(bspath,os.path.join(uppath,nm))
 
     def has_version(self,app,version):
         return os.path.exists(self._ready_name(app,version))
