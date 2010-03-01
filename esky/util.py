@@ -56,7 +56,8 @@ def extract_zipfile(source,target,name_filter=None):
             finally:
                 infile.close()
             mode = zf.getinfo(nm).external_attr >> 16L
-            os.chmod(outfilenm,mode)
+            if mode:
+                os.chmod(outfilenm,mode)
     finally:
         zf.close()
 
