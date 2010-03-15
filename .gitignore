@@ -5,4 +5,5 @@ esky/tests/dist
 esky/tests/build
 esky/tests/deploy*
 esky/tests/patch-test-temp
+esky/tests/eskytester.egg-info
 build/
