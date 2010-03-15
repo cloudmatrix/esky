@@ -9,7 +9,7 @@ a simple API through which apps can find, fetch and install updates, and a
 bootstrapping mechanism that keeps the app safe in the face of failed or
 partial updates.
 
-Esky is currently capable of freezing apps with bbfreeze, cxfreeze py2exe and
+Esky is currently capable of freezing apps with bbfreeze, cxfreeze, py2exe and
 py2app. Adding support for other freezer programs should be straightforward;
 patches will be gratefully accepted.
 
