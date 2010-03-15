@@ -479,9 +479,10 @@ class Patcher(object):
         """
         self._check_end_patch()
         digest = self._read(16)
+        assert len(digest) == 16
         if not self.dry_run:
             if digest != calculate_digest(self.target,hashlib.md5):
-                raise PatchError("incorrect MD5 digest")
+                raise PatchError("incorrect MD5 digest for %s" % (self.target,))
 
     def _do_MAKEDIR(self):
         """Execute the MAKEDIR command.
@@ -760,7 +761,7 @@ class Differ(object):
             self._diff_file(source,target)
         else:
             #  We can't deal with any other objects for the moment.
-            #  Could evntually add support for e.g. symlinks.
+            #  Could eventually add support for e.g. symlinks.
             raise DiffError("unknown filesystem object: " + target)
 
     def _diff_dir(self,source,target):
@@ -796,6 +797,25 @@ class Differ(object):
                     self._write_path(nm)
                     at_path = True
                 self._diff(s_nm,t_nm)
+            #  Clean up .pyc files, as they can be generated automatically
+            #  and cause digest verification to fail.
+            if nm.endswith(".py"):
+                if not os.path.exists(t_nm+"c"):
+                    if at_path:
+                        self._write_command(POP_JOIN_PATH)
+                    else:
+                        self._write_command(JOIN_PATH)
+                    self._write_path(nm+"c")
+                    at_path = True
+                    self._write_command(REMOVE)
+                if not os.path.exists(t_nm+"o"):
+                    if at_path:
+                        self._write_command(POP_JOIN_PATH)
+                    else:
+                        self._write_command(JOIN_PATH)
+                    self._write_path(nm+"o")
+                    at_path = True
+                    self._write_command(REMOVE)
             if at_path:
                 self._write_command(POP_PATH)
         #  Remove anything that's no longer in the target dir
