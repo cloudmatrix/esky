@@ -63,14 +63,14 @@ def freeze(dist):
             os.rmdir(os.path.join(dist.freeze_dir,nm))
     #  Remove any pyc files with a corresponding py file
     resdir = os.path.join(dist.freeze_dir,"Contents/Resources")
-    for (dirnm,filenms,_) in os.walk(resdir):
+    for (dirnm,_,filenms) in os.walk(resdir):
         for nm in filenms:
             if nm.endswith(".pyc"):
-                pyfile = os.path.join(drnm,nm[:-1])
+                pyfile = os.path.join(dirnm,nm[:-1])
                 if os.path.exists(pyfile):
                     os.unlink(pyfile+"c")
             if nm.endswith(".pyo"):
-                pyfile = os.path.join(drnm,nm[:-1])
+                pyfile = os.path.join(dirnm,nm[:-1])
                 if os.path.exists(pyfile):
                     os.unlink(pyfile+"o")
     #  Copy data files into the freeze dir
