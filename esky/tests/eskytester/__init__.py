@@ -16,10 +16,19 @@ def yes_my_deps_are_working():
 def yes_my_data_is_installed():
     """Check that datafiles have been correctly copied over."""
     if hasattr(sys,"frozen"):
-        mydir = os.path.join(os.path.dirname(sys.executable))
-        assert os.path.exists(os.path.join(mydir,"data","datafile.txt"))
-        lib = zipfile.ZipFile(os.path.join(mydir,"library.zip"))
-        assert "eskytester/pkgdata.txt" in lib.namelist()
+        if sys.platform == "darwin":
+            mydir = os.path.dirname(os.path.dirname(sys.executable))
+            mydir = os.path.join(mydir,"Resources")
+            assert os.path.exists(os.path.join(mydir,"data","datafile.txt"))
+            pydir = "python%d.%d" % sys.version_info[:2]
+            libfile = os.path.join(mydir,"lib",pydir,"site-packages.zip")
+            lib = zipfile.ZipFile(libfile)
+            assert "eskytester/pkgdata.txt" in lib.namelist()
+        else:
+            mydir = os.path.join(os.path.dirname(sys.executable))
+            assert os.path.exists(os.path.join(mydir,"data","datafile.txt"))
+            lib = zipfile.ZipFile(os.path.join(mydir,"library.zip"))
+            assert "eskytester/pkgdata.txt" in lib.namelist()
     else:
         mydir = os.path.dirname(__file__)
         assert os.path.exists(os.path.join(mydir,"datafile.txt"))
@@ -34,4 +43,12 @@ class TestHTMLParser(HTMLParser):
    def handle_starttag(self,tag,attrs):
        assert tag == self.expecting.pop(0)
 
+
+def script_path(app,script):
+    if sys.platform == "win32":
+        return (os.path.join(app.appdir,script+".exe"))
+    elif sys.platform == "darwin":
+        return (os.path.join(app.appdir,"Contents/MacOS",script))
+    else:
+        return (os.path.join(app.appdir,script))
 

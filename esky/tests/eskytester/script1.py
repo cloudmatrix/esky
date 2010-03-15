@@ -6,11 +6,6 @@ import sys
 import esky
 import esky.util
 
-if sys.platform == "win32":
-    dotexe = ".exe"
-else:
-    dotexe = ""
-
 #  Test that the frozen app is actually working
 import eskytester
 eskytester.yes_i_am_working()
@@ -23,7 +18,7 @@ assert app.name == "eskytester"
 assert app.active_version == "0.1"
 assert app.version == "0.1"
 assert app.find_update() == "0.3"
-assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
+assert os.path.isfile(eskytester.script_path(app,"script1"))
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
 app.install_version("0.2")
@@ -33,9 +28,9 @@ assert app.active_version == "0.1"
 assert app.version == "0.2"
 assert app.find_update() == "0.3"
 
-assert os.path.isfile(os.path.join(app.appdir,"script1"+dotexe))
-assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
+assert os.path.isfile(eskytester.script_path(app,"script1"))
+assert os.path.isfile(eskytester.script_path(app,"script2"))
 assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform()))
-script2 = os.path.join(app.appdir,"script2"+dotexe)
+script2 = eskytester.script_path(app,"script2")
 os.execv(script2,[script2])
 

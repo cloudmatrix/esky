@@ -7,10 +7,6 @@ import esky
 import esky.util
 
 platform = esky.util.get_platform()
-if sys.platform == "win32":
-    dotexe = ".exe"
-else:
-    dotexe = ""
 
 #  Test that the frozen app is actually working
 import eskytester
@@ -29,8 +25,9 @@ app.cleanup()
 assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
 assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+platform))
 assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
-assert os.path.isfile(os.path.join(app.appdir,"script2"+dotexe))
-assert os.path.isfile(os.path.join(app.appdir,"script3"+dotexe))
+assert os.path.isfile(eskytester.script_path(app,"script2"))
+assert os.path.isfile(eskytester.script_path(app,"script3"))
+
 
 #  Test that MSVCRT wasn't bundled with this version
 if sys.platform == "win32":
@@ -44,7 +41,6 @@ if sys.platform == "win32":
 #  On windows, test that we were chainloaded without an execv
 if sys.platform == "win32":
     assert hasattr(sys,"bootstrap_executable")
-
 
 open("tests-completed","w").close()
 print "TESTS COMPLETED"

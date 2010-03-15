@@ -27,13 +27,17 @@ from esky.util import extract_zipfile, get_platform
 from esky.fstransact import FSTransaction
 
 try:
-    import bbfreeze
-except ImportError:
-    bbfreeze = None
-try:
     import py2exe
 except ImportError:
     py2exe = None
+try:
+    import py2app
+except ImportError:
+    py2app = None
+try:
+    import bbfreeze
+except ImportError:
+    bbfreeze = None
 try:
     import cx_Freeze
 except ImportError:
@@ -54,15 +58,20 @@ if not hasattr(HTTPServer,"shutdown"):
 
 class TestEsky(unittest.TestCase):
 
-  if bbfreeze is not None:
-    def test_esky_bbfreeze(self):
-        """Build and launch a self-testing esky application using bbfreeze."""
-        self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
-
   if py2exe is not None:
     def test_esky_py2exe(self):
         """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
+
+  if py2app is not None:
+    def test_esky_py2app(self):
+        """Build and launch a self-testing esky application using py2app."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
+
+  if bbfreeze is not None:
+    def test_esky_bbfreeze(self):
+        """Build and launch a self-testing esky application using bbfreeze."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
 
   if cx_Freeze is not None:
     def test_esky_cxfreeze(self):
@@ -123,7 +132,11 @@ class TestEsky(unittest.TestCase):
             tests_completed = "tests-completed"
         if os.path.exists(tests_completed):
             os.unlink(tests_completed)
-        if sys.platform == "win32":
+        if os.path.exists("tests-completed"):
+            os.unlink("tests-completed")
+        if options["bdist_esky"]["freezer_module"] == "py2app":
+            cmd = os.path.join(deploydir,"Contents","MacOS","script1")
+        elif sys.platform == "win32":
             cmd = os.path.join(deploydir,"script1.exe")
         else:
             cmd = os.path.join(deploydir,"script1")

@@ -46,15 +46,20 @@ except ImportError:
 
 _FREEZERS = {}
 try:
-    from esky.bdist_esky import f_bbfreeze
-    _FREEZERS["bbfreeze"] = f_bbfreeze
-except ImportError:
-    _FREEZERS["bbfreeze"] = None
-try:
     from esky.bdist_esky import f_py2exe
     _FREEZERS["py2exe"] = f_py2exe
 except ImportError:
     _FREEZERS["py2exe"] = None
+try:
+    from esky.bdist_esky import f_py2app
+    _FREEZERS["py2app"] = f_py2app
+except ImportError:
+    _FREEZERS["py2app"] = None
+try:
+    from esky.bdist_esky import f_bbfreeze
+    _FREEZERS["bbfreeze"] = f_bbfreeze
+except ImportError:
+    _FREEZERS["bbfreeze"] = None
 try:
     from esky.bdist_esky import f_cxfreeze
     _FREEZERS["cxfreeze"] = f_cxfreeze
@@ -129,8 +134,8 @@ class bdist_esky(Command):
 
         excludes:  a list of modules to explicitly exclude from the freeze
 
-        freezer_module:  name of freezer module to use; currently only bbfreeze
-                         and py2exe are supported.
+        freezer_module:  name of freezer module to use; currently py2exe,
+                         py2app,  bbfreeze and cx-freeze are supported.
 
         freezer_options: dict of options to pass through to the underlying
                          freezer module.
@@ -178,7 +183,7 @@ class bdist_esky(Command):
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
         if self.freezer_module is None:
-            for freezer_module in ("py2exe","bbfreeze","cxfreeze"):
+            for freezer_module in ("py2exe","py2app","bbfreeze","cxfreeze"):
                 self.freezer_module = _FREEZERS[freezer_module]
                 if self.freezer_module is not None:
                     break
@@ -398,12 +403,14 @@ class bdist_esky(Command):
         The filename is also added to the bootstrap manifest.
         """
         if dst is None:
-            dst = os.path.basename(src)
+            dst = src
         srcpath = os.path.join(self.freeze_dir,src)
         dstpath = os.path.join(self.bootstrap_dir,dst)
         if os.path.isdir(srcpath):
             self.copy_tree(srcpath,dstpath)
         else:
+            if not os.path.isdir(os.path.dirname(dstpath)):
+               self.mkpath(os.path.dirname(dstpath))
             self.copy_file(srcpath,dstpath)
         f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
         f_manifest = open(f_manifest,"at")

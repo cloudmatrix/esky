@@ -1,6 +1,7 @@
 
 v0.5.0:
 
+    * implemented preliminary support for freezing with py2app.
     * added module esky.patch for diffing and patching frozen apps:
        * provides a generic file format for diffing/patching directories.
            * can recurse into compressed zipfiles, giving patches an order

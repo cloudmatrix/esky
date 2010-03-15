@@ -118,7 +118,7 @@ from esky.errors import *
 from esky.fstransact import FSTransaction
 from esky.finder import DefaultVersionFinder
 from esky.util import split_app_version, join_app_version,\
-                      parse_version, get_best_version
+                      parse_version, get_best_version, appdir_from_executable
 
 
 class Esky(object):
@@ -144,10 +144,10 @@ class Esky(object):
 
     def __init__(self,appdir_or_exe,version_finder=None):
         if os.path.isfile(appdir_or_exe):
-            vdir = os.path.basename(os.path.dirname(appdir_or_exe))
+            self.appdir = appdir_from_executable(appdir_or_exe)
+            vdir = appdir_or_exe[len(self.appdir):].split(os.sep)[1]
             details = split_app_version(vdir)
             self.name,self.active_version,self.platform = details
-            self.appdir = os.path.dirname(os.path.dirname(appdir_or_exe))
         else:
             self.active_version = None
             self.appdir = appdir_or_exe
@@ -297,16 +297,16 @@ class Esky(object):
                         except VersionLockedError:
                             pass
                         else:
-                            self._try_remove(fullnm)
+                            self._try_remove(appdir,nm,manifest)
                     else:
-                        self._try_remove(fullnm)
+                        self._try_remove(appdir,nm,manifest)
             if self.version_finder is not None:
                 self.version_finder.cleanup(self)
         finally:
             self.unlock()
 
-    def _try_remove(self,path):
-        """Try to remove the file/directory at the given path.
+    def _try_remove(self,appdir,path,manifest):
+        """Try to remove the file/directory at the given path in the appdir.
 
         This method attempts to remove the file or directory at the given path,
         but will fail silently under a number of conditions:
@@ -314,19 +314,24 @@ class Esky(object):
             * if a file is locked or permission is denied
             * if a directory cannot be emptied of all contents
             * if the path appears on sys.path
+            * if the path appears in the given manifest
 
         """
-        if path not in sys.path:
-            try:
-                if os.path.isdir(path):
-                    for nm in os.listdir(path):
-                        self._try_remove(os.path.join(path,nm))
-                    os.rmdir(path)
-                else:
-                    os.unlink(path)
-            except EnvironmentError, e:
-                if e.errno not in self._errors_to_ignore:
-                    raise
+        fullpath = os.path.join(appdir,path)
+        if fullpath in sys.path:
+            return
+        if path in manifest:
+            return
+        try:
+            if os.path.isdir(fullpath):
+                for nm in os.listdir(fullpath):
+                    self._try_remove(appdir,os.path.join(path,nm),manifest)
+                os.rmdir(fullpath)
+            else:
+                os.unlink(fullpath)
+        except EnvironmentError, e:
+            if e.errno not in self._errors_to_ignore:
+                raise
     _errors_to_ignore = (errno.ENOENT, errno.EPERM, errno.EACCES, errno.ENOTDIR,
                          errno.EISDIR, errno.EINVAL, errno.ENOTEMPTY,)
 

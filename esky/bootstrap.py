@@ -74,6 +74,25 @@ def exists(path):
     else:
         return True
 
+def appdir_from_executable(exepath):
+    """Find the top-level application directory, given sys.executable.
+
+    Ordinarily this would simply be the directory containing the executable,
+    but when running via a bundle on OSX the executable will be located at
+    <appdir>/Contents/MacOS/<exe>.
+    """
+    appdir = dirname(exepath)
+    if sys.platform == "darwin" and basename(appdir) == "MacOS":
+        # Looks like we might be in an app bundle.
+        appdir = dirname(appdir)
+        if basename(appdir) == "Contents":
+            # Yep, definitely in a bundle
+            appdir = dirname(appdir)
+        else:
+            # Nope, some other crazy scheme
+            appdir = dirname(exepath)
+    return appdir
+
 
 def bootstrap():
     """Bootstrap an esky frozen app into the newest available version.
@@ -82,7 +101,7 @@ def bootstrap():
     numbered version of the application that is fully installed, then
     chain-loads that version of the application.
     """
-    appdir = dirname(sys.executable)
+    appdir = appdir_from_executable(sys.executable)
     best_version = get_best_version(appdir)
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
@@ -126,7 +145,8 @@ def _chainload(target_dir):
     Specific freezer modules may provide a more efficient, reliable or
     otherwise better version of this function.
     """
-    target_exe = pathjoin(target_dir,basename(sys.executable))
+    appdir = dirname(target_dir)
+    target_exe = target_dir + sys.executable[len(appdir):]
     execv(target_exe,[target_exe] + sys.argv[1:])
 
 
