@@ -137,8 +137,8 @@ def _normalise_opt_name(nm):
 #  python version as the target exe, we can munge sys.path to bootstrap it
 #  into the existing process.
 _CUSTOM_WIN32_CHAINLOADER = """
-_orig_chainload = chainload
-def chainload(target_dir):
+_orig_chainload = _chainload
+def _chainload(target_dir):
   mydir = dirname(sys.executable)
   pydll = "python%%s%%s.dll" %% sys.version_info[:2]
   if not exists(pathjoin(target_dir,pydll)):

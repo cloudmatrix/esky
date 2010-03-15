@@ -21,6 +21,10 @@ class EskyLockedError(Error):
     """Error thrown when trying to lock an esky that's already locked."""
     pass
 
+class VersionLockedError(Error):
+    """Error thrown when trying to remove a locked version."""
+    pass
+
 class EskyVersionError(Error):
     """Error thrown when an invalid version is requested."""
     pass

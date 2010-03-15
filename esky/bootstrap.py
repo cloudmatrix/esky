@@ -35,9 +35,14 @@ import errno
 if "posix" in sys.builtin_module_names:
     from posix import listdir, stat, unlink, rename, execv
     SEP = "/"
-elif "nt" in  sys.builtin_module_names:
+    try:
+        import fcntl
+    except ImportError:
+        fcntl = None
+elif "nt" in sys.builtin_module_names:
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
     SEP = "\\"
+    fcntl = None
     def execv(filename,args):
         res = spawnv(P_WAIT,filename,args)
         raise SystemExit(res)
@@ -89,6 +94,37 @@ def chainload(target_dir):
 
     This function replaces the currently-running executable with the equivalent
     executable from the given target directory.
+
+    On platforms that support it, this also locks the target directory so that
+    it will not be removed by any simultaneously-running instances of the
+    application.
+    """
+    global _version_dir_lockfile
+    lockfile = pathjoin(target_dir,"esky-bootstrap.txt")
+    try:
+        #  On windows, holding the file open is enough to lock it.
+        #  On other platforms, try for a shared lock using fcntl.
+        _version_dir_lockfile = open(lockfile,"r")
+        if "nt" not in sys.builtin_module_names:
+            if fcntl is not None:
+                fd = _version_dir_lockfile.fileno()
+                fcntl.lockf(fd,fcntl.LOCK_SH)
+    except EnvironmentError:
+        #  If the lockfile has gone missing, the version is being uninstalled.
+        #  Our only option is to re-execute ourself and find the new version.
+        if exists(lockfile):
+            raise
+        execv(sys.executable,sys.argv)
+    else:
+        #  If all goes well, we can actually launch the target version.
+        _chainload(target_dir)
+
+
+def _chainload(target_dir):
+    """Default implementation of the chainload() function.
+
+    Specific freezer modules may provide a more efficient, reliable or
+    otherwise better version of this function.
     """
     target_exe = pathjoin(target_dir,basename(sys.executable))
     execv(target_exe,[target_exe] + sys.argv[1:])

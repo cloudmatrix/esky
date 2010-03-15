@@ -214,9 +214,10 @@ sys.modules["esky.bootstrap"] = __fake()
 #  We need to read the script to execute as a resource from the exe, so this
 #  only works if we can bootstrap a working ctypes module.  We then insert
 #  the source code from esky.winres directly into this function.
+#
 _CUSTOM_WIN32_CHAINLOADER = """
-_orig_chainload = chainload
-def chainload(target_dir):
+_orig_chainload = _chainload
+def _chainload(target_dir):
   # winres imports sys, making it a local variable.
   # Grab it here to avoid UnboundLocal errors
   import sys

@@ -442,8 +442,9 @@ class TestPatch(unittest.TestCase):
 
     def setUp(self):
         self.tests_root = dirname(__file__)
+        platform = get_platform()
         self.tfdir = tfdir = os.path.join(self.tests_root,"patch-test-files")
-        self.workdir = workdir = os.path.join(self.tests_root,"patch-test-temp")
+        self.workdir = workdir = os.path.join(self.tests_root,"patch-test-temp."+platform)
         if not os.path.isdir(tfdir):
             os.makedirs(tfdir)
         if not os.path.isdir(workdir):
@@ -457,6 +458,9 @@ class TestPatch(unittest.TestCase):
                 assert hashlib.md5(data).hexdigest() == hash
                 with open(tfpath,"wb") as f:
                     f.write(data)
+
+    def tearDown(self):
+        shutil.rmtree(self.workdir)
 
     def test_diffing_back_and_forth(self):
         for (tf1,_) in self._TEST_FILES:
@@ -495,8 +499,5 @@ class TestPatch(unittest.TestCase):
             f.close()
         return dest
         
-
-    def tearDown(self):
-        shutil.rmtree(self.workdir)
 
 

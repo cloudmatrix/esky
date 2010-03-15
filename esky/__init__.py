@@ -108,6 +108,10 @@ try:
     import threading
 except ImportError:
     threading = None
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
             
 
 from esky.errors import *
@@ -274,7 +278,8 @@ class Esky(object):
                 best_version = new_version
             #  Now we can safely remove anything that's not part of the
             #  best version's bootstrap env.  Exceptions are the best
-            #  version itself, and the currently-executing version.
+            #  version itself, the currently-executing version, and any
+            #  locked versions.
             manifest = self._version_manifest(best_version)
             manifest.add("updates")
             manifest.add("locked")
@@ -284,7 +289,17 @@ class Esky(object):
             for nm in os.listdir(appdir):
                 if nm not in manifest:
                     fullnm = os.path.join(appdir,nm)
-                    self._try_remove(fullnm)
+                    bsfile = os.path.join(fullnm,"esky-bootstrap.txt")
+                    if os.path.exists(bsfile):
+                        (_,v,_) = split_app_version(nm)
+                        try:
+                            self.uninstall_version(v)
+                        except VersionLockedError:
+                            pass
+                        else:
+                            self._try_remove(fullnm)
+                    else:
+                        self._try_remove(fullnm)
             if self.version_finder is not None:
                 self.version_finder.cleanup(self)
         finally:
@@ -324,7 +339,10 @@ class Esky(object):
             assert parse_version(version) > parse_version(self.version)
             self.fetch_version(version)
             self.install_version(version)
-            self.uninstall_version(self.version)
+            try:
+                self.uninstall_version(self.version)
+            except VersionLockedError:
+                pass
             self.reinitialize()
 
     def find_update(self):
@@ -401,6 +419,7 @@ class Esky(object):
         try:
             if not os.path.exists(target):
                 return
+            #  Clean up the bootstrapping environment in a transaction.
             trn = FSTransaction()
             try:
                 #  Get set of all files that must stay in the main appdir
@@ -413,15 +432,31 @@ class Esky(object):
                 for nm in to_rem:
                     fullnm = os.path.join(self.appdir,nm)
                     trn.remove(fullnm)
-                #  Remove/disable the version.
-                #  To avoid trying to remove in-use files, we just clobber
-                #  the esky-bootstrap.txt file and leave the rest to cleanup().
-                trn.remove(os.path.join(target,"esky-bootstrap.txt"))
             except Exception:
                 trn.abort()
                 raise
             else:
                 trn.commit()
+            #  Disable the version by removing its esky-bootstrap.txt file.
+            #  To avoid clobbering in-use version, respect locks on this file.
+            bsfile = os.path.join(target,"esky-bootstrap.txt")
+            if sys.platform == "win32":
+                try:
+                    os.unlink(bsfile)
+                except EnvironmentError:
+                    raise VersionLockedError("version in use: %s" % (version,))
+            elif fcntl is not None:
+                f = open(bsfile,"r+")
+                try:
+                    fcntl.lockf(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+                except OSError:
+                    raise VersionLockedError("version in use: %s" % (version,))
+                else:
+                    os.unlink(bsfile)
+                finally:
+                    f.close()
+            else:
+                os.unlink(bsfile)
         finally:
             self.unlock()
 
