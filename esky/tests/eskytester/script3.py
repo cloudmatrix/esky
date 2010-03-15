@@ -22,8 +22,6 @@ assert app.active_version == app.version == "0.3"
 assert app.find_update() is None
 
 app.cleanup()
-assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
-assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+platform))
 assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
 assert os.path.isfile(eskytester.script_path(app,"script3"))

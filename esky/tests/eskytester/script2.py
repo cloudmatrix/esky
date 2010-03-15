@@ -54,8 +54,6 @@ v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
     # This is the first time we've run this script.
     app.cleanup()
-    if sys.platform != "win32":
-        assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
     assert not os.path.isdir(v3dir)
     #  Check that the bootstrap env is intact
     with open(os.path.join(app.appdir,"eskytester-0.2."+platform,"esky-bootstrap.txt"),"rt") as mf:
@@ -95,8 +93,6 @@ else:
     assert os.path.isfile(eskytester.script_path(app,"script2"))
     assert not os.path.isfile(eskytester.script_path(app,"script1"))
     assert os.path.isfile(eskytester.script_path(app,"script3"))
-    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
-    assert not os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+platform,"esky-bootstrap.txt"))
     assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
     script3 = eskytester.script_path(app,"script3")
     os.execv(script3,[script3])
