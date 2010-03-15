@@ -117,8 +117,12 @@ class TestEsky(unittest.TestCase):
         extract_zipfile(zfname,deploydir)
         #  Run the first script, which will perform the necessary tests,
         #  launch script2 and script3, and write the file "tests-completed".
-        if os.path.exists("tests-completed"):
-            os.unlink("tests-completed")
+        if options["bdist_esky"]["freezer_module"] == "py2app":
+            tests_completed = os.path.join(deploydir,"eskytester-0.3."+platform,"Contents/Resources/tests-completed")
+        else:
+            tests_completed = "tests-completed"
+        if os.path.exists(tests_completed):
+            os.unlink(tests_completed)
         if sys.platform == "win32":
             cmd = os.path.join(deploydir,"script1.exe")
         else:
@@ -128,8 +132,8 @@ class TestEsky(unittest.TestCase):
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout.decode())
         assert p.returncode == 0
-        assert os.path.exists("tests-completed")
-        os.unlink("tests-completed")
+        assert os.path.exists(tests_completed)
+        os.unlink(tests_completed)
     finally:
         os.chdir(olddir)
         if server:

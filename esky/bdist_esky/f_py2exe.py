@@ -180,6 +180,10 @@ def freeze(dist):
             pydll_bytes = f.read()
     else:
         pydll_bytes = None
+    #  Copy any core dependencies into the bootstrap env.
+    for nm in os.listdir(dist.freeze_dir):
+        if is_core_dependency(nm) and nm != pydll:
+            dist.copy_to_bootstrap_env(nm)
     #  Copy the loader program for each script into the bootstrap env.
     for exe in dist.get_executables():
         exepath = dist.copy_to_bootstrap_env(exe.name)
@@ -192,10 +196,6 @@ def freeze(dist):
         #  Inline the pythonXY.dll as a resource in the exe.
         if pydll_bytes is not None:
             winres.add_resource(exepath,pydll_bytes,pydll.upper(),1,0)
-    #  Copy any core dependencies into the bootstrap env.
-    for nm in os.listdir(dist.freeze_dir):
-        if is_core_dependency(nm) and nm != pydll:
-            dist.copy_to_bootstrap_env(nm)
 
 
 #  Code to fake out any bootstrappers that try to import from esky.

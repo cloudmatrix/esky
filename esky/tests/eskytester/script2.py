@@ -54,7 +54,8 @@ v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
     # This is the first time we've run this script.
     app.cleanup()
-    assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
+    if sys.platform != "win32":
+        assert not os.path.isdir(os.path.join(app.appdir,"eskytester-0.1."+platform))
     assert not os.path.isdir(v3dir)
     script2 = os.path.join(app.appdir,"script2"+dotexe)
     #  Simulate a broken upgrade.

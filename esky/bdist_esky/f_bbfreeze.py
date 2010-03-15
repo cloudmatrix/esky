@@ -94,22 +94,22 @@ def freeze(dist):
     bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
     bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
     bslib.close()
-    #  Copy the loader program for each script.
-    #  We explicitly strip the loader binaries, in case they were made
-    #  by linking to the library.zip.
-    for exe in dist.get_executables():
-        exepath = dist.copy_to_bootstrap_env(exe.name)
-        f.stripBinary(exepath)
+    #  Copy any core dependencies
+    for nm in os.listdir(dist.freeze_dir):
+        if is_core_dependency(nm):
+            dist.copy_to_bootstrap_env(nm)
     #  Copy the bbfreeze interpreter if necessary
     if f.include_py:
         if sys.platform == "win32":
             dist.copy_to_bootstrap_env("py.exe")
         else:
             dist.copy_to_bootstrap_env("py")
-    #  Copy any core dependencies
-    for nm in os.listdir(dist.freeze_dir):
-        if is_core_dependency(nm):
-            dist.copy_to_bootstrap_env(nm)
+    #  Copy the loader program for each script.
+    #  We explicitly strip the loader binaries, in case they were made
+    #  by linking to the library.zip.
+    for exe in dist.get_executables():
+        exepath = dist.copy_to_bootstrap_env(exe.name)
+        f.stripBinary(exepath)
 
 
 #  On Windows, execv is flaky and expensive.  If the chainloader is the same

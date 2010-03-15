@@ -104,6 +104,10 @@ def freeze(dist):
     eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
     eskybscode = imp.get_magic() + struct.pack("<i",0)
     eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
+    #  Copy any core dependencies
+    for nm in os.listdir(dist.freeze_dir):
+        if is_core_dependency(nm):
+            dist.copy_to_bootstrap_env(nm)
     #  Copy the loader program for each script into the bootstrap env, and
     #  append the bootstrapping code to it as a zipfile.
     for exe in dist.get_executables():
@@ -114,10 +118,6 @@ def freeze(dist):
         bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
         bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
         bslib.close()
-    #  Copy any core dependencies
-    for nm in os.listdir(dist.freeze_dir):
-        if is_core_dependency(nm):
-            dist.copy_to_bootstrap_env(nm)
 
 
 def _normalise_opt_name(nm):

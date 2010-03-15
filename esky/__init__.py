@@ -117,7 +117,7 @@ except ImportError:
 from esky.errors import *
 from esky.fstransact import FSTransaction
 from esky.finder import DefaultVersionFinder
-from esky.util import is_core_dependency, split_app_version, join_app_version,\
+from esky.util import split_app_version, join_app_version,\
                       parse_version, get_best_version
 
 
@@ -390,17 +390,13 @@ class Esky(object):
                 #  Move new bootrapping environment into main app dir.
                 #  Be sure to move dependencies before executables.
                 bootstrap = os.path.join(target,"esky-bootstrap")
-                if os.path.exists(os.path.join(bootstrap,"library.zip")):
-                    trn.move(os.path.join(bootstrap,"library.zip"),
-                             os.path.join(self.appdir,"library.zip"))
-                for nm in os.listdir(bootstrap):
-                    if is_core_dependency(nm):
-                        trn.move(os.path.join(bootstrap,nm),
-                                 os.path.join(self.appdir,nm))
-                for nm in os.listdir(bootstrap):
-                    if not is_core_dependency(nm) and nm != "library.zip":
-                        trn.move(os.path.join(bootstrap,nm),
-                                 os.path.join(self.appdir,nm))
+                with open(os.path.join(target,"esky-bootstrap.txt"),"rt") as f:
+                    for nm in f:
+                        nm = nm.strip()
+                        bssrc = os.path.join(bootstrap,nm)
+                        bsdst = os.path.join(self.appdir,nm)
+                        if os.path.exists(bssrc):
+                            trn.move(bssrc,bsdst)
                 #  Remove the bootstrap dir; the new version is now installed
                 trn.remove(bootstrap)
             except Exception:

@@ -730,7 +730,6 @@ class Differ(object):
         self._write_bytes("")
         self._write_command(VERIFY_MD5)
         self._write(calculate_digest(target,hashlib.md5))
-        #self._write_command(END)
 
     def _diff(self,source,target):
         """Recursively generate patch commands to transform source into target.
