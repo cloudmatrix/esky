@@ -140,12 +140,13 @@ class DefaultVersionFinder(VersionFinder):
                 raise EskyVersionError(version)
             local_path = []
             for url in path:
-                local_path.append(self._fetch_file(app,url))
+                local_path.append((self._fetch_file(app,url),url))
             try:
                 self._prepare_version(app,version,local_path)
             except PatchError:
                 pass
-            return self._ready_name(app,version)
+            else:
+                return self._ready_name(app,version)
 
     def _fetch_file(self,app,url):
         infile = self.open_url(urljoin(self.download_url,url))
@@ -181,18 +182,18 @@ class DefaultVersionFinder(VersionFinder):
         if not path:
             self._copy_best_version(app,uppath)
         else:
-            if path[0].endswith(".patch"):
+            if path[0][0].endswith(".patch"):
                 self._copy_best_version(app,uppath)
                 patches = path
             else:
-                extract_zipfile(path[0],uppath)
+                extract_zipfile(path[0][0],uppath)
                 patches = path[1:]
-            for patchfile in patches:
+            for (patchfile,patchurl) in patches:
                 try:
                     with open(patchfile,"rb") as f:
                         apply_patch(uppath,f)
                 except PatchError:
-                    self.version_graph.remove_all_links(patchfile)
+                    self.version_graph.remove_all_links(patchurl)
                     raise
         # Move anything that's not the version dir into esky-bootstrap
         vdir = join_app_version(app.name,version,app.platform)
@@ -207,7 +208,7 @@ class DefaultVersionFinder(VersionFinder):
         if os.path.exists(rdpath):
             shutil.rmtree(rdpath)
         os.rename(os.path.join(uppath,vdir),rdpath)
-        for filenm in path:
+        for (filenm,_) in path:
             os.unlink(filenm)
 
     def _copy_best_version(self,app,uppath):
@@ -218,10 +219,13 @@ class DefaultVersionFinder(VersionFinder):
             for nm in manifest:
                 nm = nm.strip()
                 bspath = os.path.join(app.appdir,nm)
+                dstpath = os.path.join(uppath,nm)
                 if os.path.isdir(bspath):
-                    shutil.copytree(bspath,os.path.join(uppath,nm))
+                    shutil.copytree(bspath,dstpath)
                 else:
-                    shutil.copy2(bspath,os.path.join(uppath,nm))
+                    if not os.path.isdir(os.path.dirname(dstpath)):
+                        os.makedirs(os.path.dirname(dstpath))
+                    shutil.copy2(bspath,dstpath)
 
     def has_version(self,app,version):
         return os.path.exists(self._ready_name(app,version))
@@ -264,7 +268,7 @@ class VersionGraph(object):
     def remove_all_links(self,via):
         for source in self._links:
             for target in self._links[source]:
-                self._links[source][target].pop(via)
+                self._links[source][target].pop(via,None)
 
     def get_versions(self,source):
         """List all versions reachable from the given source version."""
@@ -313,7 +317,7 @@ class VersionGraph(object):
             return (_inf,None)
         vias = self._links[source][target]
         if not vias:
-            return None
+            return (_inf,None)
         vias = sorted((cost,via) for (via,cost) in vias.iteritems())
         return vias[0]
 
