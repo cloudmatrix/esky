@@ -22,7 +22,7 @@ eskytester.yes_my_data_is_installed()
 assert sys.frozen
 app = esky.Esky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
-assert app.cur_version == app.best_version == "0.3"
+assert app.active_version == app.version == "0.3"
 assert app.find_update() is None
 
 app.cleanup()

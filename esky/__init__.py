@@ -141,10 +141,11 @@ class Esky(object):
     def __init__(self,appdir_or_exe,version_finder=None):
         if os.path.isfile(appdir_or_exe):
             vdir = os.path.basename(os.path.dirname(appdir_or_exe))
-            self.name,self.cur_version,self.platform = split_app_version(vdir)
+            details = split_app_version(vdir)
+            self.name,self.active_version,self.platform = details
             self.appdir = os.path.dirname(os.path.dirname(appdir_or_exe))
         else:
-            self.cur_version = None
+            self.active_version = None
             self.appdir = appdir_or_exe
         self.reinitialize()
         self._lock_count = 0
@@ -176,7 +177,7 @@ class Esky(object):
         if best_version is None:
             raise EskyBrokenError("no frozen versions found")
         details = split_app_version(best_version)
-        self.name,self.best_version,self.platform = details
+        self.name,self.version,self.platform = details
 
     def lock(self,num_retries=0):
         """Lock the application directory for exclusive write access.
@@ -278,8 +279,8 @@ class Esky(object):
             manifest.add("updates")
             manifest.add("locked")
             manifest.add(best_version)
-            if self.cur_version:
-                manifest.add(self.cur_version)
+            if self.active_version:
+                manifest.add(self.active_version)
             for nm in os.listdir(appdir):
                 if nm not in manifest:
                     fullnm = os.path.join(appdir,nm)
@@ -320,10 +321,10 @@ class Esky(object):
             raise NoVersionFinderError
         version = self.find_update()
         if version is not None:
-            assert parse_version(version) > parse_version(self.best_version)
+            assert parse_version(version) > parse_version(self.version)
             self.fetch_version(version)
             self.install_version(version)
-            self.uninstall_version(self.best_version)
+            self.uninstall_version(self.version)
             self.reinitialize()
 
     def find_update(self):
@@ -335,7 +336,7 @@ class Esky(object):
         if self.version_finder is None:
             raise NoVersionFinderError
         best_version = None
-        best_version_p = parse_version(self.best_version)
+        best_version_p = parse_version(self.version)
         for version in self.version_finder.find_versions(self):
             version_p = parse_version(version)
             if version_p > best_version_p:

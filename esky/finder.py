@@ -128,14 +128,14 @@ class DefaultVersionFinder(VersionFinder):
             else:
                 cost = 1
             self.version_graph.add_link(from_version,version,href,cost)
-        return self.version_graph.get_versions(app.best_version)
+        return self.version_graph.get_versions(app.version)
 
     def fetch_version(self,app,version):
         #  There's always the possibility that a patch fails to apply.
         #  _prepare_version will remove such patches from the version graph;
         #  we loop until we find a path that applies, or we run out of options.
         while True:
-            path = self.version_graph.get_best_path(app.best_version,version)
+            path = self.version_graph.get_best_path(app.version,version)
             if path is None:
                 raise EskyVersionError(version)
             local_path = []
@@ -211,7 +211,7 @@ class DefaultVersionFinder(VersionFinder):
             os.unlink(filenm)
 
     def _copy_best_version(self,app,uppath):
-        best_vdir = join_app_version(app.name,app.best_version,app.platform)
+        best_vdir = join_app_version(app.name,app.version,app.platform)
         source = os.path.join(app.appdir,best_vdir)
         shutil.copytree(source,os.path.join(uppath,best_vdir))
         with open(os.path.join(source,"esky-bootstrap.txt"),"r") as manifest:

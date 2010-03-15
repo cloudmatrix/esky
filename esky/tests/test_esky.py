@@ -145,11 +145,11 @@ class TestEsky(unittest.TestCase):
         open(os.path.join(vdir,"esky-bootstrap.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         assert e1.name == "testapp"
-        assert e1.best_version == "0.1"
+        assert e1.version == "0.1"
         assert e1.platform == platform
         e2 = esky.Esky(appdir,"http://example.com/downloads/")
         assert e2.name == "testapp"
-        assert e2.best_version == "0.1"
+        assert e2.version == "0.1"
         assert e2.platform == platform
         locked = []; errors = [];
         trigger1 = threading.Event(); trigger2 = threading.Event()
