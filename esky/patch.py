@@ -148,14 +148,20 @@ def write_patch(source,target,stream,**kwds):
 
 def _read_vint(stream):
     """Read a vint-encoded integer from the given stream."""
-    b = ord(stream.read(1))
+    b = stream.read(1)
+    if not b:
+        raise EOFError
+    b = ord(b)
     if b < 128:
         return b
     x = e = 0
     while b >= 128:
         x += (b - 128) << e
         e += 7
-        b = ord(stream.read(1))
+        b = stream.read(1)
+        if not b:
+            raise EOFError
+        b = ord(b)
     x += (b << e)
     return x
 
@@ -375,18 +381,20 @@ class Patcher(object):
         """Interpret and apply patch commands to the target.
 
         This is a simple command loop that dispatches to the _do_<CMD>
-        methods defined below.  Each such method returns True to continue
-        processing, and False to exit the command loop.
+        methods defined below.  It keeps processing until one of them
+        raises EOFError.
         """
         if not self._read(8) == "ESKYPTCH":
             raise PatchError("not an esky patch file")
         version = self._read_int()
         if version > HIGHEST_VERSION:
             raise PatchError("esky patch version %d not supported"%(version,))
-        docmd = lambda: True
-        while docmd():
-            cmd = self._read_command()
-            docmd = getattr(self,"_do_" + _COMMANDS[cmd])
+        try:
+            while True:
+                cmd = self._read_command()
+                getattr(self,"_do_" + _COMMANDS[cmd])()
+        except EOFError:
+            self._check_end_patch()
 
     def _do_END(self):
         """Execute the END command.
@@ -397,9 +405,8 @@ class Patcher(object):
         self._check_end_patch()
         if self._context_stack:
             self._context_stack.pop()()
-            return True
         else:
-            return False
+            raise EOFError
 
     def _do_SET_PATH(self):
         """Execute the SET_PATH command.
@@ -414,7 +421,6 @@ class Patcher(object):
         else:
             self.target = self.root_dir
         self._check_path()
-        return True
 
     def _do_JOIN_PATH(self):
         """Execute the JOIN_PATH command.
@@ -426,7 +432,6 @@ class Patcher(object):
         path = self._read_path()
         self.target = os.path.join(self.target,path)
         self._check_path()
-        return True
 
     def _do_POP_PATH(self):
         """Execute the POP_PATH command.
@@ -439,7 +444,6 @@ class Patcher(object):
             self.target = self.target[:-1]
         self.target = os.path.dirname(self.target)
         self._check_path()
-        return True
 
     def _do_POP_JOIN_PATH(self):
         """Execute the POP_JOIN_PATH command.
@@ -449,7 +453,6 @@ class Patcher(object):
         """
         self._do_POP_PATH()
         self._do_JOIN_PATH()
-        return True
 
     def _do_VERIFY_MD5(self):
         """Execute the VERIFY_MD5 command.
@@ -463,7 +466,6 @@ class Patcher(object):
         if not self.dry_run:
             if digest != calculate_digest(self.target,hashlib.md5):
                 raise PatchError("incorrect MD5 digest")
-        return True
 
     def _do_MAKEDIR(self):
         """Execute the MAKEDIR command.
@@ -479,7 +481,6 @@ class Patcher(object):
             elif os.path.exists(self.target):
                 os.unlink(self.target)
             os.makedirs(self.target)
-        return True
 
     def _do_REMOVE(self):
         """Execute the REMOVE command.
@@ -492,7 +493,6 @@ class Patcher(object):
                 shutil.rmtree(self.target)
             elif os.path.exists(self.target):
                 os.unlink(self.target)
-        return True
 
     def _do_COPY_FROM(self):
         """Execute the COPY_FROM command.
@@ -516,7 +516,6 @@ class Patcher(object):
                 shutil.copy2(source_path,self.target)
             else:
                 shutil.copytree(source_path,self.target)
-        return True
 
     def _do_MOVE_FROM(self):
         """Execute the MOVE_FROM command.
@@ -537,7 +536,6 @@ class Patcher(object):
                 else:
                     os.unlink(self.target)
             os.rename(source_path,self.target)
-        return True
 
     def _do_PF_COPY(self):
         """Execute the PF_COPY command.
@@ -550,7 +548,6 @@ class Patcher(object):
         n = self._read_int()
         if not self.dry_run:
             self.outfile.write(self.infile.read(n))
-        return True
 
     def _do_PF_SKIP(self):
         """Execute the PF_SKIP command.
@@ -562,7 +559,6 @@ class Patcher(object):
         n = self._read_int()
         if not self.dry_run:
             self.infile.read(n)
-        return True
 
     def _do_PF_INS_RAW(self):
         """Execute the PF_INS_RAW command.
@@ -575,7 +571,6 @@ class Patcher(object):
         data = self._read_bytes()
         if not self.dry_run:
             self.outfile.write(data)
-        return True
 
     def _do_PF_INS_BZ2(self):
         """Execute the PF_INS_BZ2 command.
@@ -588,7 +583,6 @@ class Patcher(object):
         data = bz2.decompress(self._read_bytes())
         if not self.dry_run:
             self.outfile.write(data)
-        return True
 
     def _do_PF_BSDIFF4(self):
         """Execute the PF_BSDIFF4 command.
@@ -605,7 +599,6 @@ class Patcher(object):
         if not self.dry_run:
             source = self.infile.read(n)
             self.outfile.write(bsdiff4_patch(source,patch))
-        return True
 
     def _do_PF_REC_ZIP(self):
         """Execute the PF_REC_ZIP command.
@@ -658,7 +651,6 @@ class Patcher(object):
             extract_zipfile(self.target,t_temp)
             self.root_dir = workdir
             self.target = m_temp
-        return True
 
     def _do_CHMOD(self):
         """Execute the CHMOD command.
@@ -670,7 +662,6 @@ class Patcher(object):
         mod = self._read_int()
         if not self.dry_run:
             os.chmod(self.target,mod)
-        return True
 
 
 class Differ(object):
@@ -739,7 +730,7 @@ class Differ(object):
         self._write_bytes("")
         self._write_command(VERIFY_MD5)
         self._write(calculate_digest(target,hashlib.md5))
-        self._write_command(END)
+        #self._write_command(END)
 
     def _diff(self,source,target):
         """Recursively generate patch commands to transform source into target.
