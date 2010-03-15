@@ -7,7 +7,7 @@ v0.5.0:
            * can recurse into compressed zipfiles, giving patches an order
              of magnitude smaller than produced by naively applying bsdiff.
        * individual files are diffed via bsdiff if cx-bsdiff is installed.
-       * bsdiff-based patches can be applied with no external dependencies
+       * bsdiff-based patches can be applied with no external dependencies.
     * added support for differential updates in DefaultVersionFinder.
     * added "bdist_esky_patch" distutils command for producing differential
       updates in the format expected by DefaultVersionFinder.
