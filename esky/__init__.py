@@ -421,8 +421,14 @@ class Esky(object):
                 #  Get set of all files that must stay in the main appdir
                 to_keep = set()
                 for vname in os.listdir(self.appdir):
-                    if vname != target_name:
-                        to_keep.update(self._version_manifest(vname))
+                    if vname == target_name:
+                        continue
+                    details = split_app_version(vname)
+                    if details[0] != self.name:
+                        continue
+                    if parse_version(details[1]) < parse_version(version):
+                        continue
+                    to_keep.update(self._version_manifest(vname))
                 #  Remove files used only by the version being removed
                 to_rem = self._version_manifest(target_name) - to_keep
                 for nm in to_rem:
