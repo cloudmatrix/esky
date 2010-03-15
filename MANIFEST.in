@@ -5,6 +5,7 @@ include ChangeLog.txt
 include README.txt
 recursive-include esky/tests *.py
 recursive-include esky/tests *.txt
+recursive-include esky/tests *.patch
 recursive-include tutorial *.py
 recursive-include tutorial *.txt
 

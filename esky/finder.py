@@ -127,7 +127,7 @@ class DefaultVersionFinder(VersionFinder):
                 cost = 40
             else:
                 cost = 1
-            self.version_graph.add_link(from_version,version,href,cost)
+            self.version_graph.add_link(from_version or "",version,href,cost)
         return self.version_graph.get_versions(app.version)
 
     def fetch_version(self,app,version):
@@ -243,17 +243,16 @@ class VersionGraph(object):
     another, each with an associated cost.  You can then do a graph traversal
     to find the lowest-cose route between two versions.
 
-    There is always a special source node with value None, which it is possible
+    There is always a special source node with value "", which it is possible
     to reach at zero cost from any other version.  Use this to represent a full
     download, which can reach a specific version from any other version.
     """
 
     def __init__(self):
-        self._links = {None:{}}
+        self._links = {"":{}}
 
     def add_link(self,source,target,via,cost):
         """Add a link from source to target."""
-        assert target is not None
         if source not in self._links:
             self._links[source] = {}
         if target not in self._links:
@@ -293,11 +292,11 @@ class VersionGraph(object):
         """
         remaining = set(v for v in self._links)
         best_costs = dict((v,_inf) for v in remaining)
-        best_paths = dict((v,None) for v in remaining)
+        best_paths = dict((v,"") for v in remaining)
         best_costs[source] = 0
         best_paths[source] = []
-        best_costs[None] = 0
-        best_paths[None] = []
+        best_costs[""] = 0
+        best_paths[""] = []
         while remaining:
             (cost,best) = sorted((best_costs[v],v) for v in remaining)[0]
             if cost is _inf:
@@ -312,12 +311,12 @@ class VersionGraph(object):
                 
     def _get_best_link(self,source,target):
         if source not in self._links:
-            return (_inf,None)
+            return (_inf,"")
         if target not in self._links[source]:
-            return (_inf,None)
+            return (_inf,"")
         vias = self._links[source][target]
         if not vias:
-            return (_inf,None)
+            return (_inf,"")
         vias = sorted((cost,via) for (via,cost) in vias.iteritems())
         return vias[0]
 

@@ -56,10 +56,13 @@ import hashlib
 import optparse
 import zipfile
 import tempfile
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+if sys.version_info[0] < 3:
+    try:
+        from cStringIO import StringIO as BytesIO
+    except ImportError:
+       from StringIO import StringIO as BytesIO
+else:
+    from io import BytesIO
 
 try:
     import bsdiff as cx_bsdiff
@@ -74,6 +77,9 @@ DIFF_WINDOW_SIZE = 1024 * 1024 * 4
 
 #  Highest patch version that can be processed by this module.
 HIGHEST_VERSION = 1
+
+#  Header bytes included in the patch file
+PATCH_HEADER = "ESKYPTCH".encode("ascii")
 
 
 from esky.errors import Error
@@ -165,13 +171,22 @@ def _read_vint(stream):
     x += (b << e)
     return x
 
-def _write_vint(stream,x):
-    """Write a vint-encoded integer to the given stream."""
-    while x >= 128:
-        b = x & 127
-        stream.write(chr(b | 128))
-        x = x >> 7
-    stream.write(chr(x))
+if sys.version_info[0] > 2:
+    def _write_vint(stream,x):
+        """Write a vint-encoded integer to the given stream."""
+        while x >= 128:
+            b = x & 127
+            stream.write(bytes([b | 128]))
+            x = x >> 7
+        stream.write(bytes([x]))
+else:
+    def _write_vint(stream,x):
+        """Write a vint-encoded integer to the given stream."""
+        while x >= 128:
+            b = x & 127
+            stream.write(chr(b | 128))
+            x = x >> 7
+        stream.write(chr(x))
 
 
 def _read_zipfile_metadata(stream):
@@ -236,16 +251,16 @@ def calculate_digest(target,hash=hashlib.md5):
     a directory, it is calculated from the names and digests of its contents.
     """
     d = hash()
-    if os.path.isfile(target):
+    if os.path.isdir(target):
+        for nm in sorted(os.listdir(target)):
+            d.update(nm.encode("utf8"))
+            d.update(calculate_digest(os.path.join(target,nm)))
+    else:
         with open(target,"rb") as f:
             data = f.read(1024*16)
             while data:
                 d.update(data)
                 data = f.read(1024*16)
-    else:
-        for nm in sorted(os.listdir(target)):
-            d.update(nm)
-            d.update(calculate_digest(os.path.join(target,nm)))
     return d.digest()
 
 
@@ -331,7 +346,7 @@ class Patcher(object):
             if os.path.exists(self.target):
                 self.infile = open(self.target,"rb")
             else:
-                self.infile = StringIO("")
+                self.infile = BytesIO("".encode("ascii"))
             self.outfile = open(self.new_target,"wb")
 
     def _check_end_patch(self):
@@ -384,8 +399,9 @@ class Patcher(object):
         methods defined below.  It keeps processing until one of them
         raises EOFError.
         """
-        if not self._read(8) == "ESKYPTCH":
-            raise PatchError("not an esky patch file")
+        header = self._read(len(PATCH_HEADER))
+        if header != PATCH_HEADER:
+            raise PatchError("not an esky patch file [%s]" % (header,))
         version = self._read_int()
         if version > HIGHEST_VERSION:
             raise PatchError("esky patch version %d not supported"%(version,))
@@ -595,7 +611,7 @@ class Patcher(object):
         self._check_begin_patch()
         n = self._read_int()
         # Restore the standard bsdiff header bytes
-        patch = "BSDIFF40" + self._read_bytes()
+        patch = "BSDIFF40".encode("ascii") + self._read_bytes()
         if not self.dry_run:
             source = self.infile.read(n)
             self.outfile.write(bsdiff4_patch(source,patch))
@@ -723,11 +739,11 @@ class Differ(object):
         """
         source = os.path.abspath(source)
         target = os.path.abspath(target)
-        self._write("ESKYPTCH")
+        self._write(PATCH_HEADER)
         self._write_int(HIGHEST_VERSION)
         self._diff(source,target)
         self._write_command(SET_PATH)
-        self._write_bytes("")
+        self._write_bytes("".encode("ascii"))
         self._write_command(VERIFY_MD5)
         self._write(calculate_digest(target,hashlib.md5))
 
@@ -902,7 +918,7 @@ class Differ(object):
             if not tdata:
                 #  The file is empty, do a raw insert of zero bytes.
                 self._write_command(PF_INS_RAW)
-                self._write_bytes("")
+                self._write_bytes("".encode("ascii"))
             else:
                 while tdata:
                     sdata = ""
@@ -984,7 +1000,7 @@ class Differ(object):
         best_option = options[0][1]
         self._write_command(best_option[0])
         for arg in best_option[1:]:
-            if isinstance(arg,basestring):
+            if isinstance(arg,(str,unicode,bytes)):
                 self._write_bytes(arg)
             else:
                 self._write_int(arg)
@@ -1009,7 +1025,7 @@ if cx_bsdiff is not None:
         """
         (tcontrol,bdiff,bextra) = cx_bsdiff.Diff(source,target)
         #  Write control tuples as series of offts
-        bcontrol = StringIO()
+        bcontrol = BytesIO()
         for c in tcontrol:
             for x in c:
                 bcontrol.write(_encode_offt(x))
@@ -1064,15 +1080,19 @@ def bsdiff4_patch(source,patch):
     if cx_bsdiff is not None:
         return cx_bsdiff.Patch(source,l_target,tcontrol,bdiff,bextra)
     else:
-        source = StringIO(source)
-        result = StringIO()
-        bdiff = StringIO(bdiff)
-        bextra = StringIO(bextra)
+        source = BytesIO(source)
+        result = BytesIO()
+        bdiff = BytesIO(bdiff)
+        bextra = BytesIO(bextra)
         for (x,y,z) in tcontrol:
             diff_data = bdiff.read(x)
             orig_data = source.read(x)
-            for i in xrange(len(diff_data)):
-                result.write(chr((ord(diff_data[i])+ord(orig_data[i]))%256))
+            if sys.version_info[0] < 3:
+                for i in xrange(len(diff_data)):
+                    result.write(chr((ord(diff_data[i])+ord(orig_data[i]))%256))
+            else:
+                for i in xrange(len(diff_data)):
+                    result.write(bytes([(diff_data[i]+orig_data[i])%256]))
             result.write(bextra.read(y))
             source.seek(z,os.SEEK_CUR)
         return result.getvalue()
@@ -1084,14 +1104,14 @@ def _decode_offt(bytes):
     This decodes a signed integer into 8 bytes.  I'd prefer some sort of
     signed vint representation, but it's the format used by bsdiff4....
     """
-    bytes = map(ord,bytes)
+    if sys.version_info[0] < 3:
+        bytes = map(ord,bytes)
     x = bytes[7] & 0x7F
     for b in xrange(6,-1,-1):
         x = x * 256 + bytes[b]
     if bytes[7] & 0x80:
         x = -x
     return x
-
 
 def _encode_offt(x):
     """Encode an off_t value as a string.
@@ -1104,13 +1124,16 @@ def _encode_offt(x):
         sign = 0x80
     else:
         sign = 0
-    bytes = [0]*8
-    bytes[0] = x % 256
+    bs = [0]*8
+    bs[0] = x % 256
     for b in xrange(7):
-        x = (x - bytes[b]) / 256
-        bytes[b+1] = x % 256
-    bytes[7] |= sign
-    return "".join(map(chr,bytes))
+        x = (x - bs[b]) / 256
+        bs[b+1] = x % 256
+    bs[7] |= sign
+    if sys.version_info[0] < 3:
+        return "".join(map(chr,bs))
+    else:
+        return bytes(bs)
 
 
 

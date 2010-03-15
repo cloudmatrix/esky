@@ -499,7 +499,10 @@ class TestPatch(unittest.TestCase):
         path2 = self._extract("pyenchant-1.6.0.tar.gz","target")
         path1 = os.path.join(path1,"pyenchant-1.2.0")
         path2 = os.path.join(path2,"pyenchant-1.6.0")
-        with open(os.path.join(self.tfdir,"v1.2.0_to_v1.6.0.patch"),"rb") as f:
+        pf = os.path.join(self.tfdir,"v1.2.0_to_v1.6.0.patch")
+        if not os.path.exists(pf):
+            pf = os.path.join(self.tfdir,"../../../../../esky/tests/patch-test-files/v1.2.0_to_v1.6.0.patch")
+        with open(pf,"rb") as f:
             esky.patch.apply_patch(path1,f)
         self.assertEquals(esky.patch.calculate_digest(path1),
                          esky.patch.calculate_digest(path2))
