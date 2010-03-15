@@ -11,9 +11,9 @@ v0.5.0:
     * added support for differential updates in DefaultVersionFinder.
     * added "bdist_esky_patch" distutils command for producing differential
       updates in the format expected by DefaultVersionFinder.
+    * added filesystem-level locking to protect in-use versions from removal.
     * added attribute Esky.active_version, which is non-None when the esky
-      refers to the currently-running application.  Previously an application
-      had no way to determine its current version after performing an upgrade.
+      refers to the currently-running application.
 
 
 v0.4.0:
