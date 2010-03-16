@@ -134,7 +134,8 @@ class DefaultVersionFinder(VersionFinder):
         #  There's always the possibility that a patch fails to apply.
         #  _prepare_version will remove such patches from the version graph;
         #  we loop until we find a path that applies, or we run out of options.
-        while True:
+        name = self._ready_name(app,version)
+        while not os.path.exists(name):
             path = self.version_graph.get_best_path(app.version,version)
             if path is None:
                 raise EskyVersionError(version)
@@ -145,8 +146,7 @@ class DefaultVersionFinder(VersionFinder):
                 self._prepare_version(app,version,local_path)
             except PatchError:
                 pass
-            else:
-                return self._ready_name(app,version)
+        return name
 
     def _fetch_file(self,app,url):
         infile = self.open_url(urljoin(self.download_url,url))
