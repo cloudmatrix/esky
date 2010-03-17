@@ -292,7 +292,7 @@ class VersionGraph(object):
         """
         remaining = set(v for v in self._links)
         best_costs = dict((v,_inf) for v in remaining)
-        best_paths = dict((v,"") for v in remaining)
+        best_paths = dict((v,None) for v in remaining)
         best_costs[source] = 0
         best_paths[source] = []
         best_costs[""] = 0
