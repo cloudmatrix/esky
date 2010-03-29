@@ -123,6 +123,7 @@ def chainload(target_dir):
     try:
         #  On windows, holding the file open is enough to lock it.
         #  On other platforms, try for a shared lock using fcntl.
+        #  We put the fileobj in a global to hold it open.
         _version_dir_lockfile = open(lockfile,"r")
         if "nt" not in sys.builtin_module_names:
             if fcntl is not None:

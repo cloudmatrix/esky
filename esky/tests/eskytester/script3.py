@@ -26,7 +26,6 @@ assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
 assert os.path.isfile(eskytester.script_path(app,"script3"))
 
-
 #  Test that MSVCRT wasn't bundled with this version
 if sys.platform == "win32":
     for nm in os.listdir(os.path.dirname(sys.executable)):
@@ -41,5 +40,4 @@ if sys.platform == "win32":
     assert hasattr(sys,"bootstrap_executable")
 
 open("tests-completed","w").close()
-print "TESTS COMPLETED"
 

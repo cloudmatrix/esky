@@ -124,24 +124,38 @@ class TestEsky(unittest.TestCase):
         zfname = os.path.join("dist","eskytester-0.1.%s.zip"%(platform,))
         os.mkdir(deploydir)
         extract_zipfile(zfname,deploydir)
-        #  Run the first script, which will perform the necessary tests,
-        #  launch script2 and script3, and write the file "tests-completed".
+        #  Run the scripts in order.
         if options["bdist_esky"]["freezer_module"] == "py2app":
             tests_completed = os.path.join(deploydir,"eskytester-0.3."+platform,"Contents/Resources/tests-completed")
+            cmd1 = os.path.join(deploydir,"Contents","MacOS","script1")
+            cmd2 = os.path.join(deploydir,"Contents","MacOS","script2")
+            cmd3 = os.path.join(deploydir,"Contents","MacOS","script3")
         else:
             tests_completed = "tests-completed"
-        if os.path.exists(tests_completed):
-            os.unlink(tests_completed)
-        if os.path.exists("tests-completed"):
-            os.unlink("tests-completed")
-        if options["bdist_esky"]["freezer_module"] == "py2app":
-            cmd = os.path.join(deploydir,"Contents","MacOS","script1")
-        elif sys.platform == "win32":
-            cmd = os.path.join(deploydir,"script1.exe")
-        else:
-            cmd = os.path.join(deploydir,"script1")
-        print "spawning eskytester application"
-        p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+            if sys.platform == "win32":
+                cmd1 = os.path.join(deploydir,"script1.exe")
+                cmd2 = os.path.join(deploydir,"script2.exe")
+                cmd3 = os.path.join(deploydir,"script3.exe")
+            else:
+                cmd1 = os.path.join(deploydir,"script1")
+                cmd2 = os.path.join(deploydir,"script2")
+                cmd3 = os.path.join(deploydir,"script3")
+        print "spawning eskytester script1", options["bdist_esky"]["freezer_module"]
+        p = subprocess.Popen(cmd1,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        (stdout,_) = p.communicate()
+        sys.stdout.write(stdout.decode())
+        assert p.returncode == 0
+        assert os.path.exists(tests_completed)
+        os.unlink(tests_completed)
+        print "spawning eskytester script2"
+        p = subprocess.Popen(cmd2,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        (stdout,_) = p.communicate()
+        sys.stdout.write(stdout.decode())
+        assert p.returncode == 0
+        assert os.path.exists(tests_completed)
+        os.unlink(tests_completed)
+        print "spawning eskytester script3"
+        p = subprocess.Popen(cmd3,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout.decode())
         assert p.returncode == 0

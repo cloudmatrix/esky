@@ -416,37 +416,46 @@ class Esky(object):
         """Uninstall the specified version of the app."""
         target_name = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target_name)
+        bsfile = os.path.join(target,"esky-bootstrap.txt")
         self.lock()
         try:
             if not os.path.exists(target):
                 return
             #  Clean up the bootstrapping environment in a transaction.
-            trn = FSTransaction()
+            #  This might fail on windows if the version is locked.
             try:
-                #  Get set of all files that must stay in the main appdir
-                to_keep = set()
-                for vname in os.listdir(self.appdir):
-                    if vname == target_name:
-                        continue
-                    details = split_app_version(vname)
-                    if details[0] != self.name:
-                        continue
-                    if parse_version(details[1]) < parse_version(version):
-                        continue
-                    to_keep.update(self._version_manifest(vname))
-                #  Remove files used only by the version being removed
-                to_rem = self._version_manifest(target_name) - to_keep
-                for nm in to_rem:
-                    fullnm = os.path.join(self.appdir,nm)
-                    trn.remove(fullnm)
-            except Exception:
-                trn.abort()
-                raise
-            else:
-                trn.commit()
+                trn = FSTransaction()
+                try:
+                    #  Get set of all files that must stay in the main appdir
+                    to_keep = set()
+                    for vname in os.listdir(self.appdir):
+                        if vname == target_name:
+                            continue
+                        details = split_app_version(vname)
+                        if details[0] != self.name:
+                            continue
+                        if parse_version(details[1]) < parse_version(version):
+                            continue
+                        to_keep.update(self._version_manifest(vname))
+                    #  Remove files used only by the version being removed
+                    to_rem = self._version_manifest(target_name) - to_keep
+                    for nm in to_rem:
+                        fullnm = os.path.join(self.appdir,nm)
+                        trn.remove(fullnm)
+                except Exception:
+                    trn.abort()
+                    raise
+                else:
+                    trn.commit()
+            except EnvironmentError:
+                try:
+                    open(bsfile,"a").close()
+                except EnvironmentError:
+                    raise VersionLockedError("version in use: %s" % (version,))
+                else:
+                    raise
             #  Disable the version by removing its esky-bootstrap.txt file.
             #  To avoid clobbering in-use version, respect locks on this file.
-            bsfile = os.path.join(target,"esky-bootstrap.txt")
             if sys.platform == "win32":
                 try:
                     os.unlink(bsfile)
@@ -456,7 +465,11 @@ class Esky(object):
                 f = open(bsfile,"r+")
                 try:
                     fcntl.lockf(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
-                except OSError:
+                except EnvironmentError, e:
+                    if not e.errno:
+                        raise
+                    if e.errno not in (errno.EACCES,errno.EAGAIN,):
+                        raise
                     raise VersionLockedError("version in use: %s" % (version,))
                 else:
                     os.unlink(bsfile)

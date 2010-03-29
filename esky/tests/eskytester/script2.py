@@ -50,10 +50,14 @@ if sys.platform == "win32":
         assert False, "MSVCRT not bundled in app dir"
 
 
+v1dir = os.path.join(app.appdir,"eskytester-0.1."+platform)
 v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
     # This is the first time we've run this script.
+    assert os.path.isdir(v1dir)
+    assert not os.path.isdir(v3dir)
     app.cleanup()
+    assert not os.path.isdir(v1dir)
     assert not os.path.isdir(v3dir)
     #  Check that the bootstrap env is intact
     with open(os.path.join(app.appdir,"eskytester-0.2."+platform,"esky-bootstrap.txt"),"rt") as mf:
@@ -93,8 +97,10 @@ else:
     assert os.path.isfile(eskytester.script_path(app,"script2"))
     assert not os.path.isfile(eskytester.script_path(app,"script1"))
     assert os.path.isfile(eskytester.script_path(app,"script3"))
+    assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+platform))
     assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
-    script3 = eskytester.script_path(app,"script3")
-    os.execv(script3,[script3])
+
+
+open("tests-completed","w").close()
 
 
