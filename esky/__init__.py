@@ -276,10 +276,8 @@ class Esky(object):
                 (_,v,_) = split_app_version(new_version)
                 self.install_version(v)
                 best_version = new_version
-            #  Now we can safely remove anything that's not part of the
-            #  best version's bootstrap env.  Exceptions are the best
-            #  version itself, the currently-executing version, and any
-            #  locked versions.
+            #  Now we can safely remove all the old versions.
+            #  We except the current-executing version and any locked versions.
             manifest = self._version_manifest(best_version)
             manifest.add("updates")
             manifest.add("locked")
@@ -298,8 +296,6 @@ class Esky(object):
                             pass
                         else:
                             self._try_remove(appdir,nm,manifest)
-                    else:
-                        self._try_remove(appdir,nm,manifest)
             if self.version_finder is not None:
                 self.version_finder.cleanup(self)
         finally:

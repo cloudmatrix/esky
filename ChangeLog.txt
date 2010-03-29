@@ -1,4 +1,10 @@
 
+v0.5.1:
+
+    * only delete files from the top-level app dir if they explicitly belong
+      to a version that is being removed.
+
+
 v0.5.0:
 
     * implemented preliminary support for freezing with py2app.
