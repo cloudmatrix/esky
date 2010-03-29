@@ -615,6 +615,8 @@ class Patcher(object):
         patch = "BSDIFF40".encode("ascii") + self._read_bytes()
         if not self.dry_run:
             source = self.infile.read(n)
+            if len(source) != n:
+                raise PatchError("insufficient source data in %s" % (self.target,))
             self.outfile.write(bsdiff4_patch(source,patch))
 
     def _do_PF_REC_ZIP(self):
