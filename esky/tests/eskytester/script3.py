@@ -39,5 +39,9 @@ if sys.platform == "win32":
 if sys.platform == "win32":
     assert hasattr(sys,"bootstrap_executable")
 
-open("tests-completed","w").close()
+if sys.platform == "darwin":
+    open("../../../../tests-completed","w").close()
+else:
+    open("tests-completed","w").close()
+
 

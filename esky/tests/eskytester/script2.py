@@ -101,6 +101,9 @@ else:
     assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
 
 
-open("tests-completed","w").close()
+if sys.platform == "darwin":
+    open("../../../../tests-completed","w").close()
+else:
+    open("tests-completed","w").close()
 
 

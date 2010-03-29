@@ -126,12 +126,10 @@ class TestEsky(unittest.TestCase):
         extract_zipfile(zfname,deploydir)
         #  Run the scripts in order.
         if options["bdist_esky"]["freezer_module"] == "py2app":
-            tests_completed = os.path.join(deploydir,"eskytester-0.3."+platform,"Contents/Resources/tests-completed")
             cmd1 = os.path.join(deploydir,"Contents","MacOS","script1")
             cmd2 = os.path.join(deploydir,"Contents","MacOS","script2")
             cmd3 = os.path.join(deploydir,"Contents","MacOS","script3")
         else:
-            tests_completed = "tests-completed"
             if sys.platform == "win32":
                 cmd1 = os.path.join(deploydir,"script1.exe")
                 cmd2 = os.path.join(deploydir,"script2.exe")
@@ -145,22 +143,22 @@ class TestEsky(unittest.TestCase):
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout.decode())
         assert p.returncode == 0
-        assert os.path.exists(tests_completed)
-        os.unlink(tests_completed)
+        assert os.path.exists("tests-completed")
+        os.unlink("tests-completed")
         print "spawning eskytester script2"
         p = subprocess.Popen(cmd2,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout.decode())
         assert p.returncode == 0
-        assert os.path.exists(tests_completed)
-        os.unlink(tests_completed)
+        assert os.path.exists("tests-completed")
+        os.unlink("tests-completed")
         print "spawning eskytester script3"
         p = subprocess.Popen(cmd3,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout.decode())
         assert p.returncode == 0
-        assert os.path.exists(tests_completed)
-        os.unlink(tests_completed)
+        assert os.path.exists("tests-completed")
+        os.unlink("tests-completed")
     finally:
         os.chdir(olddir)
         if server:

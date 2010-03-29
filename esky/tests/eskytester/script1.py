@@ -74,5 +74,8 @@ except esky.VersionLockedError:
 else:
     assert False, "in-use version was not locked"
 
-open("tests-completed","w").close()
+if sys.platform == "darwin":
+    open("../../../../tests-completed","w").close()
+else:
+    open("tests-completed","w").close()
 
