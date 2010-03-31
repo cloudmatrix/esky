@@ -183,7 +183,11 @@ class DefaultVersionFinder(VersionFinder):
             self._copy_best_version(app,uppath)
         else:
             if path[0][0].endswith(".patch"):
-                self._copy_best_version(app,uppath)
+                try:
+                    self._copy_best_version(app,uppath)
+                except EnvironmentError, e:
+                    self.version_graph.remove_all_links(path[0][1])
+                    raise PatchError("couldn't copy current version: %s"%(e,))
                 patches = path
             else:
                 extract_zipfile(path[0][0],uppath)
@@ -203,6 +207,10 @@ class DefaultVersionFinder(VersionFinder):
         for nm in os.listdir(uppath):
             if nm != vdir:
                 os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
+        # Check that it has an esky-bootstrap.txt file
+        if not os.path.exists(os.path.join(uppath,vdir,"esky-bootstrap.txt")):
+            self.version_graph.remove_all_links(path[0][1])
+            raise PatchError("patch didn't create esky-bootstrap.txt")
         # Make it available for upgrading
         rdpath = self._ready_name(app,version)
         if os.path.exists(rdpath):
