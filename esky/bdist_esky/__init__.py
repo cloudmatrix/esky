@@ -319,8 +319,9 @@ class bdist_esky(Command):
         the latest C runtime installed *and* you don't want to run the special
         "vcredist_x86.exe" program during your installation process.
 
-        Bundling is only perform on win32 paltforms, and only if you explicitly         enable it.  Before doing so, carefully check whether you have a license
-        to distribute these files.
+        Bundling is only performed on win32 paltforms, and only if you enable
+        it explicitly.  Before doing so, carefully check whether you have a
+        license to distribute these files.
         """
         msvcrt_info = self._get_msvcrt_info()
         if msvcrt_info is not None:

@@ -67,7 +67,7 @@ def exists(path):
     try:
         stat(path)
     except EnvironmentError, e:
-        if e.errno not in (errno.ENOENT,errno.ENOTDIR,):
+        if e.errno not in (errno.ENOENT,errno.ENOTDIR,errno.ESRCH,):
             raise
         else:
             return False
