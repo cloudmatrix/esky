@@ -1,4 +1,9 @@
 
+v0.5.2:
+
+    * more robust error-handling in esky.bootstrap.exists()
+
+
 v0.5.1:
 
     * only delete files from the top-level app dir if they explicitly belong
