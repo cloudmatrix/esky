@@ -10,5 +10,5 @@ if getattr(sys,"frozen",False):
         print "ERROR UPDATING APP:", e
     app.cleanup()
 
-print "HELLO WORLD"
+print "HELLO AGAIN WORLD"
 
