@@ -103,6 +103,7 @@ import shutil
 import errno
 import socket
 import time
+from functools import wraps
 
 try:
     import threading
@@ -115,9 +116,70 @@ if sys.platform != "win32":
 from esky.errors import *
 from esky.fstransact import FSTransaction
 from esky.finder import DefaultVersionFinder
+from esky.helper import EskyHelperApp
 from esky.util import split_app_version, join_app_version,\
                       is_version_dir, is_uninstalled_version_dir,\
                       parse_version, get_best_version, appdir_from_executable
+
+
+
+def use_helper_app(func):
+    """Method decorator to transparently use an esky's helper app, if present.
+
+    This decorator wraps an Esky method so that it is transparently proxied
+    to the helper process whenever the esky's "helper_app" attribute is set.
+    """
+    @wraps(func)
+    def method_using_helper_app(self,*args,**kwds):
+        if self.helper_app is not None:
+            return getattr(self.helper_app,func.func_name)(*args,**kwds)
+        return func(self,*args,**kwds)
+    return method_using_helper_app
+
+
+def use_helper_app_on_error(errcheck,*hargs,**hkwds):
+    """Method decorator to enable an esky's helper app on error.
+
+    This decorator wraps an Esky method so that when it raises an exception
+    matching the specified condition, the esky's helper app will be created
+    and used instead.
+
+    Any additional args or kwargs will be passed directly to the helper app
+    when it is created.
+    """
+    def decorator(func):
+        @wraps(func)
+        def method_using_helper_app_on_error(self,*args,**kwds):
+            if self.helper_app is not None:
+                return getattr(self.helper_app,func.func_name)(*args,**kwds)
+            try:
+                return func(self,*args,**kwds)
+            except Exception:
+                exc_type,exc_val,traceback = sys.exc_info()
+                if isinstance(errcheck,type) and issubclass(errcheck,Exception):
+                    use_helper_app = isinstance(exc_val,errcheck)
+                elif callable(errcheck):
+                    use_helper_app = errcheck(exc_val)
+                else:
+                    use_helper_app = isinstance(exc_val,errcheck)
+                if not use_helper_app:
+                    raise
+                try:
+                    self.helper_app = self.HelperAppClass(self,*hargs,**hkwds)
+                except EnvironmentError:
+                    raise exc_type,exc_value,traceback
+                else:
+                    return getattr(self.helper_app,func.func_name)(*args,**kwds)
+        return method_using_helper_app_on_error
+    return decorator
+
+
+def is_permission_error(e):
+    """Check whether the given exception is a permision-related error."""
+    if isinstance(e,EnvironmentError):
+        if e.errno and e.errno  in (errno.EACCES,):
+            return True
+    return False
 
 
 class Esky(object):
@@ -153,6 +215,8 @@ class Esky(object):
         self.reinitialize()
         self._lock_count = 0
         self.version_finder = version_finder
+        self.helper_app = None
+        self.HelperAppClass = EskyHelperApp
 
     def _get_version_finder(self):
         return self.__version_finder
@@ -168,6 +232,14 @@ class Esky(object):
     def _get_update_dir(self):
         """Get the directory path in which self.version_finder can work."""
         return os.path.join(self.appdir,"updates")
+
+    def get_abspath(self,relpath):
+        """Get the absolute path of a file within the current version."""
+        if self.active_version:
+            v = join_app_version(self.name,self.active_version,self.platform)
+        else:
+            v = join_app_version(self.name,self.version,self.platform)
+        return os.path.abspath(oss.path.join(self.appdir,v,relpath))
 
     def reinitialize(self):
         """Reinitialize internal state by poking around in the app directory.
@@ -256,6 +328,7 @@ class Esky(object):
             os.unlink(os.path.join(lockdir,myid))
             os.rmdir(lockdir)
 
+    @use_helper_app
     def cleanup(self):
         """Perform cleanup tasks in the app directory.
 
@@ -382,6 +455,7 @@ class Esky(object):
                 best_version = version
         return best_version
 
+    @use_helper_app_on_error(is_permission_error,as_administrator=True)
     def fetch_version(self,version):
         """Fetch the specified updated version of the app."""
         if self.version_finder is None:
@@ -389,6 +463,7 @@ class Esky(object):
         if not self.version_finder.has_version(self,version):
             self.version_finder.fetch_version(self,version)
 
+    @use_helper_app_on_error(is_permission_error,as_administrator=True)
     def install_version(self,version):
         """Install the specified version of the app.
 
@@ -427,6 +502,7 @@ class Esky(object):
         finally:
             self.unlock()
 
+    @use_helper_app_on_error(is_permission_error,as_administrator=True)
     def uninstall_version(self,version): 
         """Uninstall the specified version of the app."""
         target_name = join_app_version(self.name,version,self.platform)
