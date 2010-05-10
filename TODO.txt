@@ -1,4 +1,6 @@
 
+ * fcntl:  closing *any* handle to a file releases all locks on that file.
+   I think we need to have a stand-alone lock file.
  * respect various distutils settings e.g. verbose, dry_run
  * tests for customisable bootstrap process
  * hooks for code signing etc in the build process

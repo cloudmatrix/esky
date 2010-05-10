@@ -1,4 +1,10 @@
 
+v0.5.3:
+
+    * DefaultVersionFinder: make search for update links case-insensitive.
+    * reduce number of stat() calls during bootstrap process.
+    * better cleanup of "*.old.*" files from the bootstrap env.
+
 v0.5.2:
 
     * more robust error-handling in esky.bootstrap.exists()
