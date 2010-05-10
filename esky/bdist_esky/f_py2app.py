@@ -32,7 +32,7 @@ def freeze(dist):
     includes = dist.includes
     excludes = dist.excludes
     options = dist.freezer_options
-    #  Merge in any encludes/excludes given in freezer_options
+    #  Merge in any includes/excludes given in freezer_options
     includes.append("esky")
     for inc in options.pop("includes",()):
         includes.append(inc)
@@ -61,7 +61,7 @@ def freeze(dist):
             os.rename(os.path.join(dist.freeze_dir,nm,nm2),
                       os.path.join(dist.freeze_dir,nm2))
             os.rmdir(os.path.join(dist.freeze_dir,nm))
-    #  Remove any pyc files with a corresponding py file
+    #  Remove any .pyc files with a corresponding .py file
     resdir = os.path.join(dist.freeze_dir,"Contents/Resources")
     for (dirnm,_,filenms) in os.walk(resdir):
         for nm in filenms:
@@ -138,7 +138,6 @@ def _merge_dir(src,dst):
     if not os.path.isdir(dst):
         os.makedirs(dst)
     for nm in os.listdir(src):
-        print "  NM", nm
         srcnm = os.path.join(src,nm)
         dstnm = os.path.join(dst,nm)
         if os.path.isdir(srcnm):
@@ -166,9 +165,9 @@ sys.argv[0] = environ["ARGVZERO"]
 """
 
 
-#  py2app isn't designed for freezing multiple exes, its standard
-#  bootstrap code runs a fixed script.  This gets inserted into the
-#  bootstrap code and inspects the environment to find the actual script
+#  py2app isn't designed for freezing multiple exes, so its standard
+#  bootstrap code runs a fixed script.  This code gets inserted into the
+#  bootstrap code to inspects the environment and find the actual script
 #  to be run.
 _EXE_PRESCRIPT_CODE = """
 import os

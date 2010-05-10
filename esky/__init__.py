@@ -108,9 +108,10 @@ try:
     import threading
 except ImportError:
     threading = None
-try:
+
+if sys.platform != "win32":
     import fcntl
-except ImportError:
+else:
     fcntl = None
             
 
@@ -506,7 +507,6 @@ class Esky(object):
         to be in the main app directory
         """
         mpath = os.path.join(self.appdir,vdir,"esky-bootstrap.txt")
-        try:
             with open(mpath,"rt") as mf:
                 return set(ln.strip() for ln in mf)
         except IOError:

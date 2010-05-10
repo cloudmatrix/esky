@@ -33,16 +33,13 @@ import errno
 #  The os module is not builtin, so we grab what we can from the
 #  platform-specific modules and fudge the rest.
 if "posix" in sys.builtin_module_names:
+    import fcntl
     from posix import listdir, stat, unlink, rename, execv
     SEP = "/"
-    try:
-        import fcntl
-    except ImportError:
-        fcntl = None
 elif "nt" in sys.builtin_module_names:
+    fcntl = None
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
     SEP = "\\"
-    fcntl = None
     def execv(filename,args):
         res = spawnv(P_WAIT,filename,args)
         raise SystemExit(res)
@@ -125,10 +122,9 @@ def chainload(target_dir):
         #  On other platforms, try for a shared lock using fcntl.
         #  We put the fileobj in a global to hold it open.
         _version_dir_lockfile = open(lockfile,"r")
-        if "nt" not in sys.builtin_module_names:
-            if fcntl is not None:
-                fd = _version_dir_lockfile.fileno()
-                fcntl.lockf(fd,fcntl.LOCK_SH)
+        if fcntl is not None:
+            fd = _version_dir_lockfile.fileno()
+            fcntl.lockf(fd,fcntl.LOCK_SH)
     except EnvironmentError:
         #  If the lockfile has gone missing, the version is being uninstalled.
         #  Our only option is to re-execute ourself and find the new version.

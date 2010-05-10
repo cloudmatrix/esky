@@ -1,10 +1,12 @@
 
  * fcntl:  closing *any* handle to a file releases all locks on that file.
    I think we need to have a stand-alone lock file.
+ * in-place upgrade of resources in executable files
+    * with a separate wrapper program that can be spawned to modify
+      the in-use executable 
  * respect various distutils settings e.g. verbose, dry_run
  * tests for customisable bootstrap process
  * hooks for code signing etc in the build process
- 
  * think about hooks for upgrade events
 
  py2app:
