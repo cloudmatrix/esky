@@ -458,7 +458,7 @@ class Esky(object):
                                 break
                             idx = m.find(".old")
                             nm = nm[:idx] + nm[idx+4:]
-                        for if in to_rem:
+                        if nm in to_rem:
                             fullnm = os.path.join(self.appdir,nm)
                             trn.remove(fullnm)
                 except Exception:
@@ -504,6 +504,7 @@ class Esky(object):
         to be in the main app directory
         """
         mpath = os.path.join(self.appdir,vdir,"esky-bootstrap.txt")
+        try:
             with open(mpath,"rt") as mf:
                 return set(ln.strip() for ln in mf)
         except IOError:
