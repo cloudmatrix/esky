@@ -22,7 +22,7 @@ use during the bootstrap process:
   Chainloading:         execv, chainload
   Filesystem:           listdir, exists, basename, dirname, pathjoin
   Version handling:     split_app_version, join_app_version, parse_version,
-                        get_all_version, get_best_version
+                        get_all_versions, get_best_version
 
 
 """
@@ -161,10 +161,13 @@ def get_best_version(appdir,include_partial_installs=False):
     #  Find all potential version directories, sorted by version number.
     candidates = []
     for nm in listdir(appdir):
-        (_,ver,_) = split_app_version(nm)
-        if ver and is_version_dir(pathjoin(appdir,nm)):
-            ver = parse_version(ver)
-            candidates.append((ver,nm))
+        (_,ver,platform) = split_app_version(nm)
+        #  If its name didn't parse properly, don't bother looking inside.
+        if ver and platform:
+            #  We have to pay another stat() call to check if it's active.
+            if is_version_dir(pathjoin(appdir,nm)):
+                ver = parse_version(ver)
+                candidates.append((ver,nm))
     candidates = [c[1] for c in sorted(candidates,reverse=True)]
     #  In the (hopefully) common case of no failed updates, we don't need
     #  to poke around in the filesystem so we just return asap.
@@ -192,10 +195,11 @@ def get_all_versions(appdir,include_partial_installs=False):
     #  Find all potential version directories, sorted by version number.
     candidates = []
     for nm in listdir(appdir):
-        (_,ver,_) = split_app_version(nm)
-        if ver and is_version_dir(pathjoin(appdir,nm)):
-            ver = parse_version(ver)
-            candidates.append((ver,nm))
+        (_,ver,platform) = split_app_version(nm)
+        if ver and platform:
+            if is_version_dir(pathjoin(appdir,nm)):
+                ver = parse_version(ver)
+                candidates.append((ver,nm))
     candidates = [c[1] for c in sorted(candidates,reverse=True)]
     #  Filter out any that are not completely installed.
     if not include_partial_installs:
