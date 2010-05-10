@@ -243,6 +243,54 @@ class DefaultVersionFinder(VersionFinder):
         return os.path.join(self._workdir(app,"ready"),version)
 
 
+class LocalVersionFinder(DefaultVersionFinder):
+    """VersionFinder that looks only in a local directory.
+
+    This VersionFinder subclass looks for updates in a specific local
+    directory.  It's probably only useful for testing purposes.
+    """
+
+    def find_versions(self,app):
+        version_re = "[a-zA-Z0-9\\.-_]+"
+        appname_re = "(?P<version>%s)" % (version_re,)
+        appname_re = join_app_version(app.name,appname_re,app.platform)
+        filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
+        filename_re = filename_re % (appname_re,version_re,)
+        for nm in os.listdir(self.download_url):
+            match = re.match(filename_re,nm)
+            if match:
+                version = match.group("version")
+                from_version = match.group("from_version")
+                if from_version is None:
+                    cost = 40
+                else:
+                    cost = 1
+                self.version_graph.add_link(from_version or "",version,nm,cost)
+        return self.version_graph.get_versions(app.version)
+
+    def _fetch_file(self,app,nm):
+        infile = open(os.path.join(self.download_url,nm),"rb")
+        outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
+        if not os.path.exists(outfilenm):
+            partfilenm = outfilenm + ".part"
+            partfile = open(partfilenm,"wb")
+            try:
+                data = infile.read(1024*512)
+                while data:
+                    partfile.write(data)
+                    data = infile.read(1024*512)
+            except Exception:
+                infile.close()
+                partfile.close()
+                os.unlink(partfilenm)
+                raise
+            else:
+                infile.close()
+                partfile.close()
+                os.rename(partfilenm,outfilenm)
+        return outfilenm
+
+
 class VersionGraph(object):
     """Class for managing links between different versions.
 
