@@ -229,6 +229,15 @@ def is_installed_version_dir(vdir):
     return not exists(pathjoin(vdir,"esky-bootstrap"))
 
 
+def is_uninstalled_version_dir(vdir):
+    """Check whether the given version directory is partially uninstalled.
+
+    A partially-uninstalled version dir has had its "esky-bootstrap.txt"
+    file renamed to "esky-bootstrap-old.txt".
+    """
+    return exists(pathjoin(vdir,"esky-bootstrap-old.txt"))
+
+
 def split_app_version(s):
     """Split an app version string to name, version and platform components.
 

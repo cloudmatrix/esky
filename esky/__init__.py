@@ -118,6 +118,7 @@ from esky.errors import *
 from esky.fstransact import FSTransaction
 from esky.finder import DefaultVersionFinder
 from esky.util import split_app_version, join_app_version,\
+                      is_version_dir, is_uninstalled_version_dir,\
                       parse_version, get_best_version, appdir_from_executable
 
 
@@ -287,8 +288,9 @@ class Esky(object):
             for nm in os.listdir(appdir):
                 if nm not in manifest:
                     fullnm = os.path.join(appdir,nm)
-                    bsfile = os.path.join(fullnm,"esky-bootstrap.txt")
-                    if os.path.exists(bsfile):
+                    if is_version_dir(fullnm):
+                        #  It's an installed-but-obsolete version.  Properly
+                        #  uninstall it so it will clean up the bootstrap env.
                         (_,v,_) = split_app_version(nm)
                         try:
                             self.uninstall_version(v)
@@ -296,12 +298,19 @@ class Esky(object):
                             pass
                         else:
                             self._try_remove(appdir,nm,manifest)
+                    elif is_uninstalled_version_dir(fullnm):
+                        #  It's a partially-removed version; finish removing it.
+                        self._try_remove(appdir,nm,manifest)
+                    else:
+                        #  It's an unaccounted-for entry in the bootstrap env.
+                        #  Can't prove it's safe to remove, so leave it.
+                        pass
             if self.version_finder is not None:
                 self.version_finder.cleanup(self)
         finally:
             self.unlock()
 
-    def _try_remove(self,appdir,path,manifest):
+    def _try_remove(self,appdir,path,manifest=[]):
         """Try to remove the file/directory at the given path in the appdir.
 
         This method attempts to remove the file or directory at the given path,
@@ -320,7 +329,15 @@ class Esky(object):
             return
         try:
             if os.path.isdir(fullpath):
+                #  Remove paths starting with "esky-" last, since we use
+                #  these to maintain state information.
+                esky_paths = []
                 for nm in os.listdir(fullpath):
+                    if nm.startswith("esky-"):
+                        esky_paths.append(nm)
+                    else:
+                        self._try_remove(appdir,os.path.join(path,nm),manifest)
+                for nm in sorted(esky_paths):
                     self._try_remove(appdir,os.path.join(path,nm),manifest)
                 os.rmdir(fullpath)
             else:
@@ -413,6 +430,7 @@ class Esky(object):
         target_name = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target_name)
         bsfile = os.path.join(target,"esky-bootstrap.txt")
+        bsfile_old = os.path.join(target,"esky-bootstrap-old.txt")
         self.lock()
         try:
             if not os.path.exists(target):
@@ -435,9 +453,16 @@ class Esky(object):
                         to_keep.update(self._version_manifest(vname))
                     #  Remove files used only by the version being removed
                     to_rem = self._version_manifest(target_name) - to_keep
-                    for nm in to_rem:
-                        fullnm = os.path.join(self.appdir,nm)
-                        trn.remove(fullnm)
+                    for nm in os.listdir(self.appdir):
+                        #  Also remove temporarily-renamed ".old" files.
+                        while ".old." in nm or nm.endswith(".old"):
+                            if nm in to_rem:
+                                break
+                            idx = m.find(".old")
+                            nm = nm[:idx] + nm[idx+4:]
+                        for if in to_rem:
+                            fullnm = os.path.join(self.appdir,nm)
+                            trn.remove(fullnm)
                 except Exception:
                     trn.abort()
                     raise
@@ -452,12 +477,12 @@ class Esky(object):
                     raise
             #  Disable the version by removing its esky-bootstrap.txt file.
             #  To avoid clobbering in-use version, respect locks on this file.
-            if sys.platform == "win32":
+            if fcntl is None:
                 try:
-                    os.unlink(bsfile)
+                    os.rename(bsfile,bsfile_old)
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
-            elif fcntl is not None:
+            else:
                 f = open(bsfile,"r+")
                 try:
                     fcntl.lockf(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -468,11 +493,9 @@ class Esky(object):
                         raise
                     raise VersionLockedError("version in use: %s" % (version,))
                 else:
-                    os.unlink(bsfile)
+                    os.rename(bsfile,bsfile_old)
                 finally:
                     f.close()
-            else:
-                os.unlink(bsfile)
         finally:
             self.unlock()
 
