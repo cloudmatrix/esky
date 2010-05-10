@@ -75,11 +75,12 @@ if len(sys.argv) == 1:
         assert f1.read() == f2.read()
         f1.close()
         f2.close()
-        f1 = open(os.path.join(app.appdir,"script2"+dotexe),"r")
-        f2 = open(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),"r")
-        assert f1.read() == f2.read()
-        f1.close()
-        f2.close()
+    #  Also check one of the bootstrap exes to make sure it hasn't changed
+    f1 = open(os.path.join(app.appdir,"script2"+dotexe),"r")
+    f2 = open(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),"r")
+    assert f1.read() == f2.read()
+    f1.close()
+    f2.close()
     if sys.platform == "darwin":
         os.unlink(os.path.join(v3dir,"esky-bootstrap/Contents/MacOS/script2"))
     else:
