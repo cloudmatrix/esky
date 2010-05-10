@@ -1,6 +1,6 @@
 
- * fcntl:  closing *any* handle to a file releases all locks on that file.
-   I think we need to have a stand-alone lock file.
+ * use a separate file for version locking; this will help on systems where
+   flock() is emulated using fnctl() and its wierd close semantics.
  * in-place upgrade of resources in executable files
     * with a separate wrapper program that can be spawned to modify
       the in-use executable 

@@ -273,7 +273,8 @@ def _chainload(target_dir):
               codestart += 1
           codestart += 1
           codelist = marshal.loads(data[codestart:codestart+codesz])
-          locals = {}; globals = {"__name__":"__main__","sys":sys}
+          # Execute all code in the context of __main__ module.
+          locals = globals = sys.modules["__main__"].__dict__
           for code in codelist:
               exec code in globals, locals
           sys.exit(0)

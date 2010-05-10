@@ -22,6 +22,18 @@ assert app.version == "0.1"
 assert app.find_update() == "0.3"
 assert os.path.isfile(eskytester.script_path(app,"script1"))
 
+
+#  Test that the script is executed with sensible globals etc, so
+#  it can create classes and other complicated things
+class ATestClass(object):
+    def __init__(self):
+        self.a = "A"
+class BTestClass(ATestClass):
+    def __init__(self):
+        super(BTestClass,self).__init__()
+        self.a = "B"
+assert BTestClass().a == "B"
+
 #  Spawn another instance that just busy-loops,
 #  holding a lock on the current version.
 sys.stderr.flush()
