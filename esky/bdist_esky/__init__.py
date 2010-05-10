@@ -449,7 +449,7 @@ class bdist_esky_patch(Command):
         platform = get_platform()
         vdir = "%s.%s" % (fullname,platform,)
         appname = split_app_version(vdir)[0]
-        #  Ensure we have current versions esky, as target for patch.
+        #  Ensure we have current version's esky, as target for patch.
         target_esky = os.path.join(self.dist_dir,vdir+".zip")
         if not os.path.exists(target_esky):
             self.run_command("bdist_esky")
