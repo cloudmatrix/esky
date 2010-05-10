@@ -111,9 +111,6 @@ except ImportError:
 
 if sys.platform != "win32":
     import fcntl
-else:
-    fcntl = None
-            
 
 from esky.errors import *
 from esky.fstransact import FSTransaction
@@ -478,15 +475,15 @@ class Esky(object):
                     raise
             #  Disable the version by removing its esky-bootstrap.txt file.
             #  To avoid clobbering in-use version, respect locks on this file.
-            if fcntl is None:
+            if sys.platform == "win32":
                 try:
                     os.rename(bsfile,bsfile_old)
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
             else:
-                f = open(bsfile,"r+")
+                f = open(bsfile,"r")
                 try:
-                    fcntl.lockf(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+                    fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
                 except EnvironmentError, e:
                     if not e.errno:
                         raise

@@ -115,16 +115,22 @@ def chainload(target_dir):
     it will not be removed by any simultaneously-running instances of the
     application.
     """
+    #  This global will hold the locked file to keep it open during execution.
     global _version_dir_lockfile
     lockfile = pathjoin(target_dir,"esky-bootstrap.txt")
     try:
         #  On windows, holding the file open is enough to lock it.
-        #  On other platforms, try for a shared lock using fcntl.
-        #  We put the fileobj in a global to hold it open.
+        #  On other platforms, try for a shared lock using fcntl.flock.
+        #  While fcntl.fcntl locks are apparently the new hotness, they have
+        #  unfortunate semantics that we don't want for this application:
+        #      * LOCK_EX requires write access to the file
+        #      * not inherited across fork()
+        #      * released when closing *any* fd associated with that file
+        #  fcntl.flock doesn't have these problems, but may fail on NFS.
+        #  I'll wait for the bug reports to come in on that one...
         _version_dir_lockfile = open(lockfile,"r")
         if fcntl is not None:
-            fd = _version_dir_lockfile.fileno()
-            fcntl.lockf(fd,fcntl.LOCK_SH)
+            fcntl.flock(_version_dir_lockfile,fcntl.LOCK_SH)
     except EnvironmentError:
         #  If the lockfile has gone missing, the version is being uninstalled.
         #  Our only option is to re-execute ourself and find the new version.
