@@ -2,10 +2,11 @@
 v0.5.3:
 
     * DefaultVersionFinder: make search for update links case-insensitive.
-    * use fcntl.flock() for version locking; it's slightly less portable but
-      has much better semantics for what we want.
+    * py2exe chainloader: execute scripts in the context of the __main__ module.
     * reduce number of stat() calls during bootstrap process.
     * better cleanup of "*.old.*" files from the bootstrap env.
+    * use fcntl.flock() for version locking; it's slightly less portable but
+      has much better semantics for what we want.
 
 v0.5.2:
 

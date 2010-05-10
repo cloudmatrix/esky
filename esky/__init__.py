@@ -276,7 +276,8 @@ class Esky(object):
                 self.install_version(v)
                 best_version = new_version
             #  Now we can safely remove all the old versions.
-            #  We except the current-executing version and any locked versions.
+            #  We except the currently-executing version, and silently
+            #  ignore any locked versions.
             manifest = self._version_manifest(best_version)
             manifest.add("updates")
             manifest.add("locked")
@@ -298,6 +299,9 @@ class Esky(object):
                             self._try_remove(appdir,nm,manifest)
                     elif is_uninstalled_version_dir(fullnm):
                         #  It's a partially-removed version; finish removing it.
+                        self._try_remove(appdir,nm,manifest)
+                    elif ".old." in nm or nm.endswith(".old"):
+                        #  It's a temporary backup file; remove it.
                         self._try_remove(appdir,nm,manifest)
                     else:
                         #  It's an unaccounted-for entry in the bootstrap env.
@@ -456,7 +460,7 @@ class Esky(object):
                         while ".old." in nm or nm.endswith(".old"):
                             if nm in to_rem:
                                 break
-                            idx = m.find(".old")
+                            idx = nm.find(".old")
                             nm = nm[:idx] + nm[idx+4:]
                         if nm in to_rem:
                             fullnm = os.path.join(self.appdir,nm)
