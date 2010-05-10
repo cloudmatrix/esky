@@ -108,9 +108,10 @@ try:
     import threading
 except ImportError:
     threading = None
-try:
+
+if sys.platform != "win32":
     import fcntl
-except ImportError:
+else:
     fcntl = None
             
 
@@ -452,12 +453,12 @@ class Esky(object):
                     raise
             #  Disable the version by removing its esky-bootstrap.txt file.
             #  To avoid clobbering in-use version, respect locks on this file.
-            if sys.platform == "win32":
+            if fcntl is None:
                 try:
                     os.unlink(bsfile)
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
-            elif fcntl is not None:
+            else:
                 f = open(bsfile,"r+")
                 try:
                     fcntl.lockf(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -471,8 +472,6 @@ class Esky(object):
                     os.unlink(bsfile)
                 finally:
                     f.close()
-            else:
-                os.unlink(bsfile)
         finally:
             self.unlock()
 
@@ -483,7 +482,6 @@ class Esky(object):
         to be in the main app directory
         """
         mpath = os.path.join(self.appdir,vdir,"esky-bootstrap.txt")
-        try:
             with open(mpath,"rt") as mf:
                 return set(ln.strip() for ln in mf)
         except IOError:
