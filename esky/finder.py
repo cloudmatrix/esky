@@ -136,7 +136,10 @@ class DefaultVersionFinder(VersionFinder):
         #  we loop until we find a path that applies, or we run out of options.
         name = self._ready_name(app,version)
         while not os.path.exists(name):
-            path = self.version_graph.get_best_path(app.version,version)
+            try:
+                path = self.version_graph.get_best_path(app.version,version)
+            except KeyError:
+                raise EskyVersionError(version)
             if path is None:
                 raise EskyVersionError(version)
             local_path = []

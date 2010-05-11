@@ -137,14 +137,14 @@ def use_helper_app(func):
     return method_using_helper_app
 
 
-def use_helper_app_on_error(errcheck,*hargs,**hkwds):
+def use_helper_app_on_error(errcheck,**hkwds):
     """Method decorator to enable an esky's helper app on error.
 
     This decorator wraps an Esky method so that when it raises an exception
     matching the specified condition, the esky's helper app will be created
     and used instead.
 
-    Any additional args or kwargs will be passed directly to the helper app
+    Any additional keyword arguments will be passed directly to the helper app
     when it is created.
     """
     def decorator(func):
@@ -165,7 +165,7 @@ def use_helper_app_on_error(errcheck,*hargs,**hkwds):
                 if not use_helper_app:
                     raise
                 try:
-                    self.helper_app = self.HelperAppClass(self,*hargs,**hkwds)
+                    self.helper_app = self.HelperAppClass(self,**hkwds)
                 except EnvironmentError:
                     raise exc_type,exc_value,traceback
                 else:
