@@ -75,10 +75,10 @@ class DuplexPipe(object):
 
 
 class SubprocPipe(object):
-    """Pipe through which to communicate objects with a subprocess.
+    """Pipe through which to communicate stringsd with a subprocess.
 
-    This class provides simple inter-process communication of python objects,
-    by pickling them and writing them to a pipe in a length-delimited format.
+    This class provides simple inter-process communication of strings using
+    a length-delimited format.
     """
 
     def __init__(self,proc,pipe):
@@ -86,7 +86,7 @@ class SubprocPipe(object):
         self.pipe = pipe
 
     def read(self):
-        """Read the next object from the pipe."""
+        """Read the next string from the pipe."""
         sz = self.pipe.read(4)
         if len(sz) < 4:
             raise EOFError
@@ -94,11 +94,10 @@ class SubprocPipe(object):
         data = self.pipe.read(sz)
         if len(data) < sz:
             raise EOFError
-        return pickle.loads(data)
+        return data
 
-    def write(self,obj):
-        """Write the given object to the pipe."""
-        data = pickle.dumps(obj,pickle.HIGHEST_PROTOCOL)
+    def write(self,data):
+        """Write the given string to the pipe."""
         self.pipe.write(struct.pack("I",len(data)))
         self.pipe.write(data)
 
