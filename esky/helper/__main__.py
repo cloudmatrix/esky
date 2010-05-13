@@ -15,23 +15,39 @@ except ImportError:
     import pickle
 
 
+_ALLOWED_METHODS = {
+  "close": [],
+  "has_root": [],
+  "fetch_version": [str],
+  "install_version": [str],
+  "uninstall_version": [str]
+}
+
+
 if __name__ == "__main__":
+    sys.stderr = open(r"C:\\Documents and Settings\rfk\Desktop\\stderr.txt","w")
     pipe = SubprocPipe(None,pickle.loads(base64.b64decode(sys.argv[1])))
     try:
-        esky = pipe.read()
+        esky = pickle.loads(base64.b64decode(sys.argv[2]))
         pipe.write("READY")
         while True:
             try:
-                (method,args,kwds) = pipe.read()
-                if method == "close":
-                    pipe.write("CLOSING")
+                method = pipe.read()
+                try:
+                    argspec = _ALLOWED_METHODS[method]
+                except KeyError:
+                    sys.exit(2)
                 else:
+                    if method == "close":
+                        pipe.write("CLOSING")
+                        break
+                    args = [c(pipe.read()) for c in argspec]
                     try:
-                        res = getattr(esky,method)(*args,**kwds)
+                        res = getattr(esky,method)(*args)
                     except Exception, e:
-                        pipe.write((False,e))
+                        pipe.write(pickle.dumps((False,e)))
                     else:
-                        pipe.write((True,res))
+                        pipe.write(pickle.dumps((True,res)))
             except EOFError:
                 break
     finally:

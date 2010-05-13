@@ -12,7 +12,6 @@ import struct
 import signal
 import subprocess
 import tempfile
-import itertools
 from functools import wraps
 
 try:
@@ -21,55 +20,58 @@ except ImportError:
     import pickle
 
 
-def pairwise(iterable):
-    s1,s2 = itertools.tee(iterable)
-    s2.next()
-    return itertools.izip(s1,s2)
-
-
 def has_root():
     """Check whether the use current has root access."""
-    return False
+    return (os.geteuid() == 0)
+
+
+def can_get_root():
+    """Check whether the usee may be able to get root access.
+
+    This is currently always True on unix-like platforms, since we have no
+    way of peering inside the sudoers file.
+    """
+    return True
 
 
 class DuplexPipe(object):
     """A two-way pipe for communication with a subprocess.
 
-    On unix this is implemented as a pair of anonymous pipes.
+    On unix this is implemented via a pair of fifos.
     """
 
     def __init__(self,data=None):
+        self.rfd = None
+        self.wfd = None
         if data is None:
-            self.rfd,self.c_wfd = os.pipe()
-            self.c_rfd,self.wfd = os.pipe()
+            self.tdir = tempfile.mkdtemp()
+            self.rnm = os.path.join(self.tdir,"pipeout")
+            self.wnm = os.path.join(self.tdir,"pipein")
+            os.mkfifo(self.rnm,0600)
+            os.mkfifo(self.wnm,0600)
         else:
-            self.rfd,self.wfd = data
-            self.c_rfd = self.c_wfd = None
+            self.tdir,self.rnm,self.wnm = data
 
     def connect(self):
-        return DuplexPipe((self.c_rfd,self.c_wfd))
+        return DuplexPipe((self.tdir,self.wnm,self.rnm))
 
     def read(self,size):
-        self._close_child_fds()
+        if self.rfd is None:
+            self.rfd = os.open(self.rnm,os.O_RDONLY)
         data = os.read(self.rfd,size)
         return data
 
     def write(self,data):
-        self._close_child_fds()
+        if self.wfd is None:
+            self.wfd = os.open(self.wnm,os.O_WRONLY)
         return os.write(self.wfd,data)
 
-    def _close_child_fds(self):
-        if self.c_rfd is not None:
-            os.close(self.c_rfd)
-            self.c_rfd = None
-        if self.c_wfd is not None:
-            os.close(self.c_wfd)
-            self.c_wfd = None
-
     def close(self):
-        self._close_child_fds()
         os.close(self.rfd)
         os.close(self.wfd)
+        os.unlink(self.wnm)
+        if not os.listdir(self.tdir):
+            os.rmdir(self.tdir)
 
 
 class SubprocPipe(object):
@@ -121,7 +123,15 @@ def find_helper():
     return [sys.executable,"-m","esky.helper.__main__"]
 
 
-def spawn_helper(as_root=False):
+def find_exe(name,*args):
+    for dir in os.environ.get("PATH","/bin:/usr/bin").split(":"):
+        path = os.path.join(dir,name)
+        if os.path.exists(path):
+            return [path] + list(args)
+    return None
+
+
+def spawn_helper(esky,as_root=False):
     """Spawn the helper app, returning a SubprocPipe connected to it."""
     rnul = open(os.devnull,"r")
     wnul = open(os.devnull,"w")
@@ -129,23 +139,21 @@ def spawn_helper(as_root=False):
     c_pipe = p_pipe.connect()
     data = pickle.dumps(c_pipe,pickle.HIGHEST_PROTOCOL)
     exe = find_helper() + [base64.b64encode(data)]
-    #  We want to close all file descriptors except those used in the
-    #  pipe, so we roll our own preexec_fn to do so.
-    def closefds():
-        if hasattr(os,"closerange"):
-            closerange = os.closerange
-        else:
-            def closerange(low,high):
-                for i in xrange(low,high):
-                    try:
-                        os.close(i)
-                    except OSError:
-                        pass
-        dontclose = [c_pipe.rfd,c_pipe.wfd,rnul.fileno(),wnul.fileno()]
-        MAXFD = subprocess.MAXFD
-        for (low,high) in pairwise(sorted(set([2] + dontclose + [MAXFD]))):
-            closerange(low+1,high)
-    kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,preexec_fn=closefds)
+    exe.append(base64.b64encode(pickle.dumps(esky)))
+    #  Look for a variety of sudo-like programs
+    if as_root:
+        sudo = None
+        display_name = "%s updater" % (esky.name,)
+        if "DISPLAY" in os.environ:
+            sudo = find_exe("gksudo","-k","-D",display_name,"--")
+            if sudo is None:
+                sudo = find_exe("kdesudo")
+        if sudo is None:
+            sudo = find_exe("sudo")
+        if sudo is not None:
+            exe = sudo + exe
+    #  Spawn the subprocess
+    kwds = dict(stdin=rnul)
     p = subprocess.Popen(exe,**kwds)
     pipe = SubprocPipe(p,p_pipe)
     return pipe

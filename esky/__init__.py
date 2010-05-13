@@ -287,7 +287,16 @@ class Esky(object):
 
     @use_helper_app
     def has_root(self):
+        """Check whether the user currently has root/administrator access."""
         return esky.helper.has_root()
+
+    def get_root(self):
+        """Attempt to gain root/administrator access by spawning helper app."""
+        if self.has_root():
+            return True
+        self.helper_app = self.HelperAppClass(self,as_root=True)
+        if not self.helper_app.has_root():
+            raise OSError(None,"could not launch root process")
 
     @use_helper_app
     def cleanup(self):

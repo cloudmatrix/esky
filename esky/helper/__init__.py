@@ -24,19 +24,28 @@ It also has a "close" method that shuts down the proccess.
 import sys
 from functools import wraps
 
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 
 if sys.platform == "win32":
-    from esky.helper.helper_win32 import has_root, SubprocPipe, spawn_helper
+    from esky.helper.helper_win32 import SubprocPipe, spawn_helper,\
+                                         has_root, can_get_root
 else:
-    from esky.helper.helper_unix import has_root, SubprocPipe, spawn_helper
+    from esky.helper.helper_unix import SubprocPipe, spawn_helper,\
+                                        has_root, can_get_root
 
 
 def proxied_method(func):
     """Method decorator for proxing calls to the helper app."""
     @wraps(func)
-    def proxied_method_wrapper(self,*args,**kwds):
-        self.proc.write((func.func_name,args,kwds))
-        (success,value) = self.proc.read()
+    def proxied_method_wrapper(self,*args):
+        self.proc.write(func.func_name)
+        for arg in args:
+            self.proc.write(str(arg))
+        (success,value) = pickle.loads(self.proc.read())
         if not success:
             raise value
         else:
@@ -48,14 +57,13 @@ class EskyHelperApp(object):
     """Proxy for spawning and interacting with a stand-along helper app."""
 
     def __init__(self,esky,as_root=True):
-        self.proc = spawn_helper(as_root=as_root)
-        self.proc.write(esky)
+        self.proc = spawn_helper(esky,as_root)
         if self.proc.read() != "READY":
             self.close()
             raise RuntimeError("failed to spawn helper app")
 
     def close(self):
-        self.proc.write(("close",(),{}))
+        self.proc.write("close")
         self.proc.read()
         self.proc.close()
 
