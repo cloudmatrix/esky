@@ -25,7 +25,6 @@ _ALLOWED_METHODS = {
 
 
 if __name__ == "__main__":
-    sys.stderr = open(r"C:\\Documents and Settings\rfk\Desktop\\stderr.txt","w")
     pipe = SubprocPipe(None,pickle.loads(base64.b64decode(sys.argv[1])))
     try:
         esky = pickle.loads(base64.b64decode(sys.argv[2]))

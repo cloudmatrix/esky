@@ -153,7 +153,7 @@ def spawn_helper(esky,as_root=False):
         if sudo is not None:
             exe = sudo + exe
     #  Spawn the subprocess
-    kwds = dict(stdin=rnul)
+    kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True)
     p = subprocess.Popen(exe,**kwds)
     pipe = SubprocPipe(p,p_pipe)
     return pipe
