@@ -147,6 +147,8 @@ def spawn_helper(esky,as_root=False):
             sudo = find_exe("gksudo","-k","-D",display_name,"--")
             if sudo is None:
                 sudo = find_exe("kdesudo")
+            if sudo is None:
+                sudo = find_exe("cocoasudo","--prompt='%s'" % (display_name,))
         if sudo is None:
             sudo = find_exe("sudo")
         if sudo is not None:
