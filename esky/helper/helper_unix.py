@@ -154,7 +154,7 @@ def find_helper():
 
 
 def find_exe(name,*args):
-    path = os.environ.get("PATH","/bin:/usr/bin").split(":"):
+    path = os.environ.get("PATH","/bin:/usr/bin").split(":")
     if getattr(sys,"frozen",False):
         path.append(os.path.dirname(sys.executable)
     for dir in path:
@@ -181,6 +181,8 @@ def spawn_helper(esky,as_root=False):
             sudo = find_exe("gksudo","-k","-D",display_name,"--")
             if sudo is None:
                 sudo = find_exe("kdesudo")
+            if sudo is None:
+                sudo = find_exe("cocoasudo","--prompt='%s'" % (display_name,))
         if sudo is None:
             sudo = find_exe("sudo")
         if sudo is not None:
