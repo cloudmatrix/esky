@@ -19,6 +19,12 @@ try:
 except ImportError:
     import pickle
 
+try:
+    import threading
+except ImportError:
+    threading = None
+
+
 
 def has_root():
     """Check whether the use current has root access."""
@@ -57,14 +63,39 @@ class DuplexPipe(object):
 
     def read(self,size):
         if self.rfd is None:
-            self.rfd = os.open(self.rnm,os.O_RDONLY)
+            self.rfd = self._safely_open_pipe(self.rnm,os.O_RDONLY)
         data = os.read(self.rfd,size)
         return data
 
     def write(self,data):
         if self.wfd is None:
-            self.wfd = os.open(self.wnm,os.O_WRONLY)
+            self.wfd = self._safely_open_pipe(self.wnm,os.O_WRONLY)
         return os.write(self.wfd,data)
+
+    def _safely_open_pipe(self,pipe,mode):
+        """Open the pipe without hanging forever."""
+        timed_out = []
+        if threading is not None:
+            def rescueme():
+                timed_out.append(True)
+                if mode == os.O_RDONLY:
+                    mymode = os.O_WRONLY
+                else:
+                    mymode = os.O_RDONLY
+                try:
+                    fd = os.open(pipe,mymode)
+                except EnvironmentError:
+                    pass
+                else:
+                    os.close(fd)
+            t = threading.Timer(10,rescueme)
+            t.start()
+        fd = os.open(pipe,mode)
+        if timed_out:
+            raise IOError(errno.ETIMEDOUT,"timed out while opening pipe")
+        elif threading is not None:
+            t.cancel()
+        return fd
 
     def close(self):
         os.close(self.rfd)
@@ -123,10 +154,13 @@ def find_helper():
 
 
 def find_exe(name,*args):
-    for dir in os.environ.get("PATH","/bin:/usr/bin").split(":"):
-        path = os.path.join(dir,name)
-        if os.path.exists(path):
-            return [path] + list(args)
+    path = os.environ.get("PATH","/bin:/usr/bin").split(":"):
+    if getattr(sys,"frozen",False):
+        path.append(os.path.dirname(sys.executable)
+    for dir in path:
+        exe = os.path.join(dir,name)
+        if os.path.exists(exe):
+            return [exe] + list(args)
     return None
 
 
