@@ -528,15 +528,9 @@ class Esky(object):
                         to_keep.update(self._version_manifest(vname))
                     #  Remove files used only by the version being removed
                     to_rem = self._version_manifest(target_name) - to_keep
-                    for nm in os.listdir(self.appdir):
-                        #  Also remove temporarily-renamed ".old" files.
-                        while ".old." in nm or nm.endswith(".old"):
-                            if nm in to_rem:
-                                break
-                            idx = nm.find(".old")
-                            nm = nm[:idx] + nm[idx+4:]
-                        if nm in to_rem:
-                            fullnm = os.path.join(self.appdir,nm)
+                    for nm in to_rem:
+                        fullnm = os.path.join(self.appdir,nm)
+                        if os.path.exists(fullnm):
                             trn.remove(fullnm)
                 except Exception:
                     trn.abort()
