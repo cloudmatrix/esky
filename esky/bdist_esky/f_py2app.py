@@ -144,7 +144,6 @@ def _make_py2app_cmd(dist_dir,distribution,options,exe):
         if not os.path.exists(scriptf):
            old_scriptf = os.path.basename(exe.script)
            old_scriptf = os.path.join(resdir,old_scriptf)
-           print "MOVE", scriptf, old_scriptf
            shutil.move(old_scriptf,scriptf)
     cmd.run = new_run
     return cmd
