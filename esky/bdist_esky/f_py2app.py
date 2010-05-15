@@ -134,6 +134,19 @@ def _make_py2app_cmd(dist_dir,distribution,options,exe):
                       prescripts=[StringIO(_EXE_PRESCRIPT_CODE)])]
     cmd.finalize_options()
     cmd.plist["CFBundleExecutable"] = exe.name
+    old_run = cmd.run
+    def new_run():
+        old_run()
+        #  We need to script file to have the same name as the exe, which
+        #  it won't if they have changed it explicitly.
+        resdir = os.path.join(dist_dir,distribution.get_name()+".app","Contents/Resources")
+        scriptf = os.path.join(resdir,exe.name+".py")
+        if not os.path.exists(scriptf):
+           old_scriptf = os.path.basename(exe.script)
+           old_scriptf = os.path.join(resdir,old_scriptf)
+           print "MOVE", scriptf, old_scriptf
+           shutil.move(old_scriptf,scriptf)
+    cmd.run = new_run
     return cmd
 
 

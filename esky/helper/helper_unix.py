@@ -75,7 +75,8 @@ class DuplexPipe(object):
     def _safely_open_pipe(self,pipe,mode):
         """Open the pipe without hanging forever."""
         timed_out = []
-        if threading is not None:
+        t = None
+        if False and threading is not None:
             def rescueme():
                 timed_out.append(True)
                 if mode == os.O_RDONLY:
@@ -93,7 +94,7 @@ class DuplexPipe(object):
         fd = os.open(pipe,mode)
         if timed_out:
             raise IOError(errno.ETIMEDOUT,"timed out while opening pipe")
-        elif threading is not None:
+        elif t is not None:
             t.cancel()
         return fd
 
