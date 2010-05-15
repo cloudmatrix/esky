@@ -3,6 +3,11 @@ v0.6.0:
 
     * Added Esky.get_root() method, which can escalate to root privileges by
       spawning a separate helper process.
+        * use Esky.has_root() to check if it already has root privileges.
+        * escalation can use a variety of "sudo" frontends on Unix, and
+          the "runas" functionality on win32 when UAC is enabled.
+        * Esky.auto_update() will escalate automatically if it encounters
+          a permission error.
 
 v0.5.3:
 

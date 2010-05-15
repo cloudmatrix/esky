@@ -49,17 +49,16 @@ if sys.platform == "win32":
     else:
         assert False, "MSVCRT not bundled in app dir"
 
-if os.environ.get("ESKY_NEEDSROOT",""):
-    print "GETTING ROOT"
-    app.get_root()
-    print "GOT ROOT"
-
 v1dir = os.path.join(app.appdir,"eskytester-0.1."+platform)
 v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
     # This is the first time we've run this script.
     assert os.path.isdir(v1dir)
     assert not os.path.isdir(v3dir)
+    if os.environ.get("ESKY_NEEDSROOT",""):
+        print "GETTING ROOT"
+        app.get_root()
+        print "GOT ROOT"
     app.cleanup()
     assert not os.path.isdir(v1dir)
     assert not os.path.isdir(v3dir)

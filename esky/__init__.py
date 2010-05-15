@@ -297,7 +297,7 @@ class Esky(object):
             return True
         self.helper_app = self.HelperAppClass(self,as_root=True)
         if not self.helper_app.has_root():
-            raise OSError(None,"could not launch root process")
+            raise OSError(None,"could not escalate to root privileges")
 
     @use_helper_app
     def cleanup(self):
@@ -401,13 +401,32 @@ class Esky(object):
         version = self.find_update()
         if version is not None:
             assert parse_version(version) > parse_version(self.version)
-            self.fetch_version(version)
-            self.install_version(version)
+            #  Try to install the new version.  If it fails with
+            #  a permission error, escalate to root and try again.
             try:
-                self.uninstall_version(self.version)
-            except VersionLockedError:
-                pass
-            self.reinitialize()
+                self.fetch_version(version)
+                self.install_version(version)
+                try:
+                    self.uninstall_version(self.version)
+                except VersionLockedError:
+                    pass
+            except EnvironmentError, e:
+                if e.errno != errno.EACCESS or self.has_root():
+                    raise
+                exc_type,exc_value,exc_traceback = sys.exc_info()
+                try:
+                    self.get_root()
+                except Exception, e:
+                    raise exc_type,exc_value,exc_traceback
+                else:
+                    self.fetch_version(version)
+                    self.install_version(version)
+                    try:
+                        self.uninstall_version(self.version)
+                    except VersionLockedError:
+                        pass
+            else:
+                self.reinitialize()
 
     def find_update(self):
         """Check for an available update to this app.
