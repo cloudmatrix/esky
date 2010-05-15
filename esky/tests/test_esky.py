@@ -14,6 +14,7 @@ import urllib2
 import hashlib
 import tarfile
 import time
+from contextlib import contextmanager
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 
@@ -22,6 +23,7 @@ from distutils import dir_util
 
 import esky
 import esky.patch
+import esky.helper
 from esky import bdist_esky
 from esky.util import extract_zipfile, get_platform
 from esky.fstransact import FSTransaction
@@ -56,27 +58,55 @@ if not hasattr(HTTPServer,"shutdown"):
     HTTPServer.shutdown = socketserver_shutdown
 
 
+@contextmanager
+def setenv(key,value):
+    oldval = os.environ.get(key,None)
+    os.environ[key] = value
+    yield
+    if oldval is not None:
+        os.environ[key] = oldval
+    else:
+        del os.environ[key]
+
+
 class TestEsky(unittest.TestCase):
 
   if py2exe is not None:
     def test_esky_py2exe(self):
         """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
+    if esky.helper.can_get_root():
+        def test_esky_py2exe_needsroot(self):
+            with setenv("ESKY_NEEDSROOT","1"):
+               self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
   if py2app is not None:
     def test_esky_py2app(self):
         """Build and launch a self-testing esky application using py2app."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
+    if esky.helper.can_get_root():
+        def test_esky_py2app_needsroot(self):
+            with setenv("ESKY_NEEDSROOT","1"):
+                self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
 
   if bbfreeze is not None:
     def test_esky_bbfreeze(self):
         """Build and launch a self-testing esky application using bbfreeze."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
+    if esky.helper.can_get_root():
+        def test_esky_bbfreeze_needsroot(self):
+            with setenv("ESKY_NEEDSROOT","1"):
+                self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
 
   if cx_Freeze is not None:
     def test_esky_cxfreeze(self):
         """Build and launch a self-testing esky application using cx_Freeze."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
+    if esky.helper.can_get_root():
+        def test_esky_cxfreeze_needsroot(self):
+            with setenv("ESKY_NEEDSROOT","1"):
+                self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
+
 
   def _run_eskytester(self,options):
     """Build and run the eskytester app using the given distutils options.
@@ -142,6 +172,7 @@ class TestEsky(unittest.TestCase):
         p = subprocess.Popen(cmd1,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         (stdout,_) = p.communicate()
         sys.stdout.write(stdout.decode())
+        p.wait()
         assert p.returncode == 0
         assert os.path.exists("tests-completed")
         os.unlink("tests-completed")

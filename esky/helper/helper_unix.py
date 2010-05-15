@@ -156,7 +156,7 @@ def find_helper():
 def find_exe(name,*args):
     path = os.environ.get("PATH","/bin:/usr/bin").split(":")
     if getattr(sys,"frozen",False):
-        path.append(os.path.dirname(sys.executable)
+        path.append(os.path.dirname(sys.executable))
     for dir in path:
         exe = os.path.join(dir,name)
         if os.path.exists(exe):

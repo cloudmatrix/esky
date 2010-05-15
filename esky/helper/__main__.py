@@ -18,6 +18,7 @@ except ImportError:
 _ALLOWED_METHODS = {
   "close": [],
   "has_root": [],
+  "cleanup": [],
   "fetch_version": [str],
   "install_version": [str],
   "uninstall_version": [str]

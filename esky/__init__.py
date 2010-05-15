@@ -91,14 +91,14 @@ call the "cleanup" method on their esky.
 from __future__ import with_statement
 
 __ver_major__ = 0
-__ver_minor__ = 5
-__ver_patch__ = 3
+__ver_minor__ = 6
+__ver_patch__ = 0
 __ver_sub__ = ""
 __version__ = "%d.%d.%d%s" % (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 
 
-import sys
 import os
+import sys
 import shutil
 import errno
 import socket
@@ -120,7 +120,8 @@ import esky.helper
 from esky.helper import EskyHelperApp
 from esky.util import split_app_version, join_app_version,\
                       is_version_dir, is_uninstalled_version_dir,\
-                      parse_version, get_best_version, appdir_from_executable
+                      parse_version, get_best_version, appdir_from_executable,\
+                      copy_ownership_info
 
 
 
@@ -430,8 +431,14 @@ class Esky(object):
         """Fetch the specified updated version of the app."""
         if self.version_finder is None:
             raise NoVersionFinderError
-        if not self.version_finder.has_version(self,version):
-            self.version_finder.fetch_version(self,version)
+        #  Get the new version using the VersionFinder
+        loc = self.version_finder.has_version(self,version)
+        if not loc:
+            loc = self.version_finder.fetch_version(self,version)
+        #  Adjust permissions to match the current version
+        vdir = join_app_version(self.name,self.version,self.platform)
+        copy_ownership_info(os.path.join(self.appdir,vdir),loc)
+        return loc
 
     @use_helper_app
     def install_version(self,version):
@@ -445,7 +452,8 @@ class Esky(object):
         target = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target)
         if not os.path.exists(target):
-            source = self.version_finder.fetch_version(self,version)
+            self.fetch_version(version)
+            source = self.version_finder.has_version(self,version)
         self.lock()
         try:
             if not os.path.exists(target):
@@ -559,4 +567,48 @@ class Esky(object):
                 return set(ln.strip() for ln in mf)
         except IOError:
             return set()
+
+
+
+def _check_needsroot(func):
+    @wraps(func)
+    def do_check_needsroot(self,*args,**kwds):
+        if os.environ.get("ESKY_NEEDSROOT",""):
+            if not self.has_root():
+                raise OSError(errno.EACCES,"you need root")
+        return func(self,*args,**kwds)
+    return do_check_needsroot
+
+
+class _TestableEsky(Esky):
+    """Esky subclass that tries harder to be testable.
+
+    If the environment variable "ESKY_NEEDSROOT" is set, operations that
+    alter the filesystem will fail with EACCESS when not executed as root.
+    """
+
+    @_check_needsroot
+    def lock(self,num_retries=0):
+        return super(_TestableEsky,self).lock(num_retries)
+
+    @_check_needsroot
+    def unlock(self):
+        return super(_TestableEsky,self).unlock()
+   
+    @_check_needsroot
+    def cleanup(self):
+        return super(_TestableEsky,self).cleanup()
+
+    @_check_needsroot
+    def fetch_version(self,version):
+        return super(_TestableEsky,self).fetch_version(version)
+
+    @_check_needsroot
+    def install_version(self,version):
+        return super(_TestableEsky,self).install_version(version)
+
+    @_check_needsroot
+    def uninstall_version(self,version):
+        super(_TestableEsky,self).uninstall_version(version)
+
 

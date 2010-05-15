@@ -1,4 +1,9 @@
 
+v0.6.0:
+
+    * Added Esky.get_root() method, which can escalate to root privileges by
+      spawning a separate helper process.
+
 v0.5.3:
 
     * DefaultVersionFinder: make search for update links case-insensitive.

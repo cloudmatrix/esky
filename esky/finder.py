@@ -22,7 +22,7 @@ from urlparse import urlparse, urljoin
 
 from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
-from esky.util import extract_zipfile
+from esky.util import extract_zipfile, copy_ownership_info
 from esky.patch import apply_patch, PatchError
 
 
@@ -60,7 +60,10 @@ class VersionFinder(object):
         raise NotImplementedError
 
     def has_version(self,app,version):
-        """Check whether a specific version of the app is available locally."""
+        """Check whether a specific version of the app is available locally.
+
+        Returns either False, or the paths to the unpacked version directory.
+        """
         raise NotImplementedError
 
 
@@ -86,12 +89,16 @@ class DefaultVersionFinder(VersionFinder):
 
     def _workdir(self,app,nm):
         """Get full path of named working directory, inside the given app."""
-        workdir = os.path.join(app._get_update_dir(),nm)
-        try:
-            os.makedirs(workdir)
-        except OSError, e:
-            if e.errno not in (17,183):
-                raise
+        updir = app._get_update_dir()
+        workdir = os.path.join(updir,nm)
+        for target in (updir,workdir):
+            try:
+                os.mkdir(target)
+            except OSError, e:
+                if e.errno not in (17,183):
+                    raise
+            else:
+                copy_ownership_info(app.appdir,target)
         return workdir
 
     def cleanup(self,app):
@@ -182,45 +189,50 @@ class DefaultVersionFinder(VersionFinder):
         directory ready for renaming into the appdir.
         """
         uppath = tempfile.mkdtemp(dir=self._workdir(app,"unpack"))
-        if not path:
-            self._copy_best_version(app,uppath)
-        else:
-            if path[0][0].endswith(".patch"):
-                try:
-                    self._copy_best_version(app,uppath)
-                except EnvironmentError, e:
-                    self.version_graph.remove_all_links(path[0][1])
-                    raise PatchError("couldn't copy current version: %s"%(e,))
-                patches = path
+        try:
+            if not path:
+                self._copy_best_version(app,uppath)
             else:
-                extract_zipfile(path[0][0],uppath)
-                patches = path[1:]
-            for (patchfile,patchurl) in patches:
-                try:
-                    with open(patchfile,"rb") as f:
-                        apply_patch(uppath,f)
-                except PatchError:
-                    self.version_graph.remove_all_links(patchurl)
-                    raise
-        # Move anything that's not the version dir into esky-bootstrap
-        vdir = join_app_version(app.name,version,app.platform)
-        bspath = os.path.join(uppath,vdir,"esky-bootstrap")
-        if not os.path.isdir(bspath):
-            os.makedirs(bspath)
-        for nm in os.listdir(uppath):
-            if nm != vdir:
-                os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
-        # Check that it has an esky-bootstrap.txt file
-        if not os.path.exists(os.path.join(uppath,vdir,"esky-bootstrap.txt")):
-            self.version_graph.remove_all_links(path[0][1])
-            raise PatchError("patch didn't create esky-bootstrap.txt")
-        # Make it available for upgrading
-        rdpath = self._ready_name(app,version)
-        if os.path.exists(rdpath):
-            shutil.rmtree(rdpath)
-        os.rename(os.path.join(uppath,vdir),rdpath)
-        for (filenm,_) in path:
-            os.unlink(filenm)
+                if path[0][0].endswith(".patch"):
+                    try:
+                        self._copy_best_version(app,uppath)
+                    except EnvironmentError, e:
+                        self.version_graph.remove_all_links(path[0][1])
+                        err = "couldn't copy current version: %s" % (e,)
+                        raise PatchError(err)
+                    patches = path
+                else:
+                    extract_zipfile(path[0][0],uppath)
+                    patches = path[1:]
+                for (patchfile,patchurl) in patches:
+                    try:
+                        with open(patchfile,"rb") as f:
+                            apply_patch(uppath,f)
+                    except PatchError:
+                        self.version_graph.remove_all_links(patchurl)
+                        raise
+            # Move anything that's not the version dir into esky-bootstrap
+            vdir = join_app_version(app.name,version,app.platform)
+            bspath = os.path.join(uppath,vdir,"esky-bootstrap")
+            if not os.path.isdir(bspath):
+                os.makedirs(bspath)
+            for nm in os.listdir(uppath):
+                if nm != vdir:
+                    os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
+            # Check that it has an esky-bootstrap.txt file
+            bsfile = os.path.join(uppath,vdir,"esky-bootstrap.txt")
+            if not os.path.exists(bsfile):
+                self.version_graph.remove_all_links(path[0][1])
+                raise PatchError("patch didn't create esky-bootstrap.txt")
+            # Make it available for upgrading
+            rdpath = self._ready_name(app,version)
+            if os.path.exists(rdpath):
+                shutil.rmtree(rdpath)
+            os.rename(os.path.join(uppath,vdir),rdpath)
+            for (filenm,_) in path:
+                os.unlink(filenm)
+        finally:
+            shutil.rmtree(uppath)
 
     def _copy_best_version(self,app,uppath):
         best_vdir = join_app_version(app.name,app.version,app.platform)
@@ -239,7 +251,10 @@ class DefaultVersionFinder(VersionFinder):
                     shutil.copy2(bspath,dstpath)
 
     def has_version(self,app,version):
-        return os.path.exists(self._ready_name(app,version))
+        path = self._ready_name(app,version)
+        if os.path.exists(path):
+            return path
+        return False
 
     def _ready_name(self,app,version):
         version = join_app_version(app.name,version,app.platform)

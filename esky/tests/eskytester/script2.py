@@ -22,7 +22,7 @@ eskytester.yes_my_data_is_installed()
 
 #  Sanity check the esky environment
 assert sys.frozen
-app = esky.Esky(sys.executable,"http://localhost:8000/dist/")
+app = esky._TestableEsky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.active_version == app.version == "0.2"
 assert app.find_update() == "0.3"
@@ -49,6 +49,10 @@ if sys.platform == "win32":
     else:
         assert False, "MSVCRT not bundled in app dir"
 
+if os.environ.get("ESKY_NEEDSROOT",""):
+    print "GETTING ROOT"
+    app.get_root()
+    print "GOT ROOT"
 
 v1dir = os.path.join(app.appdir,"eskytester-0.1."+platform)
 v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)

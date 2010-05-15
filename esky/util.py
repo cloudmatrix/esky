@@ -8,6 +8,7 @@
 
 import os
 import re
+import sys
 import shutil
 import zipfile
 try:
@@ -80,7 +81,7 @@ def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
     filenames to ZipInfo objects.  It may also return None to indicate that
     defaults should be used.
 
-    If given, the optional argument 'members' must be an iterable yeilding
+    If given, the optional argument 'members' must be an iterable yielding
     names or ZipInfo objects.  Files will be added to the archive in the
     order specified by this function.
 
@@ -143,4 +144,21 @@ def is_core_dependency(filenm):
         return True
     return False
 
+
+def copy_ownership_info(src,dst,cur="",default=None):
+    """Copy file ownership from src onto dst, as much as possible."""
+    # TODO: how on win32?
+    source = os.path.join(src,cur)
+    target = os.path.join(dst,cur)
+    if default is None:
+        default = os.stat(src)
+    if os.path.exists(source):
+        info = os.stat(source)
+    else:
+        info = default
+    if sys.platform != "win32":
+        os.chown(target,info.st_uid,info.st_gid)
+    if os.path.isdir(target):
+        for nm in os.listdir(target):
+            copy_ownership_info(src,dst,os.path.join(cur,nm),default)
 

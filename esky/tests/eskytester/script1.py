@@ -15,7 +15,7 @@ eskytester.yes_my_deps_are_working()
 eskytester.yes_my_data_is_installed()
 
 assert sys.frozen
-app = esky.Esky(sys.executable,"http://localhost:8000/dist/")
+app = esky._TestableEsky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.active_version == "0.1"
 assert app.version == "0.1"
@@ -24,7 +24,7 @@ assert os.path.isfile(eskytester.script_path(app,"script1"))
 
 
 #  Test that the script is executed with sensible globals etc, so
-#  it can create classes and other complicated things
+#  it can create classes and other "complicated" things
 class ATestClass(object):
     def __init__(self):
         self.a = "A"
@@ -66,6 +66,11 @@ else:
     spawn_busy_loop(app)
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
+if os.environ.get("ESKY_NEEDSROOT",""):
+    print "GETTING ROOT"
+    app.get_root()
+    print "GOT ROOT"
+
 app.install_version("0.2")
 app.reinitialize()
 assert app.name == "eskytester"
