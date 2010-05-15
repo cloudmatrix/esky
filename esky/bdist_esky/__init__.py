@@ -391,21 +391,24 @@ class bdist_esky(Command):
         #  Search for redist files in a Visual Studio install
         progfiles = os.path.expandvars("%PROGRAMFILES%")
         for dnm in os.listdir(progfiles):
-            if dnm.startswith("Microsoft Visual Studio"):
+            if dnm.lower().startswith("microsoft visual studio"):
                 dpath = os.path.join(progfiles,dnm,"VC","redist")
                 for (subdir,_,filenames) in os.walk(dpath):
                     for fnm in filenames:
-                        if name in fnm and fnm.endswith(".manifest"):
-                            yield os.path.join(subdir,fnm)
+                        if name.lower() in fnm.lower():
+                            if fnm.lower().endswith(".manifest"):
+                                yield os.path.join(subdir,fnm)
         #  Search for manifests installed in the WinSxS directory
         winsxs_m = os.path.expandvars("%WINDIR%\\WinSxS\\Manifests")
         for fnm in os.listdir(winsxs_m):
-            if name in fnm and fnm.endswith(".manifest"):
-                yield os.path.join(winsxs_m,fnm)
+            if name.lower() in fnm.lower():
+                if fnm.lower().endswith(".manifest"):
+                    yield os.path.join(winsxs_m,fnm)
         winsxs = os.path.expandvars("%WINDIR%\\WinSxS")
         for fnm in os.listdir(winsxs):
-            if name in fnm and fnm.endswith(".manifest"):
-                yield os.path.join(winsxs,fnm)
+            if name.lower() in fnm.lower():
+                if fnm.lower().endswith(".manifest"):
+                    yield os.path.join(winsxs,fnm)
 
     def copy_to_bootstrap_env(self,src,dst=None):
         """Copy the named file into the bootstrap environment.
