@@ -123,7 +123,7 @@ _COMMANDS = [
  "PF_INS_BZ2",    # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
  "PF_BSDIFF4",    # PF_BSDIFF4(n,p):     patch file; bsdiff4 from n input bytes
  "PF_REC_ZIP",    # PF_REC_ZIP(m,cs):    patch file; recurse into zipfile
- "CHMOD",         # CHMOD(mode):        set mode of current target
+ "CHMOD",         # CHMOD(mode):         set mode of current target
 ]
 
 # Make commands available as global variables
