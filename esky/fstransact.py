@@ -105,7 +105,7 @@ if CreateTransaction:
                 if os.path.isdir(target) or files_differ(source,target):
                     self._move(source,target)
                 else:
-                    self._remove(source)
+                    self.remove(source)
 
         def _move(self,source,target):
             source = source.encode(sys.getfilesystemencoding())
