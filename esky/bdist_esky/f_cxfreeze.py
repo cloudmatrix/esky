@@ -61,7 +61,7 @@ def freeze(dist):
         base = None
         if exe.gui_only and sys.platform == "win32":
             base = "Win32GUI"
-        executables.append(cx_Freeze.Executable(exe.script,base=base,icon=exe.icon,**exe._kwds))
+        executables.append(cx_Freeze.Executable(exe.script,base=base,targetName=exe.name,icon=exe.icon,**exe._kwds))
     #  Freeze up the executables
     f = cx_Freeze.Freezer(executables,**kwds)
     f.Freeze()
@@ -111,6 +111,8 @@ def freeze(dist):
     #  Copy the loader program for each script into the bootstrap env, and
     #  append the bootstrapping code to it as a zipfile.
     for exe in dist.get_executables():
+        if not exe.include_in_bootstrap_env:
+            continue
         exepath = dist.copy_to_bootstrap_env(exe.name)
         bslib = zipfile.PyZipFile(exepath,"a",zipfile.ZIP_STORED)
         cdate = (2000,1,1,0,0,0)

@@ -104,6 +104,7 @@ def freeze(dist):
         #  We handle "icon" and "gui_only" ourselves.
         s = exe._kwds.copy()
         s["script"] = exe.script
+        s["dest_base"] = exe.name[:-4]
         if exe.icon is not None and "icon_resources" not in s:
             s["icon_resources"] = [(1,exe.icon)]
         if exe.gui_only:
@@ -186,6 +187,8 @@ def freeze(dist):
             dist.copy_to_bootstrap_env(nm)
     #  Copy the loader program for each script into the bootstrap env.
     for exe in dist.get_executables():
+        if not exe.include_in_bootstrap_env:
+            continue
         exepath = dist.copy_to_bootstrap_env(exe.name)
         #  Insert the bootstrap code into the exe as a resource.
         #  This appears to have the happy side-effect of stripping any extra

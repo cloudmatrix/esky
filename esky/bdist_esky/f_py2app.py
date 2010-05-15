@@ -120,6 +120,8 @@ def freeze(dist):
     #  Copy the loader program for each script into the bootstrap env.
     dist.copy_to_bootstrap_env("Contents/MacOS/python")
     for exe in dist.get_executables():
+        if not exe.include_in_bootstrap_env:
+            continue
         exepath = dist.copy_to_bootstrap_env("Contents/MacOS/"+exe.name)
 
 
@@ -128,7 +130,8 @@ def _make_py2app_cmd(dist_dir,distribution,options,exe):
     for (nm,val) in options.iteritems():
         setattr(cmd,nm,val)
     cmd.dist_dir = dist_dir
-    cmd.app = [Target(script=exe,prescripts=[StringIO(_EXE_PRESCRIPT_CODE)])]
+    cmd.app = [Target(script=exe.script,dest_base=exe.name,
+                      prescripts=[StringIO(_EXE_PRESCRIPT_CODE)])]
     cmd.finalize_options()
     cmd.plist["CFBundleExecutable"] = exe.name
     return cmd

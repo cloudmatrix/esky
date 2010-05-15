@@ -86,21 +86,27 @@ class Executable(str):
     def __new__(cls,script,**kwds):
         return str.__new__(cls,script)
 
-    def __init__(self,script,icon=None,gui_only=None,**kwds):
+    def __init__(self,script,name=None,icon=None,gui_only=None,
+                      include_in_bootstrap_env=True,**kwds):
         str.__init__(script)
         self.script = script
+        self.include_in_bootstrap_env = include_in_bootstrap_env
         self.icon = icon
+        self._name = name
         self._gui_only = gui_only
         self._kwds = kwds
 
     @property
     def name(self):
-        nm = os.path.basename(self.script)
-        if nm.endswith(".py"):
-            nm = nm[:-3]
-        elif nm.endswith(".pyw"):
-            nm = nm[:-4]
-        if sys.platform == "win32":
+        if self._name is not None:
+            nm = self._name
+        else:
+            nm = os.path.basename(self.script)
+            if nm.endswith(".py"):
+                nm = nm[:-3]
+            elif nm.endswith(".pyw"):
+                nm = nm[:-4]
+        if sys.platform == "win32" and not nm.endswith(".exe"):
             nm += ".exe"
         return nm
 
@@ -233,6 +239,9 @@ class bdist_esky(Command):
                     yield s
                 else:
                     yield Executable(s)
+            #  Include the esky helper app in all distributions
+            h = os.path.join(os.path.dirname(__file__),"../helper/__main__.py")
+            yield Executable(h,name="esky-update-helper",gui_only=True)
 
     def get_data_files(self):
         """Yield (source,destination) tuples for data files.

@@ -13,6 +13,7 @@ import sys
 import imp
 import time
 import zipfile
+import tempfile
 import marshal
 import struct
 import shutil
@@ -42,15 +43,26 @@ def freeze(dist):
     for (nm,val) in options.iteritems():
         setattr(f,nm,val)
     f.addModule("esky")
-    for exe in dist.get_executables():
-        f.addScript(exe.script,gui_only=exe.gui_only)
-    if "include_py" not in options:
-        f.include_py = False
-    if "linkmethod" not in options:
-        #  Since we're going to zip it up, the benefits of hard- or sym-linking
-        #  the loader exe will mostly be lost.
-        f.linkmethod = "loader"
-    f()
+    tdir = tempfile.mkdtemp()
+    try:
+        for exe in dist.get_executables():
+            #  bbfreeze doesn't offer a way to set the name of the target exe.
+            #  We write each to a tempfile to force the selected name.
+            name = exe.name
+            if sys.platform == "win32" and name.endswith(".exe"):
+                name = name[:-4]
+            script = os.path.join(tdir,name+".py")
+            shutil.copy2(exe.script,script)
+            f.addScript(script,gui_only=exe.gui_only)
+        if "include_py" not in options:
+            f.include_py = False
+        if "linkmethod" not in options:
+            #  Since we're going to zip it up, the benefits of hard-
+            #  or sym-linking the loader exe will mostly be lost.
+            f.linkmethod = "loader"
+        f()
+    finally:
+        shutil.rmtree(tdir)
     #  Copy data files into the freeze dir
     for (src,dst) in dist.get_data_files():
         dst = os.path.join(dist.freeze_dir,dst)
@@ -108,6 +120,8 @@ def freeze(dist):
     #  We explicitly strip the loader binaries, in case they were made
     #  by linking to the library.zip.
     for exe in dist.get_executables():
+        if not exe.include_in_bootstrap_env:
+            continue
         exepath = dist.copy_to_bootstrap_env(exe.name)
         f.stripBinary(exepath)
 
