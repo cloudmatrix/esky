@@ -120,12 +120,12 @@ def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
 def get_platform():
     """Get the platform identifier for the current platform.
 
-    This is similar to the function distutils.util.get_platform() - it returns
+    This is similar to the function distutils.util.get_platform(); it returns
     a string identifying the types of platform on which binaries built on this
     machine can reasonably be expected to run.
 
     Unlike distutils.util.get_platform(), the value returned by this function
-    is guaranteed not to contain any periods; this makes it much easier to
+    is guaranteed not to contain any periods. This makes it much easier to
     parse out of filenames.
     """
     return _distutils_get_platform().replace(".","_")
