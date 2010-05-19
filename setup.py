@@ -42,7 +42,8 @@ LICENSE = "BSD"
 KEYWORDS = "update auto-update freeze"
 LONG_DESC = info["__doc__"]
 
-PACKAGES = ["esky","esky.bdist_esky","esky.tests","esky.tests.eskytester"]
+PACKAGES = ["esky","esky.bdist_esky","esky.tests","esky.tests.eskytester",
+            "esky.helper"]
 EXT_MODULES = []
 PKG_DATA = {"esky.tests.eskytester":["pkgdata.txt","datafile.txt"],}
 
