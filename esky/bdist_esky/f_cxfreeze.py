@@ -169,6 +169,7 @@ def _chainload(target_dir):
               EXCLUSIVE_ZIP_FILE_NAME = EXCLUSIVE_ZIP_FILE_NAME.replace(mydir,target_dir)
               SHARED_ZIP_FILE_NAME = SHARED_ZIP_FILE_NAME.replace(mydir,target_dir)
               INITSCRIPT_ZIP_FILE_NAME = init_path
+              # TODO: account for sys.executable being a backup file
               exec code in globals()
               sys.exit(0)
       else:

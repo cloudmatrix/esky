@@ -151,6 +151,7 @@ def _chainload(target_dir):
       else:
           sys.modules.pop("esky",None)
           sys.modules.pop("esky.bootstrap",None)
+          # TODO: account for sys.executable being a backup file
           exec code in {"__name__":"__main__"}
           sys.exit(0)
 """

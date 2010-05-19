@@ -1,4 +1,11 @@
 
+v0.6.1:
+
+    * Use a separate file "esky-lockfile.txt" for version locking.  This
+      will help protect against strange behaviour when fcntl.flock is
+      simulated using fcntl.lockf (which released the lock when *any* handle
+      to the file is closed)
+
 v0.6.0:
 
     * Added Esky.get_root() method, which can escalate to root privileges by
