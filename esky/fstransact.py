@@ -24,6 +24,8 @@ import sys
 import shutil
 import os
 
+from esky.util import get_backup_filename
+
 #  Try to access the transacted filesystem APIs on win32
 CreateTransaction = None
 if sys.platform == "win32":
@@ -111,9 +113,7 @@ if CreateTransaction:
             source = source.encode(sys.getfilesystemencoding())
             target = target.encode(sys.getfilesystemencoding())
             if os.path.exists(target):
-                target_old = target + ".old"
-                while os.path.exists(target_old):
-                    target_old += ".old"
+                target_old = get_backup_filename(target)
                 MoveFileTransacted(target,target_old,None,None,1,self.trnid)
                 MoveFileTransacted(source,target,None,None,1,self.trnid)
                 try:
@@ -143,9 +143,7 @@ if CreateTransaction:
             source = source.encode(sys.getfilesystemencoding())
             target = target.encode(sys.getfilesystemencoding())
             if os.path.exists(target):
-                target_old = target + ".old"
-                while os.path.exists(target_old):
-                    target_old += ".old"
+                target_old = get_backup_filename(target)
                 MoveFileTransacted(target,target_old,None,None,1,self.trnid)
                 self._do_copy(source,target)
                 try:
@@ -155,9 +153,7 @@ if CreateTransaction:
             else:
                 target_old = None
                 if os.path.isdir(target):
-                    target_old = target + ".old"
-                    while os.path.exists(target_old):
-                        target_old += ".old"
+                    target_old = get_backup_filename(target)
                     MoveFileTransacted(target,target_old,None,None,1,self.trnid)
                 self._do_copy(source,target)
                 if target_old is not None:
@@ -271,9 +267,7 @@ else:
 
         def _copy(self,source,target):
             if sys.platform == "win32" and os.path.exists(target):
-                target_old = target + ".old"
-                while os.path.exists(target_old):
-                    target_old = target_old + ".old"
+                target_old = get_backup_filename(target)
                 os.rename(target,target_old)
                 try:
                     self._do_copy(source,target)
@@ -288,14 +282,10 @@ else:
             else:
                 target_old = None
                 if os.path.isdir(target) and os.path.isfile(source):
-                    target_old = target + ".old"
-                    while os.path.exists(target_old):
-                        target_old = target_old + ".old"
+                    target_old = get_backup_filename(target)
                     os.rename(target,target_old)
                 elif os.path.isfile(target) and os.path.isdir(source):
-                    target_old = target + ".old"
-                    while os.path.exists(target_old):
-                        target_old = target_old + ".old"
+                    target_old = get_backup_filename(target)
                     os.rename(target,target_old)
                 self._do_copy(source,target)
                 if target_old is not None:
@@ -324,4 +314,5 @@ else:
 
         def abort(self):
             del self.pending[:]
+
 

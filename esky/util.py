@@ -21,7 +21,8 @@ from distutils.util import get_platform as _distutils_get_platform
 from esky.bootstrap import get_best_version, get_all_versions, \
                            is_version_dir, is_installed_version_dir, \
                            is_uninstalled_version_dir, \
-                           split_app_version, join_app_version, parse_version
+                           split_app_version, join_app_version, parse_version,\
+                           get_original_filename
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 
 
@@ -161,4 +162,21 @@ def copy_ownership_info(src,dst,cur="",default=None):
     if os.path.isdir(target):
         for nm in os.listdir(target):
             copy_ownership_info(src,dst,os.path.join(cur,nm),default)
+
+
+
+def get_backup_filename(filename):
+    """Get the name to which a backup of the given file can be written.
+
+    This will typically the filename with ".old" inserted at an appropriate
+    location.  We try to preserve the file extension where possible.
+    """
+    parent = os.path.dirname(filename)
+    parts = os.path.basename(filename).split(".")
+    parts.insert(-1,"old")
+    backname = os.path.join(parent,".".join(parts))
+    while os.path.exists(backname):
+        parts.insert(-1,"old")
+        backname = os.path.join(parent,".".join(parts))
+    return backname
 

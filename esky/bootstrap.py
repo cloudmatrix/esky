@@ -150,7 +150,16 @@ def _chainload(target_dir):
     """
     appdir = dirname(target_dir)
     target_exe = target_dir + sys.executable[len(appdir):]
-    execv(target_exe,[target_exe] + sys.argv[1:])
+    try:
+        execv(target_exe,[target_exe] + sys.argv[1:])
+    except EnvironmentError, e:
+        if e.errno == errno.ENOENT:
+            # Tried to chainload something that doesn't exist.
+            # Perhaps executing from a backup file?
+            orig_exe = get_original_filename(sys.executable)
+            if orig_exe is not None:
+                target_exe = target+dir + orig_executable[len(appdir):]
+                execv(target_exe,[target_exe] + sys.argv[1:])
 
 
 def get_best_version(appdir,include_partial_installs=False):
@@ -329,4 +338,22 @@ def _split_version_components(s):
                 end += 1
         yield s[start:end]
         start = end
+
+
+def get_original_filename(backname):
+    """Given a backup filename, get the original name to which it refers.
+
+    This is only really possible if the original file actually exists and
+    is not guaranteed to be correct in all cases; but unless you do something
+    silly it should work out OK.
+
+    If no matching original file is found, None is returned.
+    """
+    filtered = ".".join(filter(lambda n: n != "old",backname.split(".")))
+    for nm in listdir(dirname(backname)):
+        if nm == backname:
+            continue
+        if filtered == ".".join(filter(lambda n: n != "old",nm.split("."))):
+            return pathjoin(dirname(backname),nm)
+    return None
 

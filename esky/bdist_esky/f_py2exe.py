@@ -261,6 +261,9 @@ def _chainload(target_dir):
       try:
           data = load_resource(sys.executable,u"PYTHONSCRIPT",1,0)
       except EnvironmentError:
+          #  This will trigger is sys.executable doesn't exist.
+          #  Falling back to the original chainloader will account for
+          #  the unlikely case where sys.executable is a backup file.
           _orig_chainload(target_dir)
       else:
           del sys.modules["esky"]
