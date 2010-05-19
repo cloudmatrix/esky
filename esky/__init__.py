@@ -411,7 +411,7 @@ class Esky(object):
                 except VersionLockedError:
                     pass
             except EnvironmentError, e:
-                if e.errno != errno.EACCESS or self.has_root():
+                if e.errno != errno.EACCES or self.has_root():
                     raise
                 exc_type,exc_value,exc_traceback = sys.exc_info()
                 try:
@@ -597,7 +597,7 @@ class _TestableEsky(Esky):
     """Esky subclass that tries harder to be testable.
 
     If the environment variable "ESKY_NEEDSROOT" is set, operations that
-    alter the filesystem will fail with EACCESS when not executed as root.
+    alter the filesystem will fail with EACCES when not executed as root.
     """
 
     @_check_needsroot
