@@ -117,7 +117,7 @@ def chainload(target_dir):
     """
     #  This global will hold the locked file to keep it open during execution.
     global _version_dir_lockfile
-    lockfile = pathjoin(target_dir,"esky-bootstrap.txt")
+    lockfile = pathjoin(target_dir,"esky-lockfile.txt")
     try:
         #  On windows, holding the file open is enough to lock it.
         #  On other platforms, try for a shared lock using fcntl.flock.

@@ -225,6 +225,8 @@ class bdist_esky(Command):
         os.makedirs(self.freeze_dir)
         #  Hand things off to the selected freezer module
         self.freezer_module.freeze(self)
+        #  Create the necessary control files
+        open(os.path.join(self.freeze_dir,"esky-lockfile.txt"),"w").close()
         #  Zip up the distribution
         print "zipping up the esky"
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))

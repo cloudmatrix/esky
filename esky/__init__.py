@@ -561,6 +561,7 @@ class Esky(object):
         """Uninstall the specified version of the app."""
         target_name = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target_name)
+        lockfile = os.path.join(target,"esky-lockfile.txt")
         bsfile = os.path.join(target,"esky-bootstrap.txt")
         bsfile_old = os.path.join(target,"esky-bootstrap-old.txt")
         self.lock()
@@ -597,20 +598,21 @@ class Esky(object):
                     trn.commit()
             except EnvironmentError:
                 try:
-                    open(bsfile,"a").close()
+                    open(lockfile,"w").close()
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
                 else:
                     raise
-            #  Disable the version by removing its esky-bootstrap.txt file.
+            #  Disable the version by renaming its esky-bootstrap.txt file.
             #  To avoid clobbering in-use version, respect locks on this file.
             if sys.platform == "win32":
                 try:
-                    os.rename(bsfile,bsfile_old)
+                    with open(lockfile,"w"):
+                        os.rename(lockfile,lockfile_uninst)
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
             else:
-                f = open(bsfile,"r")
+                f = open(lockfile,"r")
                 try:
                     fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
                 except EnvironmentError, e:
