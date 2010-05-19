@@ -159,6 +159,8 @@ class Esky(object):
     DefaultVersionFinder instance.
     """
 
+    HelperAppClass = EskyHelperApp
+
     lock_timeout = 60*60  # 1 hour
 
     def __init__(self,appdir_or_exe,version_finder=None):
@@ -174,7 +176,6 @@ class Esky(object):
         self._lock_count = 0
         self.version_finder = version_finder
         self.helper_app = None
-        self.HelperAppClass = EskyHelperApp
 
     def _get_version_finder(self):
         return self.__version_finder
