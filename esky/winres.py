@@ -10,7 +10,9 @@ under Windows.
 
 """
 
+import os
 import sys
+import ctypes
 from ctypes import WinError, windll, c_char, POINTER
 
 if sys.platform != "win32":
@@ -18,16 +20,54 @@ if sys.platform != "win32":
 
 
 LOAD_LIBRARY_AS_DATAFILE = 0x00000002
+RT_ICON = 3
+RT_VERSION = 16
 RT_MANIFEST = 24
 
 
 k32 = windll.kernel32
-k32.LockResource.restype = POINTER(c_char)
 
 # AFAIK 1033 is some sort of "default" language.
 # Is it (LANG_NEUTRAL,SUBLANG_NEUTRAL)?
 _DEFAULT_RESLANG = 1033
 
+
+def find_resource(filename_or_handle,res_type,res_id,res_lang=None):
+    """Locate a resource inside the given file or module handle.
+
+    This function returns a tuple (start,end) giving the location of the
+    specified resource inside the given module.
+
+    Currently this relies on the kernel32.LockResource function returning
+    a pointer based at the module handle; ideally we'd do our own parsing.
+    """ 
+    if res_lang is None:
+        res_lang = _DEFAULT_RESLANG
+    if isinstance(filename_or_handle,basestring):
+        filename = filename_or_handle
+        if not isinstance(filename,unicode):
+            filename = filename.decode(sys.getfilesystemencoding())
+        l_handle = k32.LoadLibraryExW(filename,None,LOAD_LIBRARY_AS_DATAFILE)
+        free_library = True
+    else:
+        l_handle = filename_or_handle
+        free_library = False
+    r_handle = k32.FindResourceExW(l_handle,res_type,res_id,res_lang)
+    if not r_handle:
+        raise WinError()
+    r_size = k32.SizeofResource(l_handle,r_handle)
+    if not r_size:
+        raise WinError()
+    r_info = k32.LoadResource(l_handle,r_handle)
+    if not r_info:
+        raise WinError()
+    r_ptr = k32.LockResource(r_info)
+    if not r_ptr:
+        raise WinError()
+    if free_library:
+        k32.FreeLibrary(l_handle)
+    return (r_ptr - l_handle + 1,r_ptr - l_handle + r_size + 1)
+    
 
 def load_resource(filename_or_handle,res_type,res_id,res_lang=_DEFAULT_RESLANG):
     """Load a resource from the given filename or module handle.
@@ -57,7 +97,7 @@ def load_resource(filename_or_handle,res_type,res_id,res_lang=_DEFAULT_RESLANG):
     r_ptr = k32.LockResource(r_info)
     if not r_ptr:
         raise WinError()
-    resource = r_ptr[0:r_size]
+    resource = ctypes.cast(r_ptr,POINTER(c_char))[0:r_size]
     if free_library:
         k32.FreeLibrary(l_handle)
     return resource
