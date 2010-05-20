@@ -151,7 +151,6 @@ def _chainload(target_dir):
       else:
           sys.modules.pop("esky",None)
           sys.modules.pop("esky.bootstrap",None)
-          # TODO: account for sys.executable being a backup file
           try:
               exec code in {"__name__":"__main__"}
           except zipimport.ZipImportError, e:

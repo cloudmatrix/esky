@@ -250,9 +250,11 @@ def _chainload(target_dir):
       except ImportError:
           pass
       try:
+          import nt
           import ctypes
           import struct
           import marshal
+          import msvcrt
       except ImportError:
           _orig_chainload(target_dir)
       # the source for esky.winres gets inserted below:
@@ -261,7 +263,7 @@ def _chainload(target_dir):
       try:
           data = load_resource(sys.executable,u"PYTHONSCRIPT",1,0)
       except EnvironmentError:
-          #  This will trigger is sys.executable doesn't exist.
+          #  This will trigger if sys.executable doesn't exist.
           #  Falling back to the original chainloader will account for
           #  the unlikely case where sys.executable is a backup file.
           _orig_chainload(target_dir)
@@ -271,10 +273,25 @@ def _chainload(target_dir):
           headsz = struct.calcsize("iiii")
           (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",data[:headsz])
           assert magic == 0x78563412
-          # TODO: what do I need to do for "optimized" and "unbuffered"?
-          # Do these matter for run-of-the-mill exes?
+          # Set up the environment requested by "optimized" and "unbuffered"
+          ctypes.c_int.in_dll(ctypes.pythonapi,"Py_OptimizeFlag").value = optmz
+          if unbfrd:
+              msvcrt.setmode(0,nt.O_BINARY)
+              msvcrt.setmode(1,nt.O_BINARY)
+              ctypes.pythonapi.PyFile_AsFile.argtypes = (ctypes.py_object,)
+              if hasattr(ctypes.cdll.msvcrt,"setvbuf"):
+                  def setunbuf(f):
+                      fp = ctypes.pythonapi.PyFile_AsFile(f)
+                      ctypes.cdll.msvcrt.setvbuf(fp,None,4,512)
+              else:
+                  def setunbuf(fd,mode):
+                      fp = ctypes.pythonapi.PyFile_AsFile(f)
+                      ctypes.cdll.msvcrt.setbuf(fp,None)
+              setunbuf(sys.stdin)
+              setunbuf(sys.stdout)
+              setunbuf(sys.stderr)
+          # skip over the archive name to find start of code
           codestart = headsz
-          # skip over the archive name
           while data[codestart] != "\\0":
               codestart += 1
           codestart += 1
