@@ -75,6 +75,24 @@ class TestEsky(unittest.TestCase):
     def test_esky_py2exe(self):
         """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
+    def test_esky_py2exe_bundle1(self):
+        """Build and launch a self-testing esky application using py2exe."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                            "freezer_options": {
+                                              "bundle_files": 1
+                                            }}})
+    def test_esky_py2exe_bundle2(self):
+        """Build and launch a self-testing esky application using py2exe."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                            "freezer_options": {
+                                              "bundle_files": 2
+                                            }}})
+    def test_esky_py2exe_bundle3(self):
+        """Build and launch a self-testing esky application using py2exe."""
+        self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                            "freezer_options": {
+                                              "bundle_files": 3
+                                            }}})
     if esky.helper.can_get_root():
         def test_esky_py2exe_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):

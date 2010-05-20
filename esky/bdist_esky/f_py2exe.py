@@ -20,6 +20,7 @@ import struct
 import shutil
 import inspect
 import zipfile
+import ctypes
 from glob import glob
 
 
@@ -136,6 +137,9 @@ def freeze(dist):
         if not os.path.isdir(dstdir):
             dist.mkpath(dstdir)
         dist.copy_file(src,dst)
+    #  Place a marker fileso we know how it was frozen
+    marker_file = "esky-f-py2exe-%d%d.txt" % sys.version_info[:2]
+    open(os.path.join(dist.freeze_dir,marker_file),"w").close()
     #  Copy package data into the library.zip
     #  For now, we don't try to put package data into a bundled zipfile.
     if dist.distribution.zipfile is not None:
@@ -171,19 +175,41 @@ def freeze(dist):
                      False,  # normal buffered output
                      len(code),
                      ) + "\000" + code + "\000"
-    #  We bundle the python DLL into all bootstrap executables, even if it's
-    #  not bundled in the frozen distribution.  This helps keep the bootstrap
-    #  env small and minimises the chances of something going wrong.
+    #  We try to bundle the python DLL into all bootstrap executables, even
+    #  if it's not bundled in the frozen distribution.  This helps keep the
+    #  bootstrap env small and minimises the chances of something going wrong.
     pydll = u"python%d%d.dll" % sys.version_info[:2]
     frozen_pydll = os.path.join(dist.freeze_dir,pydll)
     if os.path.exists(frozen_pydll):
-        with open(frozen_pydll,"rb") as f:
-            pydll_bytes = f.read()
+        for nm in os.listdir(dist.freeze_dir):
+            if nm == pydll:
+                continue
+            if nm.lower().endswith(".pyd") or nm.lower().endswith(".dll"):
+                #  There's an unbundled C-extension, so we can't bundle
+                #  the DLL  or our bootstrapper won't work.
+                pydll_bytes = None
+                break
+        else:
+            with open(frozen_pydll,"rb") as f:
+                pydll_bytes = f.read()
     else:
-        pydll_bytes = None
+        #  They've bundlded the dll into the zipfile.  Rather than parse
+        #  it back out, I'm just going to grab it from the filesystem.
+        sz = 0
+        res = 0
+        while res == sz:
+            sz += 512
+            buf = ctypes.create_string_buffer(sz)
+            res = ctypes.windll.kernel32.GetModuleFileNameA(sys.dllhandle,ctypes.byref(buf),sz)
+            if not res:
+                raise ctypes.WinError()
+        with open(buf.value,"rb") as f:
+            pydll_bytes = f.read()
     #  Copy any core dependencies into the bootstrap env.
     for nm in os.listdir(dist.freeze_dir):
-        if is_core_dependency(nm) and nm != pydll:
+        if is_core_dependency(nm):
+            if nm == pydll and pydll_bytes is not None:
+                continue
             dist.copy_to_bootstrap_env(nm)
     #  Copy the loader program for each script into the bootstrap env.
     for exe in dist.get_executables():
@@ -199,7 +225,6 @@ def freeze(dist):
         #  Inline the pythonXY.dll as a resource in the exe.
         if pydll_bytes is not None:
             winres.add_resource(exepath,pydll_bytes,pydll.upper(),1,0)
-
 
 #  Code to fake out any bootstrappers that try to import from esky.
 _FAKE_ESKY_BOOTSTRAP_MODULE = """
@@ -225,18 +250,23 @@ def _chainload(target_dir):
   # Grab it here to avoid UnboundLocal errors
   import sys
   # careful to escape percent-sign, this gets interpolated below
+  marker_file = "esky-f-py2exe-%%d%%d.txt" %% sys.version_info[:2]
   pydll = "python%%s%%s.dll" %% sys.version_info[:2]
   mydir = dirname(sys.executable)
-  if not exists(pathjoin(target_dir,pydll)):
+  if not exists(pathjoin(target_dir,marker_file)):
       _orig_chainload(target_dir)
   else:
       for nm in listdir(target_dir):
           if nm == pydll:
               continue
           if nm.lower().endswith(".pyd") or nm.lower().endswith(".dll"):
-              #  The freeze dir contains unbundled C extensions.  We can't
-              #  chainload them since they're linked against a physical pydll
-              _orig_chainload(target_dir)
+              #  The freeze dir contains unbundled C extensions.
+              #  Since they're linked against a physical python DLL, we
+              #  can't chainload them unless we have one too.
+              if not exists(pathjoin(mydir,pydll)):
+                  _orig_chainload(target_dir)
+              else:
+                  break
       sys.bootstrap_executable = sys.executable
       sys.executable = pathjoin(target_dir,basename(sys.executable))
       sys.argv[0] = sys.executable
@@ -274,7 +304,11 @@ def _chainload(target_dir):
           (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",data[:headsz])
           assert magic == 0x78563412
           # Set up the environment requested by "optimized" and "unbuffered"
-          ctypes.c_int.in_dll(ctypes.pythonapi,"Py_OptimizeFlag").value = optmz
+          try:
+              opt_var = ctypes.c_int.in_dll(ctypes.pythonapi,"Py_OptimizeFlag")
+              opt_var.value = optmz
+          except ValueError:
+              pass
           if unbfrd:
               msvcrt.setmode(0,nt.O_BINARY)
               msvcrt.setmode(1,nt.O_BINARY)
