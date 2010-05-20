@@ -1,7 +1,4 @@
 
- * during bootstrap, remove ".old" from the executable name and try again
-   instead of giving up. This will allow users to manually execute prog.old.exe
-   on the off chance that it gets left behind without the corresponding prog.exe
  * in-place upgrade of resources in executable files
     * with a separate wrapper program that can be spawned to modify
       the in-use executable 
