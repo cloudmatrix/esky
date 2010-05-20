@@ -508,6 +508,10 @@ class Esky(object):
         """Fetch the specified updated version of the app."""
         if self.version_finder is None:
             raise NoVersionFinderError
+        #  Guard against malicious input (might be called with root privs)
+        target = join_app_version(self.name,version,self.platform)
+        target = os.path.join(self.appdir,target)
+        assert os.path.dirname(target) == self.appdir
         #  Get the new version using the VersionFinder
         loc = self.version_finder.has_version(self,version)
         if not loc:
@@ -528,6 +532,8 @@ class Esky(object):
         #  Extract update then rename into position in main app directory
         target = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target)
+        #  Guard against malicious input (might be called with root privs)
+        assert os.path.dirname(target) == self.appdir
         if not os.path.exists(target):
             self.fetch_version(version)
             source = self.version_finder.has_version(self,version)
@@ -537,18 +543,7 @@ class Esky(object):
                 os.rename(source,target)
             trn = FSTransaction()
             try:
-                #  Move new bootrapping environment into main app dir.
-                #  Be sure to move dependencies before executables.
-                bootstrap = os.path.join(target,"esky-bootstrap")
-                with open(os.path.join(target,"esky-bootstrap.txt"),"rt") as f:
-                    for nm in f:
-                        nm = nm.strip()
-                        bssrc = os.path.join(bootstrap,nm)
-                        bsdst = os.path.join(self.appdir,nm)
-                        if os.path.exists(bssrc):
-                            trn.move(bssrc,bsdst)
-                #  Remove the bootstrap dir; the new version is now installed
-                trn.remove(bootstrap)
+                self._unpack_bootstrap_env(version,trn)
             except Exception:
                 trn.abort()
                 raise
@@ -557,11 +552,29 @@ class Esky(object):
         finally:
             self.unlock()
 
+    def _unpack_bootstrap_env(self,version,trn):
+        """Unpack the bootstrap env from the given target directory."""
+        vdir = join_app_version(self.name,version,self.platform)
+        target = os.path.join(self.appdir,vdir)
+        assert os.path.dirname(target) == self.appdir
+        #  Move new bootrapping environment into main app dir.
+        #  Be sure to move dependencies before executables.
+        bootstrap = os.path.join(target,"esky-bootstrap")
+        for nm in self._version_manifest(vdir):
+            bssrc = os.path.join(bootstrap,nm)
+            bsdst = os.path.join(self.appdir,nm)
+            if os.path.exists(bssrc):
+                trn.move(bssrc,bsdst)
+        #  Remove the bootstrap dir; the new version is now installed
+        trn.remove(bootstrap)
+
     @use_helper_app
     def uninstall_version(self,version): 
         """Uninstall the specified version of the app."""
         target_name = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target_name)
+        #  Guard against malicious input (might be called with root privs)
+        assert os.path.dirname(target) == self.appdir
         lockfile = os.path.join(target,"esky-lockfile.txt")
         bsfile = os.path.join(target,"esky-bootstrap.txt")
         bsfile_old = os.path.join(target,"esky-bootstrap-old.txt")
@@ -574,24 +587,7 @@ class Esky(object):
             try:
                 trn = FSTransaction()
                 try:
-                    #  Get set of all files that must stay in the main appdir
-                    to_keep = set()
-                    for vname in os.listdir(self.appdir):
-                        if vname == target_name:
-                            continue
-                        details = split_app_version(vname)
-                        if details[0] != self.name:
-                            continue
-                        if parse_version(details[1]) < parse_version(version):
-                            continue
-                        to_keep.update(self._version_manifest(vname))
-                    #  Remove files used only by the version being removed
-                    to_rem = self._version_manifest(target_name) - to_keep
-                    for nm in to_rem:
-                        fullnm = os.path.join(self.appdir,nm)
-                        if os.path.exists(fullnm):
-                            trn.remove(fullnm)
-                        # TODO: also remove any empty directories
+                    self._cleanup_bootstrap_env(version,trn)
                 except Exception:
                     trn.abort()
                     raise
@@ -609,7 +605,7 @@ class Esky(object):
             if sys.platform == "win32":
                 try:
                     with open(lockfile,"w"):
-                        os.rename(lockfile,lockfile_uninst)
+                        os.rename(bsfile,bsfile_old)
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
             else:
@@ -629,18 +625,47 @@ class Esky(object):
         finally:
             self.unlock()
 
+    def _cleanup_bootstrap_env(self,version,trn):
+        """Cleanup the bootstrap env populated by the given version."""
+        target_name = join_app_version(self.name,version,self.platform)
+        #  Get set of all files that must stay in the main appdir
+        to_keep = set()
+        for vname in os.listdir(self.appdir):
+            if vname == target_name:
+                continue
+            details = split_app_version(vname)
+            if details[0] != self.name:
+                continue
+            if parse_version(details[1]) < parse_version(version):
+                continue
+            to_keep.update(self._version_manifest(vname))
+        #  Remove files used only by the version being removed
+        to_rem = self._version_manifest(target_name) - to_keep
+        for nm in to_rem:
+            fullnm = os.path.join(self.appdir,nm)
+            if os.path.exists(fullnm):
+                trn.remove(fullnm)
+
     def _version_manifest(self,vdir):
         """Get the bootstrap manifest for the given version directory.
 
         This is the set of files/directories that the given version expects
-        to be in the main app directory
+        to be in the main app directory.
         """
         mpath = os.path.join(self.appdir,vdir,"esky-bootstrap.txt")
+        manifest = set()
         try:
             with open(mpath,"rt") as mf:
-                return set(ln.strip() for ln in mf)
+                for ln in mf:
+                    #  Guard against malicious input, since we might try
+                    #  to manipulate these files with root privs.
+                    nm = os.path.normpath(ln.strip())
+                    assert not os.path.isabs(nm)
+                    assert not nm.startswith("..")
+                    manifest.add(nm)
         except IOError:
-            return set()
+            pass
+        return manifest
 
 
 
