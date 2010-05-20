@@ -594,18 +594,14 @@ class Esky(object):
                 else:
                     trn.commit()
             except EnvironmentError:
-                try:
-                    open(lockfile,"w").close()
-                except EnvironmentError:
+                if is_locked_version_dir(target):
                     raise VersionLockedError("version in use: %s" % (version,))
-                else:
-                    raise
+                raise
             #  Disable the version by renaming its esky-bootstrap.txt file.
             #  To avoid clobbering in-use version, respect locks on this file.
             if sys.platform == "win32":
                 try:
-                    with open(lockfile,"w"):
-                        os.rename(bsfile,bsfile_old)
+                    os.rename(bsfile,bsfile_old)
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
             else:

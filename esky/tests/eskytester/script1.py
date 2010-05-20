@@ -5,6 +5,7 @@ import os
 import sys
 import time
 
+
 import esky
 import esky.util
 
@@ -21,7 +22,6 @@ assert app.active_version == "0.1"
 assert app.version == "0.1"
 assert app.find_update() == "0.3"
 assert os.path.isfile(eskytester.script_path(app,"script1"))
-
 
 #  Test that the script is executed with sensible globals etc, so
 #  it can create classes and other "complicated" things
@@ -59,10 +59,10 @@ else:
             if hasattr(proc,"terminate"):
                 proc.terminate()
             else:
-                if sys.platform == "win32":
-                    ctypes.windll.kernel32.TerminateProcess(int(proc._handle),-1)
-                else:
-                    os.kill(proc.pid,signal.SIGTERM)
+               if sys.platform == "win32":
+                  ctypes.windll.kernel32.TerminateProcess(int(proc._handle),-1)
+               else:
+                  os.kill(proc.pid,signal.SIGTERM)
     spawn_busy_loop(app)
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
@@ -84,6 +84,7 @@ assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_pl
 assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform(),"esky-bootstrap.txt"))
 
 #  Check that we can't uninstall a version that's in use.
+assert esky.util.is_locked_version_dir(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform()))
 try:
     app.uninstall_version("0.1")
 except esky.VersionLockedError:

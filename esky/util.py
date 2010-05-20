@@ -11,6 +11,7 @@ import re
 import sys
 import shutil
 import zipfile
+import errno
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -18,11 +19,12 @@ except ImportError:
 
 from distutils.util import get_platform as _distutils_get_platform
 
-from esky.bootstrap import get_best_version, get_all_versions, \
-                           is_version_dir, is_installed_version_dir, \
-                           is_uninstalled_version_dir, \
+from esky.bootstrap import get_best_version, get_all_versions,\
+                           is_version_dir, is_installed_version_dir,\
+                           is_uninstalled_version_dir,\
                            split_app_version, join_app_version, parse_version,\
-                           get_original_filename
+                           get_original_filename, lock_version_dir,\
+                           unlock_version_dir, fcntl
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 
 
@@ -179,4 +181,29 @@ def get_backup_filename(filename):
         parts.insert(-1,"old")
         backname = os.path.join(parent,".".join(parts))
     return backname
+
+
+def is_locked_version_dir(vdir):
+    """Check whether the given version dir is locked."""
+    if sys.platform == "win32":
+        lockfile = os.path.join(vdir,"esky-bootstrap.txt")
+        try:
+            os.rename(lockfile,lockfile)
+        except EnvironmentError:
+            return True
+        else:
+            return False
+    else:
+        lockfile = os.path.join(vdir,"esky-lockfile.txt")
+        f = open(lockfile,"r")
+        try:
+            fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except EnvironmentError, e:
+            if e.errno not in (errno.EACCES,errno.EAGAIN,):
+                raise
+            return True
+        else:
+            return False
+        finally:
+            f.close()
 

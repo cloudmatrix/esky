@@ -22,7 +22,9 @@ use during the bootstrap process:
   Chainloading:         execv, chainload
   Filesystem:           listdir, exists, basename, dirname, pathjoin
   Version handling:     split_app_version, join_app_version, parse_version,
-                        get_all_versions, get_best_version
+                        get_all_versions, get_best_version, is_version_dir,
+                        is_installed_version_dir, is_uninstalled_version_dir,
+                        lock_version_dir, unlock_version_dir
 
 
 """
@@ -115,26 +117,12 @@ def chainload(target_dir):
     it will not be removed by any simultaneously-running instances of the
     application.
     """
-    #  This global will hold the locked file to keep it open during execution.
-    global _version_dir_lockfile
-    lockfile = pathjoin(target_dir,"esky-lockfile.txt")
     try:
-        #  On windows, holding the file open is enough to lock it.
-        #  On other platforms, try for a shared lock using fcntl.flock.
-        #  While fcntl.fcntl locks are apparently the new hotness, they have
-        #  unfortunate semantics that we don't want for this application:
-        #      * LOCK_EX requires write access to the file
-        #      * not inherited across fork()
-        #      * released when closing *any* fd associated with that file
-        #  fcntl.flock doesn't have these problems, but may fail on NFS.
-        #  I'll wait for the bug reports to come in on that one...
-        _version_dir_lockfile = open(lockfile,"r")
-        if fcntl is not None:
-            fcntl.flock(_version_dir_lockfile,fcntl.LOCK_SH)
+        lock_version_dir(target_dir)
     except EnvironmentError:
-        #  If the lockfile has gone missing, the version is being uninstalled.
+        #  If the bootstrap file is missing, the version is being uninstalled.
         #  Our only option is to re-execute ourself and find the new version.
-        if exists(lockfile):
+        if exists(pathjoin(target_dir,"esky-bootstrap.txt")):
             raise
         execv(sys.executable,sys.argv)
     else:
@@ -356,4 +344,32 @@ def get_original_filename(backname):
         if filtered == ".".join(filter(lambda n: n != "old",nm.split("."))):
             return pathjoin(dirname(backname),nm)
     return None
+
+
+_locked_version_dirs = {}
+
+def lock_version_dir(vdir):
+    """Lock the given version dir so it cannot be uninstalled."""
+    if sys.platform == "win32":
+        #  On win32, we just hold bootstrap file open for reading.
+        #  This will prevent it from being renamed during uninstall.
+        lockfile = pathjoin(vdir,"esky-bootstrap.txt")
+        _locked_version_dirs.setdefault(vdir,[]).append(open(lockfile,"rt"))
+    else:
+        #  On posix platforms we take a shared flock on esky-lockfile.txt.
+        #  While fcntl.fcntl locks are apparently the new hotness, they have
+        #  unfortunate semantics that we don't want for this application:
+        #      * not inherited across fork()
+        #      * released when closing *any* fd associated with that file
+        #  fcntl.flock doesn't have these problems, but may fail on NFS.
+        #  To complicate matters, python sometimes emulated flock with fcntl!
+        #  We therefore use a separate lock file to avoid unpleasantness.
+        lockfile = pathjoin(vdir,"esky-lockfile.txt")
+        f = open(lockfile,"r")
+        _locked_version_dirs.setdefault(vdir,[]).append(f)
+        fcntl.flock(f,fcntl.LOCK_SH)
+
+def unlock_version_dir(vdir):
+    """Unlock the given version dir, allowing it to be uninstalled."""
+    _locked_version_dirs[vdir].pop().close()
 

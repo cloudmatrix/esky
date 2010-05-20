@@ -5,6 +5,14 @@ v0.6.1:
       will help protect against strange behaviour when fcntl.flock is
       simulated using fcntl.lockf (which released the lock when *any* handle
       to the file is closed)
+    * Implemented multiple safeguards against malicious input when running
+      with root privileges.
+    * Try to load correctly if executed from a temporary backup file
+      (e.g. running from "prog.old.exe" instead of "prog.exe")
+    * Several improvements to py2exe support:
+        * implemented "optimize" and "unbuffered" settings in the custom
+	  bootstrap code
+        * more robust support for the various bundle_files options
 
 v0.6.0:
 
