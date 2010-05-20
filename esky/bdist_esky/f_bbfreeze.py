@@ -152,7 +152,15 @@ def _chainload(target_dir):
           sys.modules.pop("esky",None)
           sys.modules.pop("esky.bootstrap",None)
           # TODO: account for sys.executable being a backup file
-          exec code in {"__name__":"__main__"}
+          try:
+              exec code in {"__name__":"__main__"}
+          except zipimport.ZipImportError, e:
+              #  If it can't find the __main__{sys.executable} script,
+              #  the user might be running from a backup exe file.
+              #  Fall back to original chainloader to attempt workaround.
+              if e.message.startswith("can't find module '__main__"):
+                  _orig_chainload(target_dir)
+              raise
           sys.exit(0)
 """
 
