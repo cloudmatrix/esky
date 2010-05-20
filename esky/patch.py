@@ -843,7 +843,9 @@ class Differ(object):
     def _diff_file(self,source,target):
         """Generate patch commands for when the target is a file."""
         if paths_differ(source,target):
-            if target.endswith(".zip") and source.endswith(".zip"):
+            if not os.path.isfile(source):
+                self._diff_binary_file(source,target)
+            elif target.endswith(".zip") and source.endswith(".zip"):
                 self._diff_dotzip_file(source,target)
             else:
                 self._diff_binary_file(source,target)
