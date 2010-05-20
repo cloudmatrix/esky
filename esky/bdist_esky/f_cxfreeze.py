@@ -125,7 +125,7 @@ def freeze(dist):
 def _normalise_opt_name(nm):
     """Normalise option names for cx_Freeze.
 
-    This allows people to specicy options named like "opt-name" and have
+    This allows people to specify options named like "opt-name" and have
     them converted to the "optName" format used internally by cx_Freeze.
     """
     bits = nm.split("-")
@@ -169,8 +169,15 @@ def _chainload(target_dir):
               EXCLUSIVE_ZIP_FILE_NAME = EXCLUSIVE_ZIP_FILE_NAME.replace(mydir,target_dir)
               SHARED_ZIP_FILE_NAME = SHARED_ZIP_FILE_NAME.replace(mydir,target_dir)
               INITSCRIPT_ZIP_FILE_NAME = init_path
-              # TODO: account for sys.executable being a backup file
-              exec code in globals()
+              try:
+                  exec code in globals()
+              except zipimport.ZipImportError, e:
+                  #  If it can't find the __main__{sys.executable} script,
+                  #  the user might be running from a backup exe file.
+                  #  Fall back to original chainloader to attempt workaround.
+                  if e.message.endswith("__main__'"):
+                      _orig_chainload(target_dir)
+                  raise
               sys.exit(0)
       else:
           _orig_chainload(target_dir)
