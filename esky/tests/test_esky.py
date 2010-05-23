@@ -548,6 +548,28 @@ class TestPatch(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.workdir)
 
+    def test_patch_bigfile(self):
+        tdir = tempfile.mkdtemp()
+        try:
+            data = [os.urandom(100)*10 for i in xrange(6)]
+            for nm in ("source","target"):
+                with open(os.path.join(tdir,nm),"wb") as f:
+                    for i in xrange(1000):
+                        for chunk in data:
+                            f.write(chunk)
+                data[2],data[3] = data[3],data[2]
+            with open(os.path.join(tdir,"patch"),"wb") as f:
+                esky.patch.write_patch(os.path.join(tdir,"source"),os.path.join(tdir,"target"),f)
+            dgst1 = esky.patch.calculate_digest(os.path.join(tdir,"target"))
+            dgst2 = esky.patch.calculate_digest(os.path.join(tdir,"source"))
+            self.assertNotEquals(dgst1,dgst2)
+            with open(os.path.join(tdir,"patch"),"rb") as f:
+                esky.patch.apply_patch(os.path.join(tdir,"source"),f)
+            dgst3 = esky.patch.calculate_digest(os.path.join(tdir,"source"))
+            self.assertEquals(dgst1,dgst3)
+        finally:
+            shutil.rmtree(tdir)
+
     def test_diffing_back_and_forth(self):
         for (tf1,_) in self._TEST_FILES:
             for (tf2,_) in self._TEST_FILES:

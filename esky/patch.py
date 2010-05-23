@@ -929,6 +929,7 @@ class Differ(object):
         about the file to do anything fancier.  It's basically a windowed
         bsdiff.
         """
+        spos = 0
         tfile = open(target,"rb")
         if os.path.isfile(source):
             sfile = open(source,"rb")
@@ -954,12 +955,18 @@ class Differ(object):
                         i += 1
                     #  Copy it in directly, unless it's tiny.
                     if i > 8:
+                        skipbytes = sfile.tell() - len(sdata) - spos
+                        if skipbytes > 0:
+                            self._write_command(PF_SKIP)
+                            self._write_int(skipbytes)
+                            spos += skipbytes
                         self._write_command(PF_COPY)
                         self._write_int(i)
                         tdata = tdata[i:]; sdata = sdata[i:]
+                        spos += i
                     #  Write the rest of the block as a diff
                     if tdata:
-                        self._write_file_patch(sdata,tdata)
+                        spos += self._write_file_patch(sdata,tdata)
                     tdata = tfile.read(self.diff_window_size)
         finally:
             tfile.close()
@@ -1011,23 +1018,24 @@ class Differ(object):
         """
         options = []
         #  We could just include the raw data
-        options.append((PF_INS_RAW,tdata))
+        options.append((0,PF_INS_RAW,tdata))
         #  We could bzip2 the raw data
-        options.append((PF_INS_BZ2,bz2.compress(tdata)))
+        options.append((0,PF_INS_BZ2,bz2.compress(tdata)))
         #  We could bsdiff4 the data, if we have cx-bsdiff installed
         if cx_bsdiff is not None:
             # remove the 8 header bytes, we know it's BSDIFF4 format
-           options.append((PF_BSDIFF4,len(sdata),bsdiff4_diff(sdata,tdata)[8:]))
+           options.append((len(sdata),PF_BSDIFF4,len(sdata),bsdiff4_diff(sdata,tdata)[8:]))
         #  Find the option with the smallest data and use that.
         options = [(len(cmd[-1]),cmd) for cmd in options]
         options.sort()
         best_option = options[0][1]
-        self._write_command(best_option[0])
-        for arg in best_option[1:]:
+        self._write_command(best_option[1])
+        for arg in best_option[2:]:
             if isinstance(arg,(str,unicode,bytes)):
                 self._write_bytes(arg)
             else:
                 self._write_int(arg)
+        return best_option[0]
 
 
 class _tempdir(object):

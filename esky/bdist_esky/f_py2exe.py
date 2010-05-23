@@ -212,7 +212,7 @@ def freeze(dist):
                 continue
             dist.copy_to_bootstrap_env(nm)
     #  Copy the loader program for each script into the bootstrap env.
-    for exe in dist.get_executables():
+    for exe in dist.get_executables(rewrite=False):
         if not exe.include_in_bootstrap_env:
             continue
         exepath = dist.copy_to_bootstrap_env(exe.name)

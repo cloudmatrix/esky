@@ -1,5 +1,4 @@
 
- * move TestableEsky into the "tests" package
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * in-place upgrade of resources in executable files
     * with a separate wrapper program that can be spawned to modify
