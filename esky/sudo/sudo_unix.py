@@ -46,7 +46,7 @@ class SecureStringPipe(base.SecureStringPipe):
     message-hashing token, which we pass to the slave in its env vars.
     """
 
-    def __init__(self,token="",data=None):
+    def __init__(self,token=None,data=None):
         super(SecureStringPipe,self).__init__(token)
         self.rfd = None
         self.wfd = None
@@ -140,6 +140,9 @@ def spawn_sudo(proxy):
     # Pass the pipe in environment vars, they seem to be harder to snoop.
     env = os.environ.copy()
     env["ESKY_SUDO_PIPE"] = b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))
+    if sys.version_info[0] > 2:
+        #  Python3 doesn't like bytestrings in the env dict
+        env["ESKY_SUDO_PIPE"] = env["ESKY_SUDO_PIPE"].decode("ascii")
     # Spawn the subprocess
     kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True,env=env)
     subprocess.Popen(exe,**kwds)

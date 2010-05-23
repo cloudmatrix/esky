@@ -53,7 +53,9 @@ class SecureStringPipe(object):
     immediately closed and a RuntimeError geing generated.
     """
 
-    def __init__(self,token=""):
+    def __init__(self,token=None):
+        if token is None:
+            token = os.urandom(16)
         self.token = token
         self.connected = False
 

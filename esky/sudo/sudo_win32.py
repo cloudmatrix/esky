@@ -219,7 +219,7 @@ class SecureStringPipe(base.SecureStringPipe):
     root privs; it *shouldn't* be sufficient to crack root on the machine...
     """
 
-    def __init__(self,token="",pipename=None):
+    def __init__(self,token=None,pipename=None):
         super(SecureStringPipe,self).__init__(token)
         if pipename is None:
             self.pipename = r"\\.\pipe\esky-" + uuid.uuid4().hex
