@@ -5,6 +5,7 @@ import os
 import sys
 import esky
 import esky.util
+import esky.tests
 
 platform = esky.util.get_platform()
 
@@ -16,7 +17,7 @@ eskytester.yes_my_data_is_installed()
 
 #  Test that we're at the best possible version
 assert sys.frozen
-app = esky._TestableEsky(sys.executable,"http://localhost:8000/dist/")
+app = esky.tests.TestableEsky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.active_version == app.version == "0.3"
 assert app.find_update() is None

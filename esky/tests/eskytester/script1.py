@@ -7,6 +7,7 @@ import time
 
 
 import esky
+import esky.tests
 import esky.util
 
 #  Test that the frozen app is actually working
@@ -16,7 +17,7 @@ eskytester.yes_my_deps_are_working()
 eskytester.yes_my_data_is_installed()
 
 assert sys.frozen
-app = esky._TestableEsky(sys.executable,"http://localhost:8000/dist/")
+app = esky.tests.TestableEsky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.active_version == "0.1"
 assert app.version == "0.1"
