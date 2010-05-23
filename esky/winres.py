@@ -135,3 +135,14 @@ def get_app_manifest(filename_or_handle=None):
     return load_resource(filename_or_handle,RT_MANIFEST,1)
 
 
+def is_safe_to_overwrite(source,target):
+    """Check whether it is safe to overwrite target exe with source exe.
+
+    This function checks whether two exe files 'source' and 'target' differ
+    only in the contents of certain non-critical resource segments.  If so,
+    then overwriting the target file with the contents of the source file
+    should be safe even in the face of system crashes or power outages; the
+    worst outcome would be a corrupted resource such as an icon.
+    """
+    return False
+

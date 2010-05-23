@@ -21,6 +21,7 @@ import re
 import sys
 import shutil
 import zipfile
+import tempfile
 from glob import glob
 
 import distutils.command
@@ -149,6 +150,9 @@ class bdist_esky(Command):
         bootstrap_module:  a custom module to use for esky bootstrapping;
                            the default calls esky.bootstrap.common.bootstrap()
 
+        dont_run_startup_hooks:  don't force all executables to call
+                                 esky.run_startup_hooks() on startup.
+
         bundle_msvcrt:  whether to bundle the MSVCRT DLLs, manifest files etc
                         as a private assembly.  The default is False; only
                         those with a valid license to redistriute these files
@@ -173,9 +177,11 @@ class bdist_esky(Command):
                      "list of modules to specifically include"),
                     ('excludes=', None,
                      "list of modules to specifically exclude"),
+                    ('dont-run-startup-hooks=', None,
+                     "don't force execution of esky.run_startup_hooks()"),
                    ]
 
-    boolean_options = ["bundle-msvcrt"]
+    boolean_options = ["bundle-msvcrt","dont-run-startup-hooks"]
 
     def initialize_options(self):
         self.dist_dir = None
@@ -184,6 +190,7 @@ class bdist_esky(Command):
         self.freezer_module = None
         self.freezer_options = {}
         self.bundle_msvcrt = False
+        self.dont_run_startup_hooks = False
         self.bootstrap_module = None
 
     def finalize_options(self):
@@ -213,6 +220,13 @@ class bdist_esky(Command):
 
 
     def run(self):
+        self.tempdir = tempfile.mkdtemp()
+        try:
+            self._run()
+        finally:
+            shutil.rmtree(self.tempdir)
+
+    def _run(self):
         #  Create the dirs into which to freeze the app
         fullname = self.distribution.get_fullname()
         platform = get_platform()
@@ -232,18 +246,48 @@ class bdist_esky(Command):
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
         create_zipfile(self.bootstrap_dir,zfname,compress=True)
         shutil.rmtree(self.bootstrap_dir)
+        
 
-    def get_executables(self):
-        """Yield an Executable instance for each script to be frozen."""
+    def get_executables(self,rewrite=True):
+        """Yield an Executable instance for each script to be frozen.
+
+        If "rewrite" is True (the default) then the user-provided scripts
+        will be rewritten to include the esky startup code.  If the freezer
+        has a better way of doing that, it should pass rewrite=False.
+        """
+        if rewrite and not os.path.exists(os.path.join(self.tempdir,"scripts")):
+            os.mkdir(os.path.join(self.tempdir,"scripts"))
         if self.distribution.has_scripts():
             for s in self.distribution.scripts:
                 if isinstance(s,Executable):
-                    yield s
+                    exe = s
                 else:
-                    yield Executable(s)
-            #  Include the esky helper app in all distributions
-            h = os.path.join(os.path.dirname(__file__),"../helper/__main__.py")
-            yield Executable(h,name="esky-update-helper",gui_only=True)
+                    exe = Executable(s)
+                if rewrite:
+                    name = exe.name
+                    if sys.platform == "win32" and name.endswith(".exe"):
+                        name = name[:-4]
+                    script = os.path.join(self.tempdir,"scripts",name+".py")
+                    with open(exe.script,"rt") as fIn:
+                        with open(script,"wt") as fOut:
+                            for ln in fIn:
+                                if ln.strip():
+                                    if not ln.strip().startswith("#"):
+                                        if "__future__" not in ln:
+                                            break
+                                fOut.write(ln)
+                            if not self.dont_run_startup_hooks:
+                                fOut.write("import esky\n")
+                                fOut.write("esky.run_startup_hooks()\n")
+                                fOut.write("\n")
+                            fOut.write(ln)
+                            for ln in fIn:
+                                fOut.write(ln)
+                    new_exe = Executable(script)
+                    new_exe.__dict__.update(exe.__dict__)
+                    new_exe.script = script
+                    exe = new_exe
+                yield exe
 
     def get_data_files(self):
         """Yield (source,destination) tuples for data files.

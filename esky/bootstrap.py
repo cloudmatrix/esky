@@ -42,6 +42,11 @@ elif "nt" in sys.builtin_module_names:
     fcntl = None
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
     SEP = "\\"
+    #  The standard execv terminates the spawning process, which makes
+    #  it impossible to wait for it.  This alternative is waitable, but
+    #  risks leaving zombie children if it is killed externally.
+    #  TODO: some way to kill children when this is killed - should be doable
+    #        with some custom code in child startup.
     def execv(filename,args):
         res = spawnv(P_WAIT,filename,args)
         raise SystemExit(res)

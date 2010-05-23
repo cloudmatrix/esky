@@ -23,7 +23,7 @@ from distutils import dir_util
 
 import esky
 import esky.patch
-import esky.helper
+import esky.sudo
 from esky import bdist_esky
 from esky.util import extract_zipfile, get_platform
 from esky.fstransact import FSTransaction
@@ -73,54 +73,47 @@ class TestEsky(unittest.TestCase):
 
   if py2exe is not None:
     def test_esky_py2exe(self):
-        """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
     def test_esky_py2exe_bundle1(self):
-        """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "bundle_files": 1
                                             }}})
     def test_esky_py2exe_bundle2(self):
-        """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "bundle_files": 2
                                             }}})
     def test_esky_py2exe_bundle3(self):
-        """Build and launch a self-testing esky application using py2exe."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "bundle_files": 3
                                             }}})
-    if esky.helper.can_get_root():
+    if esky.sudo.can_get_root():
         def test_esky_py2exe_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
   if py2app is not None:
     def test_esky_py2app(self):
-        """Build and launch a self-testing esky application using py2app."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
-    if esky.helper.can_get_root():
+    if esky.sudo.can_get_root():
         def test_esky_py2app_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
 
   if bbfreeze is not None:
     def test_esky_bbfreeze(self):
-        """Build and launch a self-testing esky application using bbfreeze."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
-    if esky.helper.can_get_root():
+    if esky.sudo.can_get_root():
         def test_esky_bbfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
 
   if cx_Freeze is not None:
     def test_esky_cxfreeze(self):
-        """Build and launch a self-testing esky application using cx_Freeze."""
         self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
-    if esky.helper.can_get_root():
+    if esky.sudo.can_get_root():
         def test_esky_cxfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
@@ -162,6 +155,21 @@ class TestEsky(unittest.TestCase):
         dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options=options2,script_args=["bdist_esky"],**metadata)
         dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],options=options,script_args=["bdist_esky_patch"],**metadata)
         os.unlink(os.path.join("dist","eskytester-0.3.%s.zip"%(platform,)))
+        #  Check that the patches apply cleanly
+        tdir = tempfile.mkdtemp()
+        try:
+            extract_zipfile(os.path.join("dist","eskytester-0.1.%s.zip"%(platform,)),tdir)
+            with open(os.path.join("dist","eskytester-0.3.%s.from-0.1.patch"%(platform,)),"rb") as f:
+                esky.patch.apply_patch(tdir,f)
+        finally:
+            shutil.rmtree(tdir)
+        tdir = tempfile.mkdtemp()
+        try:
+            extract_zipfile(os.path.join("dist","eskytester-0.2.%s.zip"%(platform,)),tdir)
+            with open(os.path.join("dist","eskytester-0.3.%s.from-0.2.patch"%(platform,)),"rb") as f:
+                esky.patch.apply_patch(tdir,f)
+        finally:
+            shutil.rmtree(tdir)
         #  Serve the updates at http://localhost:8000/dist/
         print "running local update server"
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
@@ -187,9 +195,9 @@ class TestEsky(unittest.TestCase):
                 cmd2 = os.path.join(deploydir,"script2")
                 cmd3 = os.path.join(deploydir,"script3")
         print "spawning eskytester script1", options["bdist_esky"]["freezer_module"]
-        p = subprocess.Popen(cmd1,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        (stdout,_) = p.communicate()
-        sys.stdout.write(stdout.decode())
+        p = subprocess.Popen(cmd1)#,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        #(stdout,_) = p.communicate()
+        #sys.stdout.write(stdout.decode())
         p.wait()
         assert p.returncode == 0
         assert os.path.exists("tests-completed")

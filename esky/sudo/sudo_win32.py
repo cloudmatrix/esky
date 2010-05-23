@@ -1,6 +1,11 @@
 """
 
-  esky.helper.helper_win32:  platform-specific functionality for esky.helper
+  esky.sudo.sudo_win32:  win32 platform-specific functionality for esky.sudo
+
+
+This module implements the esky.sudo interface using ctypes bindings to the
+native win32 API.  In particular, it uses the "runas" verb technique to
+launch a process with administrative rights on Windows Vista and above.
 
 """
 
@@ -9,15 +14,16 @@ import sys
 import errno
 import struct
 import uuid
-import base64
 import ctypes
 import ctypes.wintypes
 import subprocess
+from base64 import b64encode, b64decode
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+from esky.sudo import sudo_base as base
+
+pickle = base.pickle
+HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+
 
 byref = ctypes.byref
 sizeof = ctypes.sizeof
@@ -28,8 +34,11 @@ advapi32 = ctypes.windll.advapi32
 GENERIC_READ = 0x80000000
 GENERIC_WRITE = 0x40000000
 GENERIC_RDWR = GENERIC_READ | GENERIC_WRITE
+OPEN_EXISTING = 3
 TOKEN_QUERY = 8
 SECURITY_MAX_SID_SIZE = 68
+SECURITY_SQOS_PRESENT = 1048576
+SECURITY_IDENTIFICATION = 65536
 WinBuiltinAdministratorsSid = 26
 ERROR_NO_SUCH_LOGON_SESSION = 1312
 ERROR_PRIVILEGE_NOT_HELD = 1314
@@ -42,19 +51,6 @@ def _errcheck_bool(value,func,args):
     if not value:
         raise ctypes.WinError()
     return args
-
-def _errcheck_handle(value,func,args):
-    if not value:
-        raise ctypes.WinError()
-    if value == INVALID_HANDLE_VALUE:
-        raise ctypes.WinError()
-    return args
-
-def _errcheck_dword(value,func,args):
-    if value == 0xFFFFFFFF:
-        raise ctypes.WinError()
-    return args
-
 
 class SHELLEXECUTEINFO(ctypes.Structure):
     _fields_ = (
@@ -151,15 +147,14 @@ def has_root():
 
 def can_get_root():
     """Check whether the user may be able to get root access."""
-    #  On XP or lower this is equivalent to has_root().
+    #  On XP or lower this is equivalent to has_root()
     if sys.getwindowsversion()[0] < 6:
         return bool(shell32.IsUserAnAdmin())
-    #  On Vista or higher, there's whole UAC token-splitting thing.
+    #  On Vista or higher, there's the whole UAC token-splitting thing.
     #  Many thanks for Junfeng Zhang for the workflow:
     #      http://blogs.msdn.com/junfeng/archive/2007/01/26/how-to-tell-if-the-current-user-is-in-administrators-group-programmatically.aspx
-    #
-    #  Get the token for the current process.
     proc = kernel32.GetCurrentProcess()
+    #  Get the token for the current process.
     try:
         token = ctypes.wintypes.HANDLE()
         OpenProcessToken(proc,TOKEN_QUERY,byref(token))
@@ -199,124 +194,95 @@ def can_get_root():
 
 
 
-class DuplexPipe(object):
-    """A two-way pipe for communication with a subprocess.
+class SecureStringPipe(base.SecureStringPipe):
+    """Two-way pipe for securely communicating strings with a sudo subprocess.
 
-    On win32, this is implemented using CreateNamedPipe.
+    This is the control pipe used for passing command data from the non-sudo
+    master process to the sudo slave process.  Use read() to read the next
+    string, write() to write the next string.
+
+    On win32, this is implemented using CreateNamedPipe in the non-sudo
+    master process, and connecting to the pipe from the sudo slave process.
+
+    Security considerations to prevent hijacking of the pipe:
+
+        * it has a strongly random name, so there can be no race condition
+          before the pipe is created.
+        * it has nMaxInstances set to 1 so another process cannot spoof the
+          pipe while we are still alive.
+        * the slave connects with pipe client impersonation disabled.
+
+    A possible attack vector would be to wait until we spawn the slave process,
+    capture the name of the pipe, then kill us and re-create the pipe to become
+    the new master process.  Not sure what can be done about this, but at the
+    very worst this will allow the attacker to call into the esky API with
+    root privs; it *shouldn't* be sufficient to crack root on the machine...
     """
 
-    def __init__(self,data=None):
-        self.connected = False
-        if data is None:
-            #  To prevent malicious processes trying to gain root through
-            #  to helper app, we have the following safeguards on the pipe:
-            #      * random name, not leaked until after creation
-            #      * nMaxInstances set to 1 to prevent re-creation
+    def __init__(self,token="",pipename=None):
+        super(SecureStringPipe,self).__init__(token)
+        if pipename is None:
             self.pipename = r"\\.\pipe\esky-" + uuid.uuid4().hex
             self.pipe = kernel32.CreateNamedPipeA(
                           self.pipename,0x03,0x00,1,8192,8192,0,None
                         )
         else:
-            self.pipename = data
+            self.pipename = pipename
             self.pipe = None
 
     def connect(self):
-        return DuplexPipe(self.pipename)
+        return SecureStringPipe(self.token,self.pipename)
 
-    def _open_pipe(self):
-        self.pipe = kernel32.CreateFileA(
-            self.pipename,GENERIC_RDWR,0x01|0x02,None,3,0,None
-        )
-        self.connected = True
-
-    def read(self,size):
-        if self.pipe is None:
-           self._open_pipe()
-        elif not self.connected:
-            kernel32.ConnectNamedPipe(self.pipe,None)
+    def _read(self,size):
         data = ctypes.create_string_buffer(size)
         szread = ctypes.c_int()
         kernel32.ReadFile(self.pipe,data,size,byref(szread),None)
         return data.raw[:szread.value]
 
-    def write(self,data):
-        if self.pipe is None:
-           self._open_pipe()
-        elif not self.connected:
-            kernel32.ConnectNamedPipe(self.pipe,None)
-        szread = ctypes.c_int()
-        kernel32.WriteFile(self.pipe,data,len(data),byref(szread),None)
+    def _write(self,data):
+        szwritten = ctypes.c_int()
+        kernel32.WriteFile(self.pipe,data,len(data),byref(szwritten),None)
 
     def close(self):
         if self.pipe is not None:
             kernel32.CloseHandle(self.pipe)
+            self.pipe = None
+        super(SecureStringPipe,self).close()
+
+    def _open(self):
+        if self.pipe is None:
+            self.pipe = kernel32.CreateFileA(
+                self.pipename,GENERIC_RDWR,0,None,OPEN_EXISTING,
+                SECURITY_SQOS_PRESENT|SECURITY_IDENTIFICATION,None
+            )
+        else:
+            kernel32.ConnectNamedPipe(self.pipe,None)
+
+    def _recover(self):
+        kernel32.CreateFileA(
+            self.pipename,GENERIC_RDWR,0,None,OPEN_EXISTING,
+            SECURITY_SQOS_PRESENT|SECURITY_IDENTIFICATION,None
+        )
 
 
-class SubprocPipe(object):
-    """Pipe through which to communicate strings with a subprocess.
+def spawn_sudo(proxy):
+    """Spawn the sudo slave process, returning a pipe to communicate with it.
 
-    This class provides simple inter-process communication of strings in a
-    length-delimited format.
-    """
-
-    def __init__(self,proc,pipe):
-        self.proc = proc
-        self.pipe = pipe
-
-    def read(self):
-        """Read the next string from the pipe."""
-        sz = self.pipe.read(4)
-        if len(sz) < 4:
-            raise EOFError
-        sz = struct.unpack("I",sz)[0]
-        data = self.pipe.read(sz)
-        if len(data) < sz:
-            raise EOFError
-        return data
-
-    def write(self,data):
-        """Write the given string to the pipe."""
-        self.pipe.write(struct.pack("I",len(data)))
-        self.pipe.write(data)
-
-    def close(self):
-        """Close the pipe."""
-        self.pipe.close()
-
-    def terminate(self):
-        """Terminate the attached subprocess, if any."""
-        if self.proc is not None:
-            if hasattr(self.proc,"terminate"):
-                self.proc.terminate()
-            else:
-                ctypes.windll.kernel32.TerminateProcess(self.proc._handle,-1)
-
-
-def find_helper():
-    """Find the exe for the helper app."""
-    if getattr(sys,"frozen",False):
-        return [os.path.join(os.path.dirname(sys.executable),
-                            "esky-update-helper.exe")]
-    return [sys.executable,"-m","esky.helper.__main__"]
-
-
-class FakePopen:
-    def __init__(self,handle):
-        self._handle = handle
-
-
-def spawn_helper(esky,as_root=True):
-    """Spawn the helper app, returning a SubprocPipe connected to it.
-
-    This function spawns the helper app, possibly as administrator, using
+    This function spawns the proxy app with administrator privileges, using
     ShellExecuteEx and the undocumented-but-widely-recommended "runas" verb.
     """
-    pipe = DuplexPipe()
-    data = pickle.dumps(pipe.connect(),pickle.HIGHEST_PROTOCOL)
-    exe = find_helper() + [base64.b64encode(data)]
-    exe.append(base64.b64encode(pickle.dumps(esky)))
-    if not as_root or  sys.getwindowsversion()[0] < 6:
-        p = subprocess.Popen(exe,close_fds=True)
+    pipe = SecureStringPipe()
+    c_pipe = pipe.connect()
+    if getattr(sys,"frozen",False):
+        if not _startup_hooks_were_run:
+            raise OSError(None,"unable to sudo: startup hooks not run")
+        exe = [sys.executable,"--esky-spawn-sudo"]
+    else:
+        exe = [sys.executable,"-c","import esky.sudo; esky.sudo.run_startup_hooks()","--esky-spawn-sudo"]
+    exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
+    exe = exe + [b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))]
+    if sys.getwindowsversion()[0] < 6:
+        subprocess.Popen(exe,close_fds=True)
     else:
         execinfo = SHELLEXECUTEINFO()
         execinfo.cbSize = sizeof(execinfo)
@@ -328,6 +294,18 @@ def spawn_helper(esky,as_root=True):
         execinfo.lpDirectory = None
         execinfo.nShow = 0
         ShellExecuteEx(byref(execinfo))
-        p = FakePopen(execinfo.hProcess)
-    return SubprocPipe(p,pipe )
+    return pipe
+
+
+_startup_hooks_were_run = False
+
+def run_startup_hooks():
+    global _startup_hooks_were_run
+    _startup_hooks_were_run = True
+    if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
+        proxy = pickle.loads(b64decode(sys.argv[2]))
+        pipe = pickle.loads(b64decode(sys.argv[3]))
+        proxy.run(pipe)
+        sys.exit(0)
+
 

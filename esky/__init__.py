@@ -151,31 +151,18 @@ except ImportError:
 
 if sys.platform != "win32":
     import fcntl
+else:
+    from esky.winres import is_safe_to_overwrite
 
 from esky.errors import *
 from esky.fstransact import FSTransaction
 from esky.finder import DefaultVersionFinder
-import esky.helper
-from esky.helper import EskyHelperApp
+from esky.sudo import SudoProxy, has_root, allow_from_sudo
 from esky.util import split_app_version, join_app_version,\
                       is_version_dir, is_uninstalled_version_dir,\
                       parse_version, get_best_version, appdir_from_executable,\
                       copy_ownership_info
 
-
-
-def use_helper_app(func):
-    """Method decorator to transparently use an esky's helper app, if present.
-
-    This decorator wraps an Esky method so that it is transparently proxied
-    to the helper process whenever the esky's "helper_app" attribute is set.
-    """
-    @wraps(func)
-    def method_using_helper_app(self,*args,**kwds):
-        if self.helper_app is not None:
-            return getattr(self.helper_app,func.func_name)(*args,**kwds)
-        return func(self,*args,**kwds)
-    return method_using_helper_app
 
 
 
@@ -198,8 +185,6 @@ class Esky(object):
     DefaultVersionFinder instance.
     """
 
-    HelperAppClass = EskyHelperApp
-
     lock_timeout = 60*60  # 1 hour
 
     def __init__(self,appdir_or_exe,version_finder=None):
@@ -214,7 +199,7 @@ class Esky(object):
         self.reinitialize()
         self._lock_count = 0
         self.version_finder = version_finder
-        self.helper_app = None
+        self.sudo_proxy = None
 
     def _get_version_finder(self):
         return self.__version_finder
@@ -329,20 +314,21 @@ class Esky(object):
             os.unlink(os.path.join(lockdir,myid))
             os.rmdir(lockdir)
 
-    @use_helper_app
+    @allow_from_sudo()
     def has_root(self):
         """Check whether the user currently has root/administrator access."""
-        return esky.helper.has_root()
+        return has_root()
 
     def get_root(self):
         """Attempt to gain root/administrator access by spawning helper app."""
         if self.has_root():
             return True
-        self.helper_app = self.HelperAppClass(self,as_root=True)
-        if not self.helper_app.has_root():
+        self.sudo_proxy = SudoProxy(self)
+        self.sudo_proxy.start()
+        if not self.sudo_proxy.has_root():
             raise OSError(None,"could not escalate to root privileges")
 
-    @use_helper_app
+    @allow_from_sudo()
     def cleanup(self):
         """Perform cleanup tasks in the app directory.
 
@@ -362,6 +348,15 @@ class Esky(object):
                 (_,v,_) = split_app_version(new_version)
                 self.install_version(v)
                 best_version = new_version
+            #  If there's are pending overwrites, either do them or arrange
+            #  for them to be done at shutdown.
+            ovrdir = os.path.join(appdir,best_version,"esky-overwrite")
+            retry_overwrite_on_shutdown = False
+            if os.path.exists(ovrdir):
+                try:
+                    self._perform_overwrites(appdir,best_version)
+                except EnvironmentError:
+                    retry_overwrite_on_shutdown = True
             #  Now we can safely remove all the old versions.
             #  We except the currently-executing version, and silently
             #  ignore any locked versions.
@@ -398,6 +393,23 @@ class Esky(object):
                 self.version_finder.cleanup(self)
         finally:
             self.unlock()
+
+    def _perform_overwrites(self,appdir,version):
+        """Compelte any pending file overwrites in the given version dir."""
+        ovrdir = os.path.join(appdir,version,"esky-overwrite")
+        for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):
+            for nm in filenms:
+                ovrsrc = os.path.join(dirnm,nm)
+                ovrdst = os.path.join(appdir,oversrc[len(overdir):])
+                with open(ovrsrc,"rb") as fIn:
+                    with open(ovrdst,"ab") as fOut:
+                        fOut.seek(0)
+                        chunk = fIn.read(512*16)
+                        while chunk:
+                            fOut.write(chunk)
+                            chunk = fIn.read(512*16)
+                os.unlink(ovrsrc)
+            os.rmdir(dirnm)
 
     def _try_remove(self,appdir,path,manifest=[]):
         """Try to remove the file/directory at the given path in the appdir.
@@ -503,7 +515,7 @@ class Esky(object):
                 best_version = version
         return best_version
 
-    @use_helper_app
+    @allow_from_sudo(str)
     def fetch_version(self,version):
         """Fetch the specified updated version of the app."""
         if self.version_finder is None:
@@ -521,7 +533,7 @@ class Esky(object):
         copy_ownership_info(os.path.join(self.appdir,vdir),loc)
         return loc
 
-    @use_helper_app
+    @allow_from_sudo(str)
     def install_version(self,version):
         """Install the specified version of the app.
 
@@ -564,11 +576,23 @@ class Esky(object):
             bssrc = os.path.join(bootstrap,nm)
             bsdst = os.path.join(self.appdir,nm)
             if os.path.exists(bssrc):
-                trn.move(bssrc,bsdst)
+                #  On windows we can't atomically replace files.
+                #  If they differ in a "safe" way we put them aside
+                #  to overwrite at a later time.
+                if sys.platform == "win32" and os.path.exists(bsdst):
+                    if is_safe_to_overwrite(bssrc,bsdst):
+                        ovrdir = os.path.join(target,"esky-overwrite")
+                        if not os.path.exists(ovrdir):
+                            os.mkdir(ovrdir)
+                        trn.move(bssrc,os.path.join(ovrdir,nm))
+                    else:
+                        trn.move(bssrc,bsdst)
+                else:
+                    trn.move(bssrc,bsdst)
         #  Remove the bootstrap dir; the new version is now installed
         trn.remove(bootstrap)
 
-    @use_helper_app
+    @allow_from_sudo(str)
     def uninstall_version(self,version): 
         """Uninstall the specified version of the app."""
         target_name = join_app_version(self.name,version,self.platform)
@@ -706,4 +730,8 @@ class _TestableEsky(Esky):
     def uninstall_version(self,version):
         super(_TestableEsky,self).uninstall_version(version)
 
+
+def run_startup_hooks():
+    import esky.sudo
+    esky.sudo.run_startup_hooks()
 

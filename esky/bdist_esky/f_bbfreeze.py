@@ -46,14 +46,7 @@ def freeze(dist):
     tdir = tempfile.mkdtemp()
     try:
         for exe in dist.get_executables():
-            #  bbfreeze doesn't offer a way to set the name of the target exe.
-            #  We write each to a tempfile to force the selected name.
-            name = exe.name
-            if sys.platform == "win32" and name.endswith(".exe"):
-                name = name[:-4]
-            script = os.path.join(tdir,name+".py")
-            shutil.copy2(exe.script,script)
-            f.addScript(script,gui_only=exe.gui_only)
+            f.addScript(exe.script,gui_only=exe.gui_only)
         if "include_py" not in options:
             f.include_py = False
         if "linkmethod" not in options:
@@ -119,7 +112,7 @@ def freeze(dist):
     #  Copy the loader program for each script.
     #  We explicitly strip the loader binaries, in case they were made
     #  by linking to the library.zip.
-    for exe in dist.get_executables():
+    for exe in dist.get_executables(rewrite=False):
         if not exe.include_in_bootstrap_env:
             continue
         exepath = dist.copy_to_bootstrap_env(exe.name)
