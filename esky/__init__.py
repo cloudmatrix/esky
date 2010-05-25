@@ -86,6 +86,8 @@ following methods control this behaviour:
 
     app.get_root():             escalate to root privs by spawning helper app.
 
+    app.drop_root():            kill helper app and drop root privileges
+
 
 When properly installed, the on-disk layout of an app managed by esky looks
 like this:
@@ -327,6 +329,12 @@ class Esky(object):
         self.sudo_proxy.start()
         if not self.sudo_proxy.has_root():
             raise OSError(None,"could not escalate to root privileges")
+
+    def drop_root(self):
+        """Drop root privileges by killing the helper app."""
+        if self.sudo_proxy is not None:
+            self.sudo_proxy.close()
+            self.sudo_proxy = None
 
     @allow_from_sudo()
     def cleanup(self):

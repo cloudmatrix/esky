@@ -1,11 +1,12 @@
 
-v0.6.1:
+v0.7.0:
 
     * Renamed "esky.helper" to "esky.sudo" along with much refactoring:
         * esky.use_helper_app is now esky.allow_from_sudo() and is used to 
-          declare a type signatures.
+          declare a type signature.
         * Esky.helper_app is now Esky.sudo_proxy and is always an instance
           of esky.sudo.SudoProxy.
+        * added Esky.drop_root() method to drop root privileges.
     * Use a separate file "esky-lockfile.txt" for version locking.  This
       will help protect against strange behaviour when fcntl.flock is
       simulated using fcntl.lockf (which released the lock when *any* handle

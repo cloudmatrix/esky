@@ -84,6 +84,8 @@ following methods control this behaviour:
 
     app.get_root():             escalate to root privs by spawning helper app.
 
+    app.drop_root():            kill helper app and drop root privileges
+
 
 When properly installed, the on-disk layout of an app managed by esky looks
 like this:

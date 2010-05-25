@@ -68,9 +68,13 @@ else:
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
 if os.environ.get("ESKY_NEEDSROOT",""):
-    print "GETTING ROOT"
+    already_root = app.has_root()
     app.get_root()
-    print "GOT ROOT"
+    assert app.has_root()
+    app.drop_root()
+    assert app.has_root() == already_root
+    app.get_root()
+    
 
 app.install_version("0.2")
 app.reinitialize()

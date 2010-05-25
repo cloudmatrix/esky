@@ -95,8 +95,12 @@ class SecureStringPipe(base.SecureStringPipe):
             self.wfd = None
             if os.path.isfile(self.wnm):
                 os.unlink(self.wnm)
-            if not os.listdir(self.tdir):
-                os.rmdir(self.tdir)
+            try:
+                if not os.listdir(self.tdir):
+                    os.rmdir(self.tdir)
+            except EnvironmentError, e:
+                if e.errno != errno.ENOENT:
+                    raise
         super(SecureStringPipe,self).close()
 
 
@@ -126,7 +130,7 @@ def spawn_sudo(proxy):
     exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
     # Look for a variety of sudo-like programs
     sudo = None
-    display_name = "%s updater" % (proxy.name,)
+    display_name = "%s update" % (proxy.name,)
     if "DISPLAY" in os.environ:
         sudo = find_exe("gksudo","-k","-D",display_name,"--")
         if sudo is None:
