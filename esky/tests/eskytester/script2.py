@@ -11,6 +11,7 @@ import esky.tests
 
 platform = esky.util.get_platform()
 if platform == "win32":
+    import esky.winres
     dotexe = ".exe"
 else:
     dotexe = ""
@@ -74,22 +75,27 @@ if len(sys.argv) == 1:
     os.rename(upv3,v3dir)
     #  While we're here, check that the bootstrap library hasn't changed
     if os.path.exists(os.path.join(app.appdir,"library.zip")):
-        f1 = open(os.path.join(app.appdir,"library.zip"),"r")
-        f2 = open(os.path.join(v3dir,"esky-bootstrap","library.zip"),"r")
+        f1 = open(os.path.join(app.appdir,"library.zip"),"rb")
+        f2 = open(os.path.join(v3dir,"esky-bootstrap","library.zip"),"rb")
         assert f1.read() == f2.read()
         f1.close()
         f2.close()
-    #  Also check one of the bootstrap exes to make sure it hasn't changed.
-    #  TODO: this is incorrect with py2exe, which changes the VersionInfo
-    #  resource.  Disabling until I get that sorted.
-    #f1 = open(os.path.join(app.appdir,"script2"+dotexe),"r")
-    #f2 = open(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),"r")
-    #assert f1.read() == f2.read()
-    #f1.close()
-    #f2.close()
+    #  Also check one of the bootstrap exes to make sure it has changed in
+    #  safe way.
+    f1 = open(os.path.join(app.appdir,"script2"+dotexe),"rb")
+    f2 = open(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),"rb")
+    if f1.read() != f2.read():
+        if sys.platform != "win32":
+            assert False, "bootstrap exe was changed"
+        else:
+            assert esky.winres.is_safe_to_overwrite(f1.name,f2.name), "bootstrap exe was changed unsafely"
+    f1.close()
+    f2.close()
     if sys.platform == "darwin":
         os.unlink(os.path.join(v3dir,"esky-bootstrap/Contents/MacOS/script2"))
-    else:
+    elif sys.platform != "win32":
+        # win32 won't let us delete it since we loaded it as a library
+        # when checking whether it was safe to overwrite.
         os.unlink(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe))
     #  Re-launch the script.
     #  We should still be at version 0.2 after this.

@@ -28,7 +28,7 @@ import esky.patch
 import esky.sudo
 from esky import bdist_esky
 from esky.util import extract_zipfile, get_platform
-from esky.fstransact import FSTransaction
+from esky.fstransact import FSTransaction, files_differ
 
 try:
     import py2exe
@@ -213,8 +213,8 @@ class TestEsky(unittest.TestCase):
         assert os.path.exists("tests-completed")
         os.unlink("tests-completed")
     finally:
-        shutil.rmtree(tdir)
         os.chdir(olddir)
+        shutil.rmtree(tdir)
         if server:
             server.shutdown()
  
@@ -608,4 +608,29 @@ class TestPatch(unittest.TestCase):
         return dest
         
 
+class TestFilesDiffer(unittest.TestCase):
+
+    def setUp(self):
+        self.tdir = tempfile.mkdtemp()
+
+    def _path(self,*names):
+        return os.path.join(self.tdir,*names)
+
+    def _differs(self,data1,data2,start=0,stop=None):
+        with open(self._path("file1"),"wb") as f:
+            f.write(data1)
+        with open(self._path("file2"),"wb") as f:
+            f.write(data2)
+        return files_differ(self._path("file1"),self._path("file2"),start,stop)
+
+    def test_files_differ(self):
+        assert self._differs("one","two")
+        assert self._differs("onethreetwo","twothreeone")
+        assert self._differs("onethreetwo","twothreeone",3)
+        assert not self._differs("onethreetwo","twothreeone",3,-3)
+        assert self._differs("onethreetwo","twothreeone",2,-3)
+        assert self._differs("onethreetwo","twothreeone",3,-2)
+
+    def tearDown(self):
+        shutil.rmtree(self.tdir)
 

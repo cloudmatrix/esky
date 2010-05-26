@@ -241,14 +241,11 @@ sys.modules["esky.bootstrap"] = __fake()
 #
 #  We need to read the script to execute as a resource from the exe, so this
 #  only works if we can bootstrap a working ctypes module.  We then insert
-#  the source code from esky.winres directly into this function.
+#  the source code from esky.winres.load_resource directly into this function.
 #
 _CUSTOM_WIN32_CHAINLOADER = """
 _orig_chainload = _chainload
 def _chainload(target_dir):
-  # winres imports sys, making it a local variable.
-  # Grab it here to avoid UnboundLocal errors
-  import sys
   # careful to escape percent-sign, this gets interpolated below
   marker_file = "esky-f-py2exe-%%d%%d.txt" %% sys.version_info[:2]
   pydll = "python%%s%%s.dll" %% sys.version_info[:2]
@@ -287,7 +284,11 @@ def _chainload(target_dir):
           import msvcrt
       except ImportError:
           _orig_chainload(target_dir)
-      # the source for esky.winres gets inserted below:
+      # the source for esky.winres.load_resource gets inserted below:
+      from ctypes import c_char, POINTER
+      k32 = ctypes.windll.kernel32
+      LOAD_LIBRARY_AS_DATAFILE = 0x00000002
+      _DEFAULT_RESLANG = 1033
       %s
       # now we magically have the load_resource function :-)
       try:
@@ -335,6 +336,6 @@ def _chainload(target_dir):
           for code in codelist:
               exec code in globals, locals
           sys.exit(0)
-""" % (inspect.getsource(winres).replace("\n","\n"+" "*6),)
+""" % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*6),)
 
 

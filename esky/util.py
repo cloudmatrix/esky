@@ -12,6 +12,7 @@ import sys
 import shutil
 import zipfile
 import errno
+from itertools import tee, izip
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -27,6 +28,15 @@ from esky.bootstrap import get_best_version, get_all_versions,\
                            unlock_version_dir, fcntl
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 
+
+def pairwise(iterable):
+    """Iterator over pairs of elements from the given iterable."""
+    a,b = tee(iterable)
+    try:
+        b.next()
+    except StopIteration:
+        pass
+    return izip(a,b)
 
 def appdir_from_executable(exepath):
     """Find the top-level application directory, given sys.executable."""

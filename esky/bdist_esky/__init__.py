@@ -240,7 +240,8 @@ class bdist_esky(Command):
         #  Hand things off to the selected freezer module
         self.freezer_module.freeze(self)
         #  Create the necessary control files
-        open(os.path.join(self.freeze_dir,"esky-lockfile.txt"),"w").close()
+        if platform != "win32":
+            open(os.path.join(self.freeze_dir,"esky-lockfile.txt"),"w").close()
         #  Zip up the distribution
         print "zipping up the esky"
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
@@ -472,11 +473,11 @@ class bdist_esky(Command):
                self.mkpath(os.path.dirname(dstpath))
             self.copy_file(srcpath,dstpath)
         f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
-        f_manifest = open(f_manifest,"at")
-        f_manifest.seek(0,os.SEEK_END)
-        f_manifest.write(dst)
-        f_manifest.write("\n")
-        f_manifest.close()
+        with open(f_manifest,"at") as f_manifest:
+            f_manifest.seek(0,os.SEEK_END)
+            f_manifest.write(dst)
+            f_manifest.write("\n")
+            f_manifest.close()
         return dstpath
 
 

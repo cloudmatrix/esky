@@ -146,7 +146,15 @@ import shutil
 import errno
 import socket
 import time
+import subprocess
+import atexit
 from functools import wraps
+from base64 import b64encode, b64decode
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 try:
     import threading
@@ -159,7 +167,7 @@ else:
     from esky.winres import is_safe_to_overwrite
 
 from esky.errors import *
-from esky.fstransact import FSTransaction
+from esky.fstransact import FSTransaction, files_differ
 from esky.finder import DefaultVersionFinder
 from esky.sudo import SudoProxy, has_root, allow_from_sudo
 from esky.util import split_app_version, join_app_version,\
@@ -339,12 +347,17 @@ class Esky(object):
             self.sudo_proxy = None
 
     @allow_from_sudo()
-    def cleanup(self):
+    def cleanup(self,retry_at_exit=(sys.platform=="win32")):
         """Perform cleanup tasks in the app directory.
 
         This includes removing older versions of the app and completing any
         failed update attempts.  Such maintenance is not done automatically
         since it can take a non-negligible amount of time.
+
+        If the optional argument "retry_at_exit" is True, permission-related
+        errors will cause the cleanup to be retried after the application has
+        exited.  It is True by default on windows, False by default on other
+        platforms.
         """
         appdir = self.appdir
         self.lock()
@@ -358,15 +371,24 @@ class Esky(object):
                 (_,v,_) = split_app_version(new_version)
                 self.install_version(v)
                 best_version = new_version
-            #  If there's are pending overwrites, either do them or arrange
+            #  If there are pending overwrites, either do them or arrange
             #  for them to be done at shutdown.
             ovrdir = os.path.join(appdir,best_version,"esky-overwrite")
-            retry_overwrite_on_shutdown = False
             if os.path.exists(ovrdir):
-                try:
-                    self._perform_overwrites(appdir,best_version)
-                except EnvironmentError:
-                    retry_overwrite_on_shutdown = True
+                for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):
+                    for nm in filenms:
+                        ovrsrc = os.path.join(dirnm,nm)
+                        ovrdst = os.path.join(appdir,ovrsrc[len(ovrdir)+1:])
+                        print "===\nOVERWRITE",ovrsrc,ovrdst,"\n==="
+                        with open(ovrsrc,"rb") as fIn:
+                            with open(ovrdst,"ab") as fOut:
+                                fOut.seek(0)
+                                chunk = fIn.read(512*16)
+                                while chunk:
+                                    fOut.write(chunk)
+                                    chunk = fIn.read(512*16)
+                        os.unlink(ovrsrc)
+                    os.rmdir(dirnm)
             #  Now we can safely remove all the old versions.
             #  We except the currently-executing version, and silently
             #  ignore any locked versions.
@@ -399,27 +421,47 @@ class Esky(object):
                         #  It's an unaccounted-for entry in the bootstrap env.
                         #  Can't prove it's safe to remove, so leave it.
                         pass
+            #  Also get the VersionFinder to clean up after itself
             if self.version_finder is not None:
                 self.version_finder.cleanup(self)
+        except EnvironmentError, e:
+            if not retry_at_exit:
+                raise
+            if e.errno not in (errno.EACCES,):
+                raise
+            self.cleanup_at_exit()
         finally:
             self.unlock()
 
-    def _perform_overwrites(self,appdir,version):
-        """Compelte any pending file overwrites in the given version dir."""
-        ovrdir = os.path.join(appdir,version,"esky-overwrite")
-        for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):
-            for nm in filenms:
-                ovrsrc = os.path.join(dirnm,nm)
-                ovrdst = os.path.join(appdir,oversrc[len(overdir):])
-                with open(ovrsrc,"rb") as fIn:
-                    with open(ovrdst,"ab") as fOut:
-                        fOut.seek(0)
-                        chunk = fIn.read(512*16)
-                        while chunk:
-                            fOut.write(chunk)
-                            chunk = fIn.read(512*16)
-                os.unlink(ovrsrc)
-            os.rmdir(dirnm)
+    def cleanup_at_exit(self):
+        """Arrange for another cleanup attempt at application exit.
+
+        This operates by using the atexit module to spawn a new instance of 
+        this app, with appropriate flags that cause it to launch directly into
+        the cleanup process.
+ 
+        Recall that sys.executable points to a specific version dir, so this
+        new process will not hold any filesystem locks in the main app dir.
+        """
+        if not getattr(sys,"frozen",False):
+            exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()","--esky-spawn-cleanup"]
+        elif os.path.basename(sys.executable).lower() in ("python","pythonw"):
+            exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()","--esky-spawn-cleanup"]
+        else:
+            if not _startup_hooks_were_run:
+                raise OSError(None,"unable to sudo: startup hooks not run")
+            exe = [sys.executable,"--esky-spawn-cleanup"]
+        exe = exe + [b64encode(pickle.dumps(self,pickle.HIGHEST_PROTOCOL))]
+        @atexit.register
+        def spawn_cleanup():
+            rnul = open(os.devnull,"r")
+            wnul = open(os.devnull,"w")
+            if sys.platform == "win32":
+                kwds = dict(close_fds=True)
+            else:
+                kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True)
+            subprocess.Popen(exe,**kwds)
+        
 
     def _try_remove(self,appdir,path,manifest=[]):
         """Try to remove the file/directory at the given path in the appdir.
@@ -435,19 +477,23 @@ class Esky(object):
         """
         fullpath = os.path.join(appdir,path)
         if fullpath in sys.path:
-            return
+            return False
         if path in manifest:
-            return
+            return False
         try:
             if os.path.isdir(fullpath):
                 #  Remove paths starting with "esky-" last, since we use
                 #  these to maintain state information.
                 esky_paths = []
+                success = True
                 for nm in os.listdir(fullpath):
                     if nm.startswith("esky-"):
                         esky_paths.append(nm)
                     else:
-                        self._try_remove(appdir,os.path.join(path,nm),manifest)
+                        subdir = os.path.join(path,nm)
+                        success &= self._try_remove(appdir,subdir,manifest)
+                if not success:
+                    return False
                 for nm in sorted(esky_paths):
                     self._try_remove(appdir,os.path.join(path,nm),manifest)
                 os.rmdir(fullpath)
@@ -456,6 +502,9 @@ class Esky(object):
         except EnvironmentError, e:
             if e.errno not in self._errors_to_ignore:
                 raise
+            return False
+        else:
+            return True
     _errors_to_ignore = (errno.ENOENT, errno.EPERM, errno.EACCES, errno.ENOTDIR,
                          errno.EISDIR, errno.EINVAL, errno.ENOTEMPTY,)
 
@@ -614,7 +663,9 @@ class Esky(object):
                 #  If they differ in a "safe" way we put them aside
                 #  to overwrite at a later time.
                 if sys.platform == "win32" and os.path.exists(bsdst):
-                    if is_safe_to_overwrite(bssrc,bsdst):
+                    if not files_differ(bssrc,bsdst):
+                        trn.remove(bssrc)
+                    elif is_safe_to_overwrite(bssrc,bsdst):
                         ovrdir = os.path.join(target,"esky-overwrite")
                         if not os.path.exists(ovrdir):
                             os.mkdir(ovrdir)
@@ -723,8 +774,17 @@ class Esky(object):
 
 
 
+_startup_hooks_were_run = False
 
 def run_startup_hooks():
+    global _startup_hooks_were_run
+    _startup_hooks_were_run = True
     import esky.sudo
     esky.sudo.run_startup_hooks()
+    if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-cleanup":
+        app = pickle.loads(b64decode(sys.argv[2]))
+        time.sleep(10)        
+        app.cleanup(retry_at_exit=False)
+        sys.exit(0)
+
 

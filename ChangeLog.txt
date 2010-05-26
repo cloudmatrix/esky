@@ -17,13 +17,20 @@ v0.7.0:
     * Use a separate file "esky-lockfile.txt" for version locking.  This
       will help protect against strange behaviour when fcntl.flock is
       simulated using fcntl.lockf (which released the lock when *any* handle
-      to the file is closed)
+      to the file is closed).
     * Try to load correctly if executed from a temporary backup file
-      (e.g. running from "prog.old.exe" instead of "prog.exe")
+      (e.g. running from "prog.old.exe" instead of "prog.exe").
+    * Allow direct overwriting of existing bootstrap files on win32 (instead
+      of renaming the old version out of the way) but only in very special
+      circumstances.
+        * currently only for executables where the icon or version info
+          has changed but the rest of the exe has not.
+        * may require spawning a new copy of the process at shutdown, to
+          overwrite any in-use bootstrap exes.
     * Several improvements to py2exe support:
         * implemented "optimize" and "unbuffered" settings in the custom
-          bootstrap code
-        * more robust support for the various bundle_files options
+          bootstrap code.
+        * more robust support for the various bundle_files options.
 
 v0.6.0:
 
