@@ -1,3 +1,5 @@
+#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
 """
 
   esky.sudo.sudo_base:  base functionality for esky sudo helpers
@@ -53,7 +55,9 @@ class SecureStringPipe(object):
     immediately closed and a RuntimeError geing generated.
     """
 
-    def __init__(self,token=""):
+    def __init__(self,token=None):
+        if token is None:
+            token = os.urandom(16)
         self.token = token
         self.connected = False
 

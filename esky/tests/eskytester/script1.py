@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import errno
 
 
 import esky
@@ -34,6 +35,7 @@ class BTestClass(ATestClass):
         super(BTestClass,self).__init__()
         self.a = "B"
 assert BTestClass().a == "B"
+
 
 #  Spawn another instance that just busy-loops,
 #  holding a lock on the current version.
@@ -68,9 +70,13 @@ else:
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
 if os.environ.get("ESKY_NEEDSROOT",""):
-    print "GETTING ROOT"
+    already_root = app.has_root()
     app.get_root()
-    print "GOT ROOT"
+    assert app.has_root()
+    app.drop_root()
+    assert app.has_root() == already_root
+    app.get_root()
+    
 
 app.install_version("0.2")
 app.reinitialize()

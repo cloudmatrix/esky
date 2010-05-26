@@ -7,8 +7,8 @@ a simple API through which apps can find, fetch and install updates, and a
 bootstrapping mechanism that keeps the app safe in the face of failed or
 partial updates.
 
-Esky is currently capable of freezing apps with bbfreeze, cxfreeze, py2exe and
-py2app. Adding support for other freezer programs should be straightforward;
+Esky is currently capable of freezing apps with py2exe, py2app, cxfreeze and
+bbfreeze. Adding support for other freezer programs should be straightforward;
 patches will be gratefully accepted.
 
 The main interface is the 'Esky' class, which represents a frozen app.  An Esky
@@ -19,7 +19,6 @@ for an app automatically updating itself would look something like this:
     if hasattr(sys,"frozen"):
         app = esky.Esky(sys.executable,"http://example.com/downloads/")
         app.auto_update()
-        app.cleanup()
 
 A simple default VersionFinder is provided that hits a specified URL to get
 a list of available versions.  More sophisticated implementations will likely
@@ -73,6 +72,9 @@ and available on the Esky class:
     app.uninstall_version(v):   (try to) uninstall the specified version; will
                                 fail if the version is currently in use.
 
+    app.cleanup():              (try to) clean up various partly-installed
+                                or old versions lying around the app dir.
+
     app.reinitialize():         re-initialize internal state after changing
                                 the installed version.
 
@@ -83,6 +85,8 @@ following methods control this behaviour:
     app.has_root():             check whether esky currently has root privs.
 
     app.get_root():             escalate to root privs by spawning helper app.
+
+    app.drop_root():            kill helper app and drop root privileges
 
 
 When properly installed, the on-disk layout of an app managed by esky looks

@@ -1,4 +1,4 @@
-#  Copyright (c) 2009, Cloud Matrix Pty. Ltd.
+#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
 #  All rights reserved; available under the terms of the BSD License.
 """
 
@@ -9,8 +9,8 @@ a simple API through which apps can find, fetch and install updates, and a
 bootstrapping mechanism that keeps the app safe in the face of failed or
 partial updates.
 
-Esky is currently capable of freezing apps with bbfreeze, cxfreeze, py2exe and
-py2app. Adding support for other freezer programs should be straightforward;
+Esky is currently capable of freezing apps with py2exe, py2app, cxfreeze and
+bbfreeze. Adding support for other freezer programs should be straightforward;
 patches will be gratefully accepted.
 
 The main interface is the 'Esky' class, which represents a frozen app.  An Esky
@@ -21,7 +21,6 @@ for an app automatically updating itself would look something like this:
     if hasattr(sys,"frozen"):
         app = esky.Esky(sys.executable,"http://example.com/downloads/")
         app.auto_update()
-        app.cleanup()
 
 A simple default VersionFinder is provided that hits a specified URL to get
 a list of available versions.  More sophisticated implementations will likely
@@ -75,6 +74,9 @@ and available on the Esky class:
     app.uninstall_version(v):   (try to) uninstall the specified version; will
                                 fail if the version is currently in use.
 
+    app.cleanup():              (try to) clean up various partly-installed
+                                or old versions lying around the app dir.
+
     app.reinitialize():         re-initialize internal state after changing
                                 the installed version.
 
@@ -85,6 +87,8 @@ following methods control this behaviour:
     app.has_root():             check whether esky currently has root privs.
 
     app.get_root():             escalate to root privs by spawning helper app.
+
+    app.drop_root():            kill helper app and drop root privileges
 
 
 When properly installed, the on-disk layout of an app managed by esky looks
@@ -130,8 +134,8 @@ and generally tries to tidy up in the main application directory.
 from __future__ import with_statement
 
 __ver_major__ = 0
-__ver_minor__ = 6
-__ver_patch__ = 1
+__ver_minor__ = 7
+__ver_patch__ = 0
 __ver_sub__ = ""
 __version__ = "%d.%d.%d%s" % (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 
@@ -328,6 +332,12 @@ class Esky(object):
         if not self.sudo_proxy.has_root():
             raise OSError(None,"could not escalate to root privileges")
 
+    def drop_root(self):
+        """Drop root privileges by killing the helper app."""
+        if self.sudo_proxy is not None:
+            self.sudo_proxy.close()
+            self.sudo_proxy = None
+
     @allow_from_sudo()
     def cleanup(self):
         """Perform cleanup tasks in the app directory.
@@ -460,6 +470,7 @@ class Esky(object):
             * install the new version [self.install_version()]
             * attempt to uninstall the old version [self.uninstall_version()]
             * reinitialize internal state [self.reinitialize()]
+            * clean up the appdir [self.cleanup()]
 
         This method is mostly here to help you get started.  For an app of
         any serious complexity, you will probably want to build your own
@@ -468,35 +479,58 @@ class Esky(object):
         """
         if self.version_finder is None:
             raise NoVersionFinderError
-        version = self.find_update()
-        if version is not None:
-            assert parse_version(version) > parse_version(self.version)
-            #  Try to install the new version.  If it fails with
-            #  a permission error, escalate to root and try again.
-            try:
-                self.fetch_version(version)
-                self.install_version(version)
+        got_root = False
+        try:
+            version = self.find_update()
+            if version is not None:
+                #  Try to install the new version.  If it fails with
+                #  a permission error, escalate to root and try again.
                 try:
-                    self.uninstall_version(self.version)
-                except VersionLockedError:
-                    pass
-            except EnvironmentError, e:
-                if e.errno != errno.EACCES or self.has_root():
-                    raise
+                    self._do_auto_update(version)
+                except EnvironmentError:
+                    exc_type,exc_value,exc_traceback = sys.exc_info()
+                    if exc_value.errno != errno.EACCES or self.has_root():
+                        raise
+                    try:
+                        self.get_root()
+                    except Exception, e:
+                        raise exc_type,exc_value,exc_traceback
+                    else:
+                        got_root = True
+                        self._do_auto_update(version)
+                self.reinitialize()
+            #  Try to clean up the app dir.  If it fails with a 
+            #  permission error, escalate to root and try again.
+            try:
+                self.cleanup()
+            except EnvironmentError:
                 exc_type,exc_value,exc_traceback = sys.exc_info()
+                if exc_value.errno != errno.EACCES or self.has_root():
+                    raise
                 try:
                     self.get_root()
                 except Exception, e:
                     raise exc_type,exc_value,exc_traceback
                 else:
-                    self.fetch_version(version)
-                    self.install_version(version)
-                    try:
-                        self.uninstall_version(self.version)
-                    except VersionLockedError:
-                        pass
-            else:
-                self.reinitialize()
+                    got_root = True
+                    self.cleanup()
+        finally:
+            #  Drop root privileges as soon as possible.
+            if got_root:
+                self.drop_root()
+
+    def _do_auto_update(self,version):
+        """Actual sequence of operations for auto-update.
+
+        This is a separate method so it can easily be retried after gaining
+        root privileges.
+        """
+        self.fetch_version(version)
+        self.install_version(version)
+        try:
+            self.uninstall_version(self.version)
+        except VersionLockedError:
+            pass
 
     def find_update(self):
         """Check for an available update to this app.

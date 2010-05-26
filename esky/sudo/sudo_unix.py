@@ -1,3 +1,5 @@
+#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
 """
 
   esky.sudo.sudo_unix:  unix platform-specific functionality for esky.sudo
@@ -46,7 +48,7 @@ class SecureStringPipe(base.SecureStringPipe):
     message-hashing token, which we pass to the slave in its env vars.
     """
 
-    def __init__(self,token="",data=None):
+    def __init__(self,token=None,data=None):
         super(SecureStringPipe,self).__init__(token)
         self.rfd = None
         self.wfd = None
@@ -95,8 +97,12 @@ class SecureStringPipe(base.SecureStringPipe):
             self.wfd = None
             if os.path.isfile(self.wnm):
                 os.unlink(self.wnm)
-            if not os.listdir(self.tdir):
-                os.rmdir(self.tdir)
+            try:
+                if not os.listdir(self.tdir):
+                    os.rmdir(self.tdir)
+            except EnvironmentError, e:
+                if e.errno != errno.ENOENT:
+                    raise
         super(SecureStringPipe,self).close()
 
 
@@ -128,7 +134,7 @@ def spawn_sudo(proxy):
     exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
     # Look for a variety of sudo-like programs
     sudo = None
-    display_name = "%s updater" % (proxy.name,)
+    display_name = "%s update" % (proxy.name,)
     if "DISPLAY" in os.environ:
         sudo = find_exe("gksudo","-k","-D",display_name,"--")
         if sudo is None:
@@ -142,6 +148,9 @@ def spawn_sudo(proxy):
     # Pass the pipe in environment vars, they seem to be harder to snoop.
     env = os.environ.copy()
     env["ESKY_SUDO_PIPE"] = b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))
+    if sys.version_info[0] > 2:
+        #  Python3 doesn't like bytestrings in the env dict
+        env["ESKY_SUDO_PIPE"] = env["ESKY_SUDO_PIPE"].decode("ascii")
     # Spawn the subprocess
     kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True,env=env)
     subprocess.Popen(exe,**kwds)

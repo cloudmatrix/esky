@@ -1,3 +1,5 @@
+#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
 """
 
   esky.sudo.sudo_win32:  win32 platform-specific functionality for esky.sudo
@@ -219,7 +221,7 @@ class SecureStringPipe(base.SecureStringPipe):
     root privs; it *shouldn't* be sufficient to crack root on the machine...
     """
 
-    def __init__(self,token="",pipename=None):
+    def __init__(self,token=None,pipename=None):
         super(SecureStringPipe,self).__init__(token)
         if pipename is None:
             self.pipename = r"\\.\pipe\esky-" + uuid.uuid4().hex

@@ -1,3 +1,5 @@
+#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
 
 from __future__ import with_statement
 
@@ -587,7 +589,7 @@ class TestPatch(unittest.TestCase):
         path2 = os.path.join(path2,"pyenchant-1.6.0")
         pf = os.path.join(self.tfdir,"v1.2.0_to_v1.6.0.patch")
         if not os.path.exists(pf):
-            pf = os.path.join(self.tfdir,"../../../../../esky/tests/patch-test-files/v1.2.0_to_v1.6.0.patch")
+            pf = os.path.join(dirname(esky.__file__),"tests","patch-test-files","v1.2.0_to_v1.6.0.patch")
         with open(pf,"rb") as f:
             esky.patch.apply_patch(path1,f)
         self.assertEquals(esky.patch.calculate_digest(path1),
