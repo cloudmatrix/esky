@@ -80,17 +80,14 @@ if len(sys.argv) == 1:
         assert f1.read() == f2.read()
         f1.close()
         f2.close()
-    #  Also check one of the bootstrap exes to make sure it has changed in
-    #  safe way.
-    f1 = open(os.path.join(app.appdir,"script2"+dotexe),"rb")
-    f2 = open(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),"rb")
-    if f1.read() != f2.read():
-        if sys.platform != "win32":
-            assert False, "bootstrap exe was changed"
-        else:
+    #  Also check one of the bootstrap exes to make sure it has changed safely
+    if sys.platform == "win32":
+        f1 = open(os.path.join(app.appdir,"script2"+dotexe),"rb")
+        f2 = open(os.path.join(v3dir,"esky-bootstrap","script2"+dotexe),"rb")
+        if f1.read() != f2.read():
             assert esky.winres.is_safe_to_overwrite(f1.name,f2.name), "bootstrap exe was changed unsafely"
-    f1.close()
-    f2.close()
+        f1.close()
+        f2.close()
     if sys.platform == "darwin":
         os.unlink(os.path.join(v3dir,"esky-bootstrap/Contents/MacOS/script2"))
     elif sys.platform != "win32":
