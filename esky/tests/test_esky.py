@@ -126,20 +126,19 @@ class TestEsky(unittest.TestCase):
     sequence of tests performed range across "script1.py" to "script3.py".
     """
     olddir = os.path.abspath(os.curdir)
+    tdir = tempfile.mkdtemp()
     server = None
     try:
+        options.setdefault("build",{})["build_base"] = os.path.join(tdir,"build")
+        options.setdefault("bdist",{})["dist_dir"] = os.path.join(tdir,"dist")
         platform = get_platform()
         deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
-        os.chdir(os.path.join(esky_root,"esky","tests"))
+        os.chdir(tdir)
+        shutil.copytree(os.path.join(esky_root,"esky","tests","eskytester"),"eskytester")
         #  Clean up after previous test runs.
         if os.path.isdir(deploydir):
             shutil.rmtree(deploydir)
-        for version in ("0.1","0.2","0.3"):
-            build_dir = os.path.join("dist","eskytester-%s.%s")
-            build_dir = build_dir % (version,platform,)
-            if os.path.isdir(build_dir):
-                shutil.rmtree(build_dir)
         dir_util._path_created.clear()
         #  Build three increasing versions of the test package.
         #  Version 0.2 will include a bundled MSVCRT on win32.
@@ -154,22 +153,17 @@ class TestEsky(unittest.TestCase):
         dist_setup(version="0.1",scripts=["eskytester/script1.py"],options=options,script_args=["bdist_esky"],**metadata)
         dist_setup(version="0.2",scripts=["eskytester/script1.py","eskytester/script2.py"],options=options2,script_args=["bdist_esky"],**metadata)
         dist_setup(version="0.3",scripts=["eskytester/script2.py","eskytester/script3.py"],options=options,script_args=["bdist_esky_patch"],**metadata)
-        os.unlink(os.path.join("dist","eskytester-0.3.%s.zip"%(platform,)))
+        os.unlink(os.path.join(tdir,"dist","eskytester-0.3.%s.zip"%(platform,)))
         #  Check that the patches apply cleanly
-        tdir = tempfile.mkdtemp()
-        try:
-            extract_zipfile(os.path.join("dist","eskytester-0.1.%s.zip"%(platform,)),tdir)
-            with open(os.path.join("dist","eskytester-0.3.%s.from-0.1.patch"%(platform,)),"rb") as f:
-                esky.patch.apply_patch(tdir,f)
-        finally:
-            shutil.rmtree(tdir)
-        tdir = tempfile.mkdtemp()
-        try:
-            extract_zipfile(os.path.join("dist","eskytester-0.2.%s.zip"%(platform,)),tdir)
-            with open(os.path.join("dist","eskytester-0.3.%s.from-0.2.patch"%(platform,)),"rb") as f:
-                esky.patch.apply_patch(tdir,f)
-        finally:
-            shutil.rmtree(tdir)
+        uzdir = os.path.join(tdir,"unzip")
+        extract_zipfile(os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,)),uzdir)
+        with open(os.path.join(tdir,"dist","eskytester-0.3.%s.from-0.1.patch"%(platform,)),"rb") as f:
+            esky.patch.apply_patch(uzdir,f)
+        shutil.rmtree(uzdir)
+        extract_zipfile(os.path.join(tdir,"dist","eskytester-0.2.%s.zip"%(platform,)),uzdir)
+        with open(os.path.join(tdir,"dist","eskytester-0.3.%s.from-0.2.patch"%(platform,)),"rb") as f:
+            esky.patch.apply_patch(uzdir,f)
+        shutil.rmtree(uzdir)
         #  Serve the updates at http://localhost:8000/dist/
         print "running local update server"
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
@@ -177,7 +171,7 @@ class TestEsky(unittest.TestCase):
         server_thread.daemon = True
         server_thread.start()
         #  Set up the deployed esky environment for the initial version
-        zfname = os.path.join("dist","eskytester-0.1.%s.zip"%(platform,))
+        zfname = os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,))
         os.mkdir(deploydir)
         extract_zipfile(zfname,deploydir)
         #  Run the scripts in order.
@@ -217,6 +211,7 @@ class TestEsky(unittest.TestCase):
         assert os.path.exists("tests-completed")
         os.unlink("tests-completed")
     finally:
+        shutil.rmtree(tdir)
         os.chdir(olddir)
         if server:
             server.shutdown()
