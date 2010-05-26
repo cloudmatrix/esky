@@ -475,9 +475,16 @@ class bdist_esky(Command):
         f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
         with open(f_manifest,"at") as f_manifest:
             f_manifest.seek(0,os.SEEK_END)
-            f_manifest.write(dst)
-            f_manifest.write("\n")
-            f_manifest.close()
+            if os.path.isdir(srcpath):
+                for (dirnm,_,filenms) in os.walk(srcpath):
+                    for fnm in filenms:
+                        fpath = os.path.join(dirnm,fnm)
+                        dpath = dst + fpath[len(srcpath):]
+                        f_manifest.write(dpath)
+                        f_manifest.write("\n")
+            else:
+                f_manifest.write(dst)
+                f_manifest.write("\n")
         return dstpath
 
 
