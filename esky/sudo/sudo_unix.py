@@ -117,12 +117,14 @@ def spawn_sudo(proxy):
     wnul = open(os.devnull,"w")
     pipe = SecureStringPipe()
     c_pipe = pipe.connect()
-    if getattr(sys,"frozen",False):
+    if not getattr(sys,"frozen",False):
+        exe = [sys.executable,"-c","import esky.sudo; esky.sudo.run_startup_hooks()","--esky-spawn-sudo"]
+    elif os.path.basename(sys.executable).lower() in ("python","pythonw"):
+        exe = [sys.executable,"-c","import esky.sudo; esky.sudo.run_startup_hooks()","--esky-spawn-sudo"]
+    else:
         if not _startup_hooks_were_run:
             raise OSError(None,"unable to sudo: startup hooks not run")
         exe = [sys.executable,"--esky-spawn-sudo"]
-    else:
-        exe = [sys.executable,"-c","import esky.sudo; esky.sudo.run_startup_hooks()","--esky-spawn-sudo"]
     exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
     # Look for a variety of sudo-like programs
     sudo = None
