@@ -200,12 +200,12 @@ class Esky(object):
 
     def __init__(self,appdir_or_exe,version_finder=None):
         self._init_from_appdir(appdir_or_exe)
-        self.reinitialize()
         self._lock_count = 0
-        self.version_finder = version_finder
         self.sudo_proxy = None
         self.keep_sudo_proxy_alive = False
         self._old_sudo_proxies = []
+        self.version_finder = version_finder
+        self.reinitialize()
 
     def _init_from_appdir(self,appdir_or_exe):
         """Extension point to override the initial logic of Esky initialisation.
