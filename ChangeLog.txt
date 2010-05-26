@@ -11,7 +11,8 @@ v0.7.0:
           with root privileges.
     * Cause all scripts to automagically call esky.run_startup_hooks on
       startup.  Currently this:
-        * detects the --esky-spawn-sudo option and runs the sudo helper app.
+        * detects the --esky-spawn-sudo option and runs the sudo helper.
+        * detects the --esky-spawn-cleanup option and runs the cleanup helper.
     * Have Esky.auto_update() call Esky.cleanup() automatically (mostly so it
       can immediately drop any root privileges it has acquired).
     * Use a separate file "esky-lockfile.txt" for version locking.  This

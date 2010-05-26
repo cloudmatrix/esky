@@ -39,8 +39,8 @@ class TestableEsky(esky.Esky):
         return super(TestableEsky,self).unlock()
 
     @_check_needsroot
-    def cleanup(self,retry_at_exit=(sys.platform=="win32")):
-        return super(TestableEsky,self).cleanup(retry_at_exit=retry_at_exit)
+    def cleanup(self):
+        return super(TestableEsky,self).cleanup()
 
     @_check_needsroot
     def fetch_version(self,version):

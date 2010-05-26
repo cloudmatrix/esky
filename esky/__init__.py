@@ -188,7 +188,6 @@ class Esky(object):
         if hasattr(sys,"frozen"):
             app = esky.Esky(sys.executable,"http://example.com/downloads/")
             app.auto_update()
-            app.cleanup()
 
     The first argument must be either the top-level application directory,
     or the path of an executable from that application.  The second argument
@@ -344,23 +343,26 @@ class Esky(object):
         """Drop root privileges by killing the helper app."""
         if self.sudo_proxy is not None:
             self.sudo_proxy.close()
+            if not self.keep_sudo_proxy_alive:
+                self.sudo_proxy.terminate()
             self.sudo_proxy = None
 
     @allow_from_sudo()
-    def cleanup(self,retry_at_exit=(sys.platform=="win32")):
+    def cleanup(self):
         """Perform cleanup tasks in the app directory.
 
         This includes removing older versions of the app and completing any
         failed update attempts.  Such maintenance is not done automatically
         since it can take a non-negligible amount of time.
 
-        If the optional argument "retry_at_exit" is True, permission-related
-        errors will cause the cleanup to be retried after the application has
-        exited.  It is True by default on windows, False by default on other
-        platforms.
+        If the cleanup proceeds sucessfully this method will return True; it
+        there is work that cannot currently be completed, it returns False.
         """
+        if self.sudo_proxy is not None:
+            return self.sudo_proxy.cleanup()
         appdir = self.appdir
         self.lock()
+        success = True
         try:
             best_version = get_best_version(appdir)
             new_version = get_best_version(appdir,include_partial_installs=True)
@@ -371,24 +373,6 @@ class Esky(object):
                 (_,v,_) = split_app_version(new_version)
                 self.install_version(v)
                 best_version = new_version
-            #  If there are pending overwrites, either do them or arrange
-            #  for them to be done at shutdown.
-            ovrdir = os.path.join(appdir,best_version,"esky-overwrite")
-            if os.path.exists(ovrdir):
-                for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):
-                    for nm in filenms:
-                        ovrsrc = os.path.join(dirnm,nm)
-                        ovrdst = os.path.join(appdir,ovrsrc[len(ovrdir)+1:])
-                        print "===\nOVERWRITE",ovrsrc,ovrdst,"\n==="
-                        with open(ovrsrc,"rb") as fIn:
-                            with open(ovrdst,"ab") as fOut:
-                                fOut.seek(0)
-                                chunk = fIn.read(512*16)
-                                while chunk:
-                                    fOut.write(chunk)
-                                    chunk = fIn.read(512*16)
-                        os.unlink(ovrsrc)
-                    os.rmdir(dirnm)
             #  Now we can safely remove all the old versions.
             #  We except the currently-executing version, and silently
             #  ignore any locked versions.
@@ -396,7 +380,8 @@ class Esky(object):
             manifest.add("updates")
             manifest.add("locked")
             manifest.add(best_version)
-            if self.active_version:
+            if self.active_version and self.active_version != best_version:
+                success = False
                 manifest.add(self.active_version)
             for nm in os.listdir(appdir):
                 if nm not in manifest:
@@ -408,33 +393,48 @@ class Esky(object):
                         try:
                             self.uninstall_version(v)
                         except VersionLockedError:
-                            pass
+                            success = False
                         else:
-                            self._try_remove(appdir,nm,manifest)
+                            success &= self._try_remove(appdir,nm,manifest)  
                     elif is_uninstalled_version_dir(fullnm):
                         #  It's a partially-removed version; finish removing it.
-                        self._try_remove(appdir,nm,manifest)
+                        success &= not self._try_remove(appdir,nm,manifest)
                     elif ".old." in nm or nm.endswith(".old"):
                         #  It's a temporary backup file; remove it.
-                        self._try_remove(appdir,nm,manifest)
+                        success &= not self._try_remove(appdir,nm,manifest)
                     else:
                         #  It's an unaccounted-for entry in the bootstrap env.
                         #  Can't prove it's safe to remove, so leave it.
                         pass
-            #  Also get the VersionFinder to clean up after itself
+            #  If there are pending overwrites, try to do them.
+            ovrdir = os.path.join(appdir,best_version,"esky-overwrite")
+            if os.path.exists(ovrdir):
+                try:
+                    for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):
+                        for nm in filenms:
+                            ovrsrc = os.path.join(dirnm,nm)
+                            ovrdst = os.path.join(appdir,ovrsrc[len(ovrdir)+1:])
+                            with open(ovrsrc,"rb") as fIn:
+                                with open(ovrdst,"ab") as fOut:
+                                    fOut.seek(0)
+                                    chunk = fIn.read(512*16)
+                                    while chunk:
+                                        fOut.write(chunk)
+                                        chunk = fIn.read(512*16)
+                            os.unlink(ovrsrc)
+                        os.rmdir(dirnm)
+                except EnvironmentError, e:
+                    success = False
+            #  Get the VersionFinder to clean up after itself
             if self.version_finder is not None:
                 self.version_finder.cleanup(self)
-        except EnvironmentError, e:
-            if not retry_at_exit:
-                raise
-            if e.errno not in (errno.EACCES,):
-                raise
-            self.cleanup_at_exit()
         finally:
             self.unlock()
+        return success
 
+    @allow_from_sudo()
     def cleanup_at_exit(self):
-        """Arrange for another cleanup attempt at application exit.
+        """Arrange for cleanup to occur after application exit.
 
         This operates by using the atexit module to spawn a new instance of 
         this app, with appropriate flags that cause it to launch directly into
@@ -529,6 +529,7 @@ class Esky(object):
         if self.version_finder is None:
             raise NoVersionFinderError
         got_root = False
+        cleaned = False
         try:
             version = self.find_update()
             if version is not None:
@@ -551,7 +552,7 @@ class Esky(object):
             #  Try to clean up the app dir.  If it fails with a 
             #  permission error, escalate to root and try again.
             try:
-                self.cleanup()
+                cleaned = self.cleanup()
             except EnvironmentError:
                 exc_type,exc_value,exc_traceback = sys.exc_info()
                 if exc_value.errno != errno.EACCES or self.has_root():
@@ -562,9 +563,11 @@ class Esky(object):
                     raise exc_type,exc_value,exc_traceback
                 else:
                     got_root = True
-                    self.cleanup()
+                    cleaned = self.cleanup()
         finally:
             #  Drop root privileges as soon as possible.
+            if not cleaned:
+                self.cleanup_at_exit()
             if got_root:
                 self.drop_root()
 
@@ -779,12 +782,11 @@ _startup_hooks_were_run = False
 def run_startup_hooks():
     global _startup_hooks_were_run
     _startup_hooks_were_run = True
-    import esky.sudo
-    esky.sudo.run_startup_hooks()
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-cleanup":
         app = pickle.loads(b64decode(sys.argv[2]))
         time.sleep(10)        
-        app.cleanup(retry_at_exit=False)
+        app.cleanup()
         sys.exit(0)
-
+    import esky.sudo
+    esky.sudo.run_startup_hooks()
 
