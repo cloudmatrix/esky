@@ -699,6 +699,9 @@ class Esky(object):
                         trn.move(bssrc,bsdst)
                 else:
                     trn.move(bssrc,bsdst)
+            if os.path.isdir(os.path.dirname(bssrc)):
+                if not os.listdir(os.path.dirname(bssrc)):
+                    trn.remove(os.path.dirname(bssrc))
         #  Remove the bootstrap dir; the new version is now installed
         trn.remove(bootstrap)
 
@@ -777,6 +780,9 @@ class Esky(object):
             fullnm = os.path.join(self.appdir,nm)
             if os.path.exists(fullnm):
                 trn.remove(fullnm)
+            if os.path.isdir(os.path.dirname(fullnm)):
+                if not os.listdir(os.path.dirname(fullnm)):
+                    trn.remove(os.path.dirname(fullnm))
 
     def _version_manifest(self,vdir):
         """Get the bootstrap manifest for the given version directory.

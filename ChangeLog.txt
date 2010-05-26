@@ -9,7 +9,7 @@ v0.7.0:
         * added Esky.drop_root() method to drop root privileges.
         * implemented multiple safeguards against malicious input when running
           with root privileges.
-    * Cause all scripts to automagically call esky.run_startup_hooks on
+    * Cause all scripts to automagically call esky.run_startup_hooks() on
       startup.  Currently this:
         * detects the --esky-spawn-sudo option and runs the sudo helper.
         * detects the --esky-spawn-cleanup option and runs the cleanup helper.
@@ -27,7 +27,7 @@ v0.7.0:
         * currently only for executables where the icon or version info
           has changed but the rest of the exe has not.
         * may require spawning a new copy of the process at shutdown, to
-          overwrite any in-use bootstrap exes.
+          overwrite any in-use bootstrap exes. Use Esky.cleanup_at_exit().
     * Several improvements to py2exe support:
         * implemented "optimize" and "unbuffered" settings in the custom
           bootstrap code.

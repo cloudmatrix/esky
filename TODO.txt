@@ -1,9 +1,9 @@
 
- * sudo: natively call into the Authorization API on OSX, rather than
-   shelling out to cocoasudo (which may not even be installed)
  * trickery to detect process termination even from signals etc:
       * O_TEMPORARY and ReadDirectoryChangesW on win32
       * fcntl on a tempfile for unix?
+ * sudo: natively call into the Authorization API on OSX, rather than
+   shelling out to cocoasudo (which may not even be installed)
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * respect various distutils settings e.g. verbose, dry_run
  * tests for customisable bootstrap process

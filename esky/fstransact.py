@@ -58,8 +58,6 @@ def files_differ(file1,file2,start=0,stop=None):
          return True
     if stop is None and stat1.st_size != stat2.st_size:
         return True
-    assert not os.path.isdir(file1)
-    assert not os.path.isdir(file2)
     f1 = open(file1,"rb")
     try:
         f2 = open(file2,"rb")
@@ -137,7 +135,16 @@ if CreateTransaction:
                 except EnvironmentError:
                     pass
             else:
+                self._create_parents(target)
                 MoveFileTransacted(source,target,None,None,1,self.trnid)
+
+
+        def _create_parents(self,target):
+            parents = [target]
+            while not os.path.exists(os.path.dirname(parents[-1])):
+                parents.append(os.path.dirname(parents[-1]))
+            for parent in reversed(parents[1:]):
+                CreateDirectoryTransacted(None,parent,0,self.trnid)
 
         def copy(self,source,target):
             if os.path.isdir(source):
@@ -176,6 +183,7 @@ if CreateTransaction:
                     self.remove(target_old)
 
         def _do_copy(self,source,target):
+            self._create_parents(target)
             if os.path.isdir(source):
                 CreateDirectoryTransacted(None,target,0,self.trnid)
                 for nm in os.listdir(source):
@@ -261,9 +269,17 @@ else:
                     while os.path.exists(target_old):
                         target_old = target_old + ".old"
                     os.rename(target,target_old)
+                self._create_parents(target)
                 os.rename(source,target)
                 if target_old is not None:
                     self._remove(target_old)
+
+        def _create_parents(self,target):
+            parents = [target]
+            while not os.path.exists(os.path.dirname(parents[-1])):
+                parents.append(os.path.dirname(parents[-1]))
+            for parent in reversed(parents[1:]):
+                os.mkdir(parent)
 
         def copy(self,source,target):
             if os.path.isdir(source):
@@ -308,6 +324,7 @@ else:
                     self._remove(target_old)
 
         def _do_copy(self,source,target):
+            self._create_parents(target)
             if os.path.isfile(source):
                 shutil.copy2(source,target)
             else:
