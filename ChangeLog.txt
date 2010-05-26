@@ -2,7 +2,7 @@
 v0.7.0:
 
     * Renamed "esky.helper" to "esky.sudo" along with much refactoring:
-        * esky.use_helper_app is now esky.allow_from_sudo() and is used to 
+        * @esky.use_helper_app is now @esky.allow_from_sudo() and is used to 
           declare a type signature.
         * Esky.helper_app is now Esky.sudo_proxy and is always an instance
           of esky.sudo.SudoProxy.
@@ -23,7 +23,7 @@ v0.7.0:
       (e.g. running from "prog.old.exe" instead of "prog.exe").
     * Allow direct overwriting of existing bootstrap files on win32 (instead
       of renaming the old version out of the way) but only in very special
-      circumstances.
+      circumstances:
         * currently only for executables where the icon or version info
           has changed but the rest of the exe has not.
         * may require spawning a new copy of the process at shutdown, to
