@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import errno
 
 
 import esky
@@ -34,6 +35,7 @@ class BTestClass(ATestClass):
         super(BTestClass,self).__init__()
         self.a = "B"
 assert BTestClass().a == "B"
+
 
 #  Spawn another instance that just busy-loops,
 #  holding a lock on the current version.

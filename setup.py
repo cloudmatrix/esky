@@ -45,7 +45,8 @@ LONG_DESC = info["__doc__"]
 PACKAGES = ["esky","esky.bdist_esky","esky.tests","esky.tests.eskytester",
             "esky.sudo"]
 EXT_MODULES = []
-PKG_DATA = {"esky.tests.eskytester":["pkgdata.txt","datafile.txt"],}
+PKG_DATA = {"esky.tests.eskytester":["pkgdata.txt","datafile.txt"],
+            "esky.tests":["patch-test-files/*.patch"]}
 
 setup(name=NAME,
       version=VERSION,

@@ -1,3 +1,5 @@
+#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
 """
 
   esky.sudo.sudo_unix:  unix platform-specific functionality for esky.sudo
