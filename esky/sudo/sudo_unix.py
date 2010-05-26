@@ -36,6 +36,14 @@ def can_get_root():
     return True
 
 
+class KillablePopen(subprocess.Popen):
+    """Popen that's guaranteed killable, even on python2.5."""
+    if not hasattr(subprocess.Popen,"terminate"):
+        def terminate(self):
+            import signal
+            os.kill(self.pid,signal.SIGTERM)
+
+
 class SecureStringPipe(base.SecureStringPipe):
     """A two-way pipe for securely communicating with a sudo subprocess.
 
@@ -60,6 +68,12 @@ class SecureStringPipe(base.SecureStringPipe):
             os.mkfifo(self.wnm,0600)
         else:
             self.tdir,self.rnm,self.wnm = data
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def connect(self):
         return SecureStringPipe(self.token,(self.tdir,self.wnm,self.rnm))
@@ -118,7 +132,7 @@ def find_exe(name,*args):
 
 
 def spawn_sudo(proxy):
-    """Spawn the sudo slave process, returning a pipe to communicate with it."""
+    """Spawn the sudo slave process, returning proc and a pipe to message it."""
     rnul = open(os.devnull,"r")
     wnul = open(os.devnull,"w")
     pipe = SecureStringPipe()
@@ -153,8 +167,8 @@ def spawn_sudo(proxy):
         env["ESKY_SUDO_PIPE"] = env["ESKY_SUDO_PIPE"].decode("ascii")
     # Spawn the subprocess
     kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True,env=env)
-    subprocess.Popen(exe,**kwds)
-    return pipe
+    proc = KillablePopen(exe,**kwds)
+    return (proc,pipe)
 
 
 _startup_hooks_were_run = False

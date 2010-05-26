@@ -199,6 +199,21 @@ class Esky(object):
     lock_timeout = 60*60  # 1 hour
 
     def __init__(self,appdir_or_exe,version_finder=None):
+        self._init_from_appdir(appdir_or_exe)
+        self.reinitialize()
+        self._lock_count = 0
+        self.version_finder = version_finder
+        self.sudo_proxy = None
+        self.keep_sudo_proxy_alive = False
+        self._old_sudo_proxies = []
+
+    def _init_from_appdir(self,appdir_or_exe):
+        """Extension point to override the initial logic of Esky initialisation.
+
+        This method is expected to interrogate the given appdir and set up the
+        basic properties of the esky (e.g. name, platform) in response.  It is
+        split into its own method to make it easier to override in subclasses.
+        """
         if os.path.isfile(appdir_or_exe):
             self.appdir = appdir_from_executable(appdir_or_exe)
             vdir = appdir_or_exe[len(self.appdir):].split(os.sep)[1]
@@ -207,10 +222,6 @@ class Esky(object):
         else:
             self.active_version = None
             self.appdir = appdir_or_exe
-        self.reinitialize()
-        self._lock_count = 0
-        self.version_finder = version_finder
-        self.sudo_proxy = None
 
     def _get_version_finder(self):
         return self.__version_finder
@@ -233,7 +244,7 @@ class Esky(object):
             v = join_app_version(self.name,self.active_version,self.platform)
         else:
             v = join_app_version(self.name,self.version,self.platform)
-        return os.path.abspath(oss.path.join(self.appdir,v,relpath))
+        return os.path.abspath(os.path.join(self.appdir,v,relpath))
 
     def reinitialize(self):
         """Reinitialize internal state by poking around in the app directory.
@@ -328,6 +339,8 @@ class Esky(object):
     @allow_from_sudo()
     def has_root(self):
         """Check whether the user currently has root/administrator access."""
+        if self.sudo_proxy is not None:
+            return self.sudo_proxy.has_root()
         return has_root()
 
     def get_root(self):
@@ -343,7 +356,9 @@ class Esky(object):
         """Drop root privileges by killing the helper app."""
         if self.sudo_proxy is not None:
             self.sudo_proxy.close()
-            if not self.keep_sudo_proxy_alive:
+            if self.keep_sudo_proxy_alive:
+                self._old_sudo_proxies.append(self.sudo_proxy)
+            else:
                 self.sudo_proxy.terminate()
             self.sudo_proxy = None
 
@@ -443,6 +458,9 @@ class Esky(object):
         Recall that sys.executable points to a specific version dir, so this
         new process will not hold any filesystem locks in the main app dir.
         """
+        if self.sudo_proxy is not None:
+            self.keep_sudo_proxy_alive = True
+            return self.sudo_proxy.cleanup_at_exit()
         if not getattr(sys,"frozen",False):
             exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()","--esky-spawn-cleanup"]
         elif os.path.basename(sys.executable).lower() in ("python","pythonw"):
@@ -604,6 +622,8 @@ class Esky(object):
     @allow_from_sudo(str)
     def fetch_version(self,version):
         """Fetch the specified updated version of the app."""
+        if self.sudo_proxy is not None:
+            return self.sudo_proxy.fetch_version(version)
         if self.version_finder is None:
             raise NoVersionFinderError
         #  Guard against malicious input (might be called with root privs)
@@ -627,6 +647,8 @@ class Esky(object):
         available as a version directory inside the app directory.  It 
         does not modify any other installed versions.
         """
+        if self.sudo_proxy is not None:
+            return self.sudo_proxy.install_version(version)
         #  Extract update then rename into position in main app directory
         target = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target)
@@ -683,6 +705,8 @@ class Esky(object):
     @allow_from_sudo(str)
     def uninstall_version(self,version): 
         """Uninstall the specified version of the app."""
+        if self.sudo_proxy is not None:
+            return self.sudo_proxy.uninstall_version(version)
         target_name = join_app_version(self.name,version,self.platform)
         target = os.path.join(self.appdir,target_name)
         #  Guard against malicious input (might be called with root privs)

@@ -128,7 +128,7 @@ class SecureStringPipe(object):
 
 
 def spawn_sudo(proxy):
-    """Spawn the sudo slave process, returning a pipe to communicate with it."""
+    """Spawn the sudo slave process, returning proc and a pipe to message it."""
     raise NotImplementedError
 
 

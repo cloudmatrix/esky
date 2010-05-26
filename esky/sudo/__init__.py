@@ -52,10 +52,11 @@ class SudoProxy(object):
     def __init__(self,target):
         self.name = target.name
         self.target = target
+        self.closed = False
         self.pipe = None
 
     def start(self):
-        self.pipe = spawn_sudo(self)
+        (self.proc,self.pipe) = spawn_sudo(self)
         if self.pipe.read() != "READY":
             self.close()
             raise RuntimeError("failed to spawn helper app")
@@ -63,12 +64,20 @@ class SudoProxy(object):
     def close(self):
         self.pipe.write("close")
         self.pipe.read()
+        self.closed = True
+
+    def terminate(self):
+        if not self.closed:
+            self.close()
         self.pipe.close()
+        self.pipe = None
+        self.proc.terminate()
 
     def run(self,pipe):
         self.target.sudo_proxy = None
         pipe.write("READY")
         try:
+            #  Process incoming commands in a loop.
             while True:
                 try:
                     methname = pipe.read()
@@ -88,6 +97,13 @@ class SudoProxy(object):
                             pipe.write(pickle.dumps((False,e)))
                         else:
                             pipe.write(pickle.dumps((True,res)))
+                except EOFError:
+                    break
+            #  Stay alive until the pipe is closed, but don't execute
+            #  any further commands.
+            while True:
+                try:
+                    pipe.read()
                 except EOFError:
                     break
         finally:
@@ -118,24 +134,25 @@ class SudoProxy(object):
 def allow_from_sudo(*argtypes):
     """Method decorator to allow access to a method via the sudo proxy.
 
-    This decorator wraps an Esky method so that it can be transparently
-    called via the esky's sudo proxy when enabled.  It is also used to
-    declare type conversions/checks on the arguments given to the
-    method.  Example:
+    This decorator wraps an Esky method so that it can be called via the
+    esky's sudo proxy.  It is also used to declare type conversions/checks
+    on the arguments given to the method.  Example:
 
         @allow_from_sudo(str)
         def install_version(self,version):
+            if self.sudo_proxy is not None:
+                return self.sudo_proxy.install_version(version)
             ...
 
+    Note that there are two aspects to transparently tunneling a method call
+    through the sudo proxy: allowing it via this decorator, and actually 
+    passing on the call to the proxy object.  I have no intention of making
+    this any more hidden, because the fact that a method can have escalated
+    privileges is somethat that needs to be very obvious from the code.
     """
     def decorator(func):
-        @wraps(func)
-        def wrapper(self,*args,**kwds):
-            if self.sudo_proxy is not None:
-                return getattr(self.sudo_proxy,func.func_name)(*args,**kwds)
-            return func(self,*args,**kwds)
-        wrapper._esky_sudo_argtypes = argtypes
-        return wrapper
+        func._esky_sudo_argtypes = argtypes
+        return func
     return decorator
 
 

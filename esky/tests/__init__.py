@@ -10,6 +10,7 @@ import sys
 import os
 import errno
 import esky
+from esky.sudo import allow_from_sudo
 from functools import wraps
 
 
@@ -38,22 +39,25 @@ class TestableEsky(esky.Esky):
     def unlock(self):
         return super(TestableEsky,self).unlock()
 
+    @allow_from_sudo()
     @_check_needsroot
     def cleanup(self):
         return super(TestableEsky,self).cleanup()
 
+    @allow_from_sudo(str)
     @_check_needsroot
     def fetch_version(self,version):
         return super(TestableEsky,self).fetch_version(version)
 
+    @allow_from_sudo(str)
     @_check_needsroot
     def install_version(self,version):
         return super(TestableEsky,self).install_version(version)
 
+    @allow_from_sudo(str)
     @_check_needsroot
     def uninstall_version(self,version):
         super(TestableEsky,self).uninstall_version(version)
-
 
 
 

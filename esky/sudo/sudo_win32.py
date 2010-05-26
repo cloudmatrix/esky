@@ -196,6 +196,21 @@ def can_get_root():
 
 
 
+class KillablePopen(subprocess.Popen):
+    """Popen that's guaranteed killable, even on python2.5."""
+    if not hasattr(subprocess.Popen,"terminate"):
+        def terminate(self):
+            kernel32.TerminateProcess(self._handle,-1)
+
+
+class FakePopen(object):
+    """Popen-alike based on a raw process handle."""
+    def __init__(self,handle):
+        self._handle = handle
+    def terminate(self):
+        kernel32.TerminateProcess(self._handle,-1)
+    
+
 class SecureStringPipe(base.SecureStringPipe):
     """Two-way pipe for securely communicating strings with a sudo subprocess.
 
@@ -268,7 +283,7 @@ class SecureStringPipe(base.SecureStringPipe):
 
 
 def spawn_sudo(proxy):
-    """Spawn the sudo slave process, returning a pipe to communicate with it.
+    """Spawn the sudo slave process, returning proc and a pipe to message it.
 
     This function spawns the proxy app with administrator privileges, using
     ShellExecuteEx and the undocumented-but-widely-recommended "runas" verb.
@@ -284,7 +299,7 @@ def spawn_sudo(proxy):
     exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
     exe = exe + [b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))]
     if sys.getwindowsversion()[0] < 6:
-        subprocess.Popen(exe,close_fds=True)
+        proc = KillablePopen(exe,close_fds=True)
     else:
         execinfo = SHELLEXECUTEINFO()
         execinfo.cbSize = sizeof(execinfo)
@@ -296,7 +311,8 @@ def spawn_sudo(proxy):
         execinfo.lpDirectory = None
         execinfo.nShow = 0
         ShellExecuteEx(byref(execinfo))
-    return pipe
+        proc = FakePopen(execinfo.hProcess)
+    return (proc,pipe)
 
 
 _startup_hooks_were_run = False
