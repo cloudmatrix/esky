@@ -214,7 +214,13 @@ class TestEsky(unittest.TestCase):
         os.unlink("tests-completed")
     finally:
         os.chdir(olddir)
-        shutil.rmtree(tdir)
+        for i in xrange(10):
+            try:
+                shutil.rmtree(tdir)
+            except EnvironmentError:
+                time.sleep(2)
+            else:
+                break
         if server:
             server.shutdown()
  
