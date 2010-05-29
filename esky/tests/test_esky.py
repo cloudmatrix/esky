@@ -630,9 +630,9 @@ class TestFilesDiffer(unittest.TestCase):
 
     def _differs(self,data1,data2,start=0,stop=None):
         with open(self._path("file1"),"wb") as f:
-            f.write(data1)
+            f.write(data1.encode("ascii"))
         with open(self._path("file2"),"wb") as f:
-            f.write(data2)
+            f.write(data2.encode("ascii"))
         return files_differ(self._path("file1"),self._path("file2"),start,stop)
 
     def test_files_differ(self):

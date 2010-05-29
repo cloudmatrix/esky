@@ -177,8 +177,12 @@ def run_startup_hooks():
     global _startup_hooks_were_run
     _startup_hooks_were_run = True
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
-        proxy = pickle.loads(b64decode(sys.argv[2]))
-        pipe = pickle.loads(b64decode(os.environ["ESKY_SUDO_PIPE"]))
+        if sys.version_info[0] > 2:
+            proxy = pickle.loads(b64decode(sys.argv[2].encode("ascii")))
+            pipe = pickle.loads(b64decode(os.environ["ESKY_SUDO_PIPE"].encode("ascii")))
+        else:
+            proxy = pickle.loads(b64decode(sys.argv[2]))
+            pipe = pickle.loads(b64decode(os.environ["ESKY_SUDO_PIPE"]))
         proxy.run(pipe)
         sys.exit(0)
 

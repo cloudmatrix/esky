@@ -20,7 +20,7 @@ Example:
     -->   success!
 
 
-We also provie some handy utility functions:
+We also provide some handy utility functions:
 
     * has_root():      check whether current process has root privileges
     * can_get_root():  check whether current process may be able to get root
@@ -46,6 +46,14 @@ else:
                                      run_startup_hooks
 
 
+def b(data):
+    """Like b"data", but valid syntax in older pythons as well.
+
+    Sadly 2to3 can't get string constants right.
+    """
+    return data.encode("ascii")
+
+
 class SudoProxy(object):
     """Object method proxy with root privileges."""
 
@@ -57,12 +65,12 @@ class SudoProxy(object):
 
     def start(self):
         (self.proc,self.pipe) = spawn_sudo(self)
-        if self.pipe.read() != "READY":
+        if self.pipe.read() != b("READY"):
             self.close()
             raise RuntimeError("failed to spawn helper app")
 
     def close(self):
-        self.pipe.write("close")
+        self.pipe.write(b("CLOSE"))
         self.pipe.read()
         self.closed = True
 
@@ -75,14 +83,14 @@ class SudoProxy(object):
 
     def run(self,pipe):
         self.target.sudo_proxy = None
-        pipe.write("READY")
+        pipe.write(b("READY"))
         try:
             #  Process incoming commands in a loop.
             while True:
                 try:
-                    methname = pipe.read()
-                    if methname == "close":
-                        pipe.write("CLOSING")
+                    methname = pipe.read().decode("ascii")
+                    if methname == "CLOSE":
+                        pipe.write(b("CLOSING"))
                         break
                     else:
                         argtypes = _get_sudo_argtypes(self.target,methname)
@@ -90,7 +98,12 @@ class SudoProxy(object):
                             msg = "attribute '%s' not allowed from sudo"
                             raise AttributeError(msg % (attr,))
                         method = getattr(self.target,methname)
-                        args = [t(pipe.read()) for t in argtypes]
+                        args = []
+                        for t in argtypes:
+                            if t is str:
+                                args.append(pipe.read().decode("ascii"))
+                            else:
+                                args.append(t(pipe.read()))
                         try:
                             res = method(*args)
                         except Exception, e:
@@ -120,9 +133,9 @@ class SudoProxy(object):
         pipe = self.__dict__["pipe"]
         @wraps(method.im_func)
         def wrapper(*args):
-            pipe.write(method.im_func.func_name)
+            pipe.write(method.im_func.func_name.encode("ascii"))
             for arg in args:
-                pipe.write(str(arg))
+                pipe.write(str(arg).encode("ascii"))
             (success,result) = pickle.loads(pipe.read())
             if not success:
                 raise result
