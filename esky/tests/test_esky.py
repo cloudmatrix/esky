@@ -604,8 +604,14 @@ class TestPatch(unittest.TestCase):
 
     def _extract(self,filename,dest):
         dest = os.path.join(self.workdir,dest)
-        if os.path.exists(dest):
-            shutil.rmtree(dest)
+        for i in xrange(10):
+            if os.path.exists(dest):
+                try:
+                    shutil.rmtree(dest)
+                except EnvironmentError:
+                    time.sleep(1)
+                else:
+                    break
         f = tarfile.open(os.path.join(self.tfdir,filename),"r:gz")
         try:
             f.extractall(dest)
