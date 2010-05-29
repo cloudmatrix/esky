@@ -1,4 +1,5 @@
 
+ * put all esky control files in an "esky" subdir, for cleanliness
  * trickery to detect process termination even from signals etc:
       * O_TEMPORARY and ReadDirectoryChangesW on win32
       * fcntl on a tempfile for unix?
