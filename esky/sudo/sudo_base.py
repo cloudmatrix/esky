@@ -83,19 +83,19 @@ class SecureStringPipe(object):
         if not self.connected:
             self._read_hmac = hmac.new(self.token)
             self._write_hmac = hmac.new(self.token)
-            timed_out = []
-            t = None
-            if threading is not None:
-                def rescueme():
-                    timed_out.append(True)
-                    self._recover()
-                t = threading.Timer(30,rescueme)
-                t.start()
+            #timed_out = []
+            #t = None
+            #if threading is not None:
+            #    def rescueme():
+            #        timed_out.append(True)
+            #        self._recover()
+            #    t = threading.Timer(30,rescueme)
+            #    t.start()
             self._open()
-            if timed_out:
-                raise IOError(errno.ETIMEDOUT,"timed out during sudo")
-            elif t is not None:
-                t.cancel()
+            #if timed_out:
+            #    raise IOError(errno.ETIMEDOUT,"timed out during sudo")
+            #elif t is not None:
+            #    t.cancel()
             self.connected = True
 
     def close(self):
