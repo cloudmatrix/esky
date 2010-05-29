@@ -2,6 +2,7 @@
 v0.7.1:
 
     * restored compatability with Python 3.
+    * fixed automatic detection of gui-only scripts based on filename.
 
 v0.7.0:
 

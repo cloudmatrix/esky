@@ -268,7 +268,11 @@ class bdist_esky(Command):
                     name = exe.name
                     if sys.platform == "win32" and name.endswith(".exe"):
                         name = name[:-4]
-                    script = os.path.join(self.tempdir,"scripts",name+".py")
+                    if "." in exe.script:
+                        ext = "." + exe.script.split(".")[-1]
+                    else:
+                        ext = ""
+                    script = os.path.join(self.tempdir,"scripts",name+ext)
                     with open(exe.script,"rt") as fIn:
                         with open(script,"wt") as fOut:
                             for ln in fIn:
