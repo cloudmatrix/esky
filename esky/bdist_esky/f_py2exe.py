@@ -159,6 +159,7 @@ def freeze(dist):
     code_source = [inspect.getsource(esky.bootstrap)]
     code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
     code_source.append(_CUSTOM_WIN32_CHAINLOADER)
+    code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
     if dist.bootstrap_module is None:
         code_source.append("bootstrap()")
     else:

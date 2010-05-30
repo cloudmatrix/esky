@@ -3,6 +3,8 @@ v0.7.1:
 
     * restored compatability with Python 3.
     * fixed automatic detection of gui-only scripts based on filename.
+    * set variable "__esky_name__" in the bootstrapping code, and use it to
+      potentially speed up application startup.
 
 v0.7.0:
 

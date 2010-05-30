@@ -106,7 +106,11 @@ def bootstrap():
     chain-loads that version of the application.
     """
     appdir = appdir_from_executable(sys.executable)
-    best_version = get_best_version(appdir)
+    best_version = None
+    if __esky_name__ is not None:
+        best_version = get_best_version(appdir,appname=__esky_name__)
+    if best_version is None:
+        best_version = get_best_version(appdir)
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
     return chainload(pathjoin(appdir,best_version))
@@ -155,7 +159,7 @@ def _chainload(target_dir):
                 execv(target_exe,[target_exe] + sys.argv[1:])
 
 
-def get_best_version(appdir,include_partial_installs=False):
+def get_best_version(appdir,include_partial_installs=False,appname=None):
     """Get the best usable version directory from inside the given appdir.
 
     In the common case there is only a single version directory, but failed
@@ -165,9 +169,12 @@ def get_best_version(appdir,include_partial_installs=False):
     #  Find all potential version directories, sorted by version number.
     candidates = []
     for nm in listdir(appdir):
-        (_,ver,platform) = split_app_version(nm)
+        (appnm,ver,platform) = split_app_version(nm)
         #  If its name didn't parse properly, don't bother looking inside.
         if ver and platform:
+            #  If we're given a specific name, it must have that name
+            if appname is not None and appnm != appname:
+                continue
             #  We have to pay another stat() call to check if it's active.
             if is_version_dir(pathjoin(appdir,nm)):
                 ver = parse_version(ver)

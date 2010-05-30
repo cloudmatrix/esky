@@ -103,6 +103,7 @@ def freeze(dist):
     code_source = [inspect.getsource(esky.bootstrap)]
     code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
     code_source.append(_EXTRA_BOOTSTRAP_CODE)
+    code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
     if dist.bootstrap_module is None:
         code_source.append("bootstrap()")
     else:
@@ -182,7 +183,7 @@ sys.argv[0] = environ["ARGVZERO"]
 
 #  py2app isn't designed for freezing multiple exes, so its standard
 #  bootstrap code runs a fixed script.  This code gets inserted into the
-#  bootstrap code to inspects the environment and find the actual script
+#  bootstrap code to inspect the environment and find the actual script
 #  to be run.
 _EXE_PRESCRIPT_CODE = """
 import os
