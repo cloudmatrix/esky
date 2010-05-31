@@ -257,6 +257,8 @@ def _chainload(target_dir):
       for nm in listdir(target_dir):
           if nm == pydll:
               continue
+          if nm.lower().startswith("msvcr"):
+              continue
           if nm.lower().endswith(".pyd") or nm.lower().endswith(".dll"):
               #  The freeze dir contains unbundled C extensions.
               #  Since they're linked against a physical python DLL, we

@@ -299,7 +299,10 @@ def spawn_sudo(proxy):
     exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
     exe = exe + [b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))]
     if sys.getwindowsversion()[0] < 6:
-        proc = KillablePopen(exe,close_fds=True)
+        kwds = {}
+        if sys.hexversion >= 0x20600000:
+            kwds["close_fds"] = True
+        proc = KillablePopen(exe,**kwds)
     else:
         execinfo = SHELLEXECUTEINFO()
         execinfo.cbSize = sizeof(execinfo)

@@ -47,6 +47,11 @@ already have the corresponding zip files.
 """
 
 from __future__ import with_statement
+try:
+    bytes = bytes
+except NameError:
+    bytes = str
+
 
 import os
 import sys

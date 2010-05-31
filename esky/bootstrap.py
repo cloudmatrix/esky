@@ -70,7 +70,8 @@ def exists(path):
     """Local re-implementation of os.path.exists."""
     try:
         stat(path)
-    except EnvironmentError, e:
+    except EnvironmentError:
+        e = sys.exc_info()[1]
         if e.errno not in (errno.ENOENT,errno.ENOTDIR,errno.ESRCH,):
             raise
         else:
@@ -149,7 +150,8 @@ def _chainload(target_dir):
     target_exe = target_dir + sys.executable[len(appdir):]
     try:
         execv(target_exe,[target_exe] + sys.argv[1:])
-    except EnvironmentError, e:
+    except EnvironmentError:
+        e = sys.exc_info()[1]
         if e.errno == errno.ENOENT:
             # Tried to chainload something that doesn't exist.
             # Perhaps executing from a backup file?

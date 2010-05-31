@@ -475,7 +475,10 @@ class Esky(object):
             rnul = open(os.devnull,"r")
             wnul = open(os.devnull,"w")
             if sys.platform == "win32":
-                kwds = dict(close_fds=True)
+                if sys.hexversion >= 0x20600000:
+                    kwds = dict(close_fds=True)
+                else:
+                    kwds = {}
             else:
                 kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True)
             subprocess.Popen(exe,**kwds)

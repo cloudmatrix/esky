@@ -71,12 +71,14 @@ else:
 #  Upgrade to the next version (0.2, even though 0.3 is available)
 if os.environ.get("ESKY_NEEDSROOT",""):
     already_root = app.has_root()
+    print "GETTING ROOT"
     app.get_root()
     assert app.has_root()
+    print "GOT ROOT"
     app.drop_root()
     assert app.has_root() == already_root
     app.get_root()
-    
+
 
 app.install_version("0.2")
 app.reinitialize()
@@ -84,6 +86,7 @@ assert app.name == "eskytester"
 assert app.active_version == "0.1"
 assert app.version == "0.2"
 assert app.find_update() == "0.3"
+
 
 assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))

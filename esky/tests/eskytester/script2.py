@@ -1,6 +1,8 @@
 
 #  Second entry point for testing an esky install.
 
+from __future__ import with_statement
+
 import os
 import sys
 import stat
@@ -32,7 +34,7 @@ assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
 
 #  Test that MSVCRT was bundled correctly
-if sys.platform == "win32":
+if sys.platform == "win32" and sys.hexversion >= 0x20600000:
     versiondir = os.path.dirname(sys.executable)
     for nm in os.listdir(versiondir):
         if nm.startswith("Microsoft.") and nm.endswith(".CRT"):

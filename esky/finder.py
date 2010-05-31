@@ -11,6 +11,8 @@ specified URL to look for new versions.
 
 """
 
+from __future__ import with_statement
+
 import os
 import re
 import stat
@@ -124,7 +126,11 @@ class DefaultVersionFinder(VersionFinder):
         filename_re = filename_re % (appname_re,version_re,)
         link_re = "href=['\"](?P<href>([^'\"]*/)?%s)['\"]" % (filename_re,)
         # TODO: would be nice not to have to guess encoding here.
-        downloads = self.open_url(self.download_url).read().decode("utf-8")
+        df = self.open_url(self.download_url)
+        try:
+            downloads = df.read().decode("utf-8")
+        finally:
+            df.close()
         for match in re.finditer(link_re,downloads,re.I):
             version = match.group("version")
             href = match.group("href")
@@ -160,25 +166,26 @@ class DefaultVersionFinder(VersionFinder):
 
     def _fetch_file(self,app,url):
         infile = self.open_url(urljoin(self.download_url,url))
-        nm = os.path.basename(urlparse(url).path)
-        outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
-        if not os.path.exists(outfilenm):
-            partfilenm = outfilenm + ".part"
-            partfile = open(partfilenm,"wb")
-            try:
-                data = infile.read(1024*512)
-                while data:
-                    partfile.write(data)
+        try:
+            nm = os.path.basename(urlparse(url).path)
+            outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
+            if not os.path.exists(outfilenm):
+                partfilenm = outfilenm + ".part"
+                partfile = open(partfilenm,"wb")
+                try:
                     data = infile.read(1024*512)
-            except Exception:
-                infile.close()
-                partfile.close()
-                os.unlink(partfilenm)
-                raise
-            else:
-                infile.close()
-                partfile.close()
-                os.rename(partfilenm,outfilenm)
+                    while data:
+                        partfile.write(data)
+                        data = infile.read(1024*512)
+                except Exception:
+                    partfile.close()
+                    os.unlink(partfilenm)
+                    raise
+                else:
+                    partfile.close()
+                    os.rename(partfilenm,outfilenm)
+        finally:
+            infile.close()
         return outfilenm
 
     def _prepare_version(self,app,version,path):

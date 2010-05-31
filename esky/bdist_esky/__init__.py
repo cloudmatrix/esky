@@ -431,11 +431,13 @@ class bdist_esky(Command):
         except EnvironmentError:
             return None
         manifest = minidom.parseString(manifest_str)
-        assembly = manifest.getElementsByTagName("assemblyIdentity")[0]
-        name = assembly.attributes["name"].value
-        version = assembly.attributes["version"].value 
-        pubkey = assembly.attributes["publicKeyToken"].value 
-        return (name,version,pubkey)
+        for assembly in manifest.getElementsByTagName("assemblyIdentity"):
+            name = assembly.attributes["name"].value
+            if name.startswith("Microsoft") and name.endswith("CRT"):
+                version = assembly.attributes["version"].value 
+                pubkey = assembly.attributes["publicKeyToken"].value 
+                return (name,version,pubkey)
+        return None
         
     def _find_msvcrt_manifest_files(self,name):
         """Search the system for candidate MSVCRT manifest files."""

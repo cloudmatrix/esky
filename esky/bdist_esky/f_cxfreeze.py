@@ -173,7 +173,8 @@ def _chainload(target_dir):
               INITSCRIPT_ZIP_FILE_NAME = init_path
               try:
                   exec code in globals()
-              except zipimport.ZipImportError, e:
+              except zipimport.ZipImportError:
+                  e = sys.exc_info()[1]
                   #  If it can't find the __main__{sys.executable} script,
                   #  the user might be running from a backup exe file.
                   #  Fall back to original chainloader to attempt workaround.
