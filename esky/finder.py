@@ -95,31 +95,35 @@ class DefaultVersionFinder(VersionFinder):
         super(DefaultVersionFinder,self).__init__()
         self.version_graph = VersionGraph()
 
-    def _workdir(self,app,nm):
+    def _workdir(self,app,nm,create=True):
         """Get full path of named working directory, inside the given app."""
         updir = app._get_update_dir()
         workdir = os.path.join(updir,nm)
-        for target in (updir,workdir):
-            try:
-                os.mkdir(target)
-            except OSError, e:
-                if e.errno not in (17,183):
-                    raise
-            else:
-                copy_ownership_info(app.appdir,target)
+        if create:
+            for target in (updir,workdir):
+                try:
+                    os.mkdir(target)
+                except OSError, e:
+                    if e.errno not in (17,183):
+                        raise
+                else:
+                    copy_ownership_info(app.appdir,target)
         return workdir
 
     def needs_cleanup(self,app):
         """Check whether the cleanup() method has any work to do."""
-        dldir = self._workdir(app,"downloads")
-        for nm in os.listdir(dldir):
-            return True
-        updir = self._workdir(app,"unpack")
-        for nm in os.listdir(updir):
-            return True
-        rddir = self._workdir(app,"ready")
-        for nm in os.listdir(rddir):
-            return True
+        dldir = self._workdir(app,"downloads",create=False)
+        if os.path.isdir(dldir):
+            for nm in os.listdir(dldir):
+                return True
+        updir = self._workdir(app,"unpack",create=False)
+        if os.path.isdir(updir):
+            for nm in os.listdir(updir):
+                return True
+        rddir = self._workdir(app,"ready",create=False)
+        if os.path.isdir(rddir):
+            for nm in os.listdir(rddir):
+                return True
         return False
 
     def cleanup(self,app):
