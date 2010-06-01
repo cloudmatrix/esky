@@ -1,10 +1,12 @@
 
+ * cleanup_at_exit:  try to launch the *best* version rather than the
+   active version, so that the active version's directory can be cleaned up.
+ * lock active version dir in startuphooks.  this adds some startup overhead
+   but improves safety.
  * put all esky control files in an "esky" subdir, for cleanliness
  * trickery to detect process termination even from signals etc:
       * O_TEMPORARY and ReadDirectoryChangesW on win32
       * fcntl on a tempfile for unix?
- * sudo: natively call into the Authorization API on OSX, rather than
-   shelling out to cocoasudo (which may not even be installed)
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * respect various distutils settings e.g. verbose, dry_run
  * tests for customisable bootstrap process
