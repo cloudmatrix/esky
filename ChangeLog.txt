@@ -5,6 +5,7 @@ v0.7.2:
       these can be used to test whether a call to cleanup() is necessary and,
       if not, to avoid locking the appdir or escalating to root.
     * added native sudo implementation for OSX.
+    * allow Esky.lock() and Esky.unlock() to be called via sudo proxy.
     * support for Python 3 on win32 (cx-freeze only).
     * fixed compatability with Python 2.5 (via __future__ imports).
 

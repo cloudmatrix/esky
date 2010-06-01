@@ -259,6 +259,7 @@ class Esky(object):
         details = split_app_version(best_version)
         self.name,self.version,self.platform = details
 
+    @allow_from_sudo()
     def lock(self,num_retries=0):
         """Lock the application directory for exclusive write access.
 
@@ -273,6 +274,8 @@ class Esky(object):
         This also has the side-effect of failing early if the user does not
         have permission to modify the application directory.
         """
+        if self.sudo_proxy is not None:
+            return self.sudo_proxy.lock()
         if num_retries > 5:
             raise EskyLockedError
         if threading:
@@ -319,8 +322,11 @@ class Esky(object):
             self._lock_count = 1
             return True
             
+    @allow_from_sudo()
     def unlock(self):
         """Unlock the application directory for exclusive write access."""
+        if self.sudo_proxy is not None:
+            return self.sudo_proxy.unlock()
         self._lock_count -= 1
         if self._lock_count == 0:
             if threading:
