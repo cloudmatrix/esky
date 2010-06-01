@@ -375,77 +375,131 @@ class Esky(object):
         """
         if self.sudo_proxy is not None:
             return self.sudo_proxy.cleanup()
-        appdir = self.appdir
+        if not self.needs_cleanup():
+            return True
         self.lock()
-        success = True
         try:
-            best_version = get_best_version(appdir)
-            new_version = get_best_version(appdir,include_partial_installs=True)
-            #  If there's a partial install we must complete it, since it
-            #  could have left exes in the bootstrap env and we don't want
-            #  to accidentally delete their dependencies.
-            if best_version != new_version:
-                (_,v,_) = split_app_version(new_version)
-                self.install_version(v)
-                best_version = new_version
-            #  Now we can safely remove all the old versions.
-            #  We except the currently-executing version, and silently
-            #  ignore any locked versions.
-            manifest = self._version_manifest(best_version)
-            manifest.add("updates")
-            manifest.add("locked")
-            manifest.add(best_version)
-            if self.active_version and self.active_version != best_version:
-                success = False
-                manifest.add(self.active_version)
-            for nm in os.listdir(appdir):
-                if nm not in manifest:
-                    fullnm = os.path.join(appdir,nm)
-                    if is_version_dir(fullnm):
-                        #  It's an installed-but-obsolete version.  Properly
-                        #  uninstall it so it will clean up the bootstrap env.
-                        (_,v,_) = split_app_version(nm)
-                        try:
-                            self.uninstall_version(v)
-                        except VersionLockedError:
-                            success = False
+            #  This is a little coroutine trampoline that executes each
+            #  action yielded from self._cleanup_actions().  Any exceptions
+            #  that the action raises are thrown back into the generator.
+            #  The result of each is and-ed into the success code.
+            #
+            #  If you're looking for the actual logic of the cleanup process,
+            #  it's all in the _cleanup_actions() method.
+            success = True
+            actions = self._cleanup_actions()
+            try:
+                act = lambda: True
+                while True:
+                    try:
+                        if callable(act):
+                            res = act()
+                        elif len(act) == 1:
+                            res = act[0]()
+                        elif len(act) == 2:
+                            res = act[0](*act[1])
                         else:
-                            success &= self._try_remove(appdir,nm,manifest)  
-                    elif is_uninstalled_version_dir(fullnm):
-                        #  It's a partially-removed version; finish removing it.
-                        success &= not self._try_remove(appdir,nm,manifest)
-                    elif ".old." in nm or nm.endswith(".old"):
-                        #  It's a temporary backup file; remove it.
-                        success &= not self._try_remove(appdir,nm,manifest)
+                            res = act[0](*act[1],**act[2])
+                        if res is not None:
+                            success &= res
+                    except Exception:
+                        act = actions.throw(*sys.exc_info())
                     else:
-                        #  It's an unaccounted-for entry in the bootstrap env.
-                        #  Can't prove it's safe to remove, so leave it.
-                        pass
-            #  If there are pending overwrites, try to do them.
-            ovrdir = os.path.join(appdir,best_version,"esky-overwrite")
-            if os.path.exists(ovrdir):
-                try:
-                    for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):
-                        for nm in filenms:
-                            ovrsrc = os.path.join(dirnm,nm)
-                            ovrdst = os.path.join(appdir,ovrsrc[len(ovrdir)+1:])
-                            with open(ovrsrc,"rb") as fIn:
-                                with open(ovrdst,"ab") as fOut:
-                                    fOut.seek(0)
-                                    chunk = fIn.read(512*16)
-                                    while chunk:
-                                        fOut.write(chunk)
-                                        chunk = fIn.read(512*16)
-                            os.unlink(ovrsrc)
-                        os.rmdir(dirnm)
-                except EnvironmentError, e:
-                    success = False
-            #  Get the VersionFinder to clean up after itself
-            if self.version_finder is not None:
-                self.version_finder.cleanup(self)
+                        act = actions.next()
+            except StopIteration:
+                return success
         finally:
             self.unlock()
-        return success
+
+    def needs_cleanup(self):
+        """Check whether a call to cleanup() is necessary.
+
+        This method checks whether a call to the cleanup() method will have
+        any work to do, without obtaining a lock on the esky's appdir.  You
+        might like to use this to avoid locking the appdir (which may require
+        elevating to root) when there's nothing to do.
+        """
+        for act in self._cleanup_actions():
+            return True
+        return False
+
+    def _cleanup_actions(self):
+        """Iterator giving (func,args,kwds) tuples of cleanup actions.
+
+        This encapsulates the logic of the "cleanup" method without actually
+        performing any of the actions, making it easy to check whether cleanup
+        is required without duplicating the logic.
+        """
+        appdir = self.appdir
+        best_version = get_best_version(appdir)
+        new_version = get_best_version(appdir,include_partial_installs=True)
+        #  If there's a partial install we must complete it, since it
+        #  could have left exes in the bootstrap env and we don't want
+        #  to accidentally delete their dependencies.
+        if best_version != new_version:
+            (_,v,_) = split_app_version(new_version)
+            yield (self.install_version,(v,))
+            best_version = new_version
+        #  Now we can safely remove all the old versions.
+        #  We except the currently-executing version, and silently
+        #  ignore any locked versions.
+        manifest = self._version_manifest(best_version)
+        manifest.add("updates")
+        manifest.add("locked")
+        manifest.add(best_version)
+        if self.active_version and self.active_version != best_version:
+            yield lambda: False
+            manifest.add(self.active_version)
+        for nm in os.listdir(appdir):
+            if nm not in manifest:
+                fullnm = os.path.join(appdir,nm)
+                if is_version_dir(fullnm):
+                    #  It's an installed-but-obsolete version.  Properly
+                    #  uninstall it so it will clean up the bootstrap env.
+                    (_,v,_) = split_app_version(nm)
+                    try:
+                        yield (self.uninstall_version, (v,))
+                    except VersionLockedError:
+                        yield lambda: False
+                    else:
+                        yield (self._try_remove, (appdir,nm,manifest,))
+                elif is_uninstalled_version_dir(fullnm):
+                    #  It's a partially-removed version; finish removing it.
+                    yield (self._try_remove, (appdir,nm,manifest,))
+                elif ".old." in nm or nm.endswith(".old"):
+                    #  It's a temporary backup file; remove it.
+                    yield (self._try_remove, (appdir,nm,manifest,))
+                else:
+                    #  It's an unaccounted-for entry in the bootstrap env.
+                    #  Can't prove it's safe to remove, so leave it.
+                    pass
+        #  If there are pending overwrites, try to do them.
+        ovrdir = os.path.join(appdir,best_version,"esky-overwrite")
+        if os.path.exists(ovrdir):
+            try:
+                for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):
+                    for nm in filenms:
+                        ovrsrc = os.path.join(dirnm,nm)
+                        ovrdst = os.path.join(appdir,ovrsrc[len(ovrdir)+1:])
+                        yield (self._overwrite, (ovrsrc,ovrdst,))
+                        yield (os.unlink, (ovrsrc,))
+                    yield (os.rmdir, (dirnm,))
+            except EnvironmentError:
+                yield lambda: False
+        #  Get the VersionFinder to clean up after itself
+        if self.version_finder is not None:
+            if self.version_finder.needs_cleanup(self):
+                yield (self.version_finder.cleanup, (self,))
+
+    def _overwrite(self,src,dst):
+        """Directly overwrite file 'dst' with the contents of file 'src'."""
+        with open(src,"rb") as fIn:
+            with open(dst,"ab") as fOut:
+                fOut.seek(0)
+                chunk = fIn.read(512*16)
+                while chunk:
+                   fOut.write(chunk)
+                   chunk = fIn.read(512*16)
 
     @allow_from_sudo()
     def cleanup_at_exit(self):

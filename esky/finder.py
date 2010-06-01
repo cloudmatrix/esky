@@ -34,9 +34,6 @@ class VersionFinder(object):
     This class defines the interface expected of a VersionFinder object.
     The important methods expected from any VersionFinder are:
 
-        cleanup:  perform maintenance/cleanup tasks in the workdir
-                  (e.g. removing old or broken downloads)
-
         find_versions:  get a list of all available versions for a given esky
 
         fetch_version:  make the specified version available locally
@@ -44,10 +41,19 @@ class VersionFinder(object):
 
         has_version:  check that the specified version is available locally
 
+        cleanup:  perform maintenance/cleanup tasks in the workdir
+                  (e.g. removing old or broken downloads)
+
+        needs_cleanup:  check whether maintenance/cleanup tasks are required
+
     """
 
     def __init__(self):
         pass
+
+    def needs_cleanup(self,app):
+        """Check whether the cleanup() method has any work to do."""
+        return False
 
     def cleanup(self,app):
         """Perform maintenance tasks in the working directory."""
@@ -102,6 +108,19 @@ class DefaultVersionFinder(VersionFinder):
             else:
                 copy_ownership_info(app.appdir,target)
         return workdir
+
+    def needs_cleanup(self,app):
+        """Check whether the cleanup() method has any work to do."""
+        dldir = self._workdir(app,"downloads")
+        for nm in os.listdir(dldir):
+            return True
+        updir = self._workdir(app,"unpack")
+        for nm in os.listdir(updir):
+            return True
+        rddir = self._workdir(app,"ready")
+        for nm in os.listdir(rddir):
+            return True
+        return False
 
     def cleanup(self,app):
         # TODO: hang onto the latest downloaded version

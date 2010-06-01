@@ -1,4 +1,11 @@
 
+v0.7.2:
+
+    * added methods Esky.needs_cleanup() and VersionFinder.needs_cleanup();
+      these can be used to test whether a call to cleanup() is necessary and,
+      if not, to avoid locking the appdir or escalating to root.
+    * fixed compatability with Python 2.5 (via __future__ imports)
+
 v0.7.1:
 
     * restored compatability with Python 3.
