@@ -38,12 +38,23 @@ except ImportError:
     import pickle
 
 
+_impl = None
+
 if sys.platform == "win32":
-    from esky.sudo.sudo_win32 import spawn_sudo, has_root, can_get_root,\
-                                     run_startup_hooks
+    from esky.sudo import sudo_win32 as _impl
 else:
-    from esky.sudo.sudo_unix import spawn_sudo, has_root, can_get_root,\
-                                     run_startup_hooks
+    if sys.platform == "darwin":
+        try:
+            from esky.sudo import sudo_osx  as _impl
+        except ImportError:
+            pass
+    if _impl is None:
+        from esky.sudo import sudo_unix as _impl
+
+spawn_sudo = _impl.spawn_sudo
+has_root = _impl.has_root
+can_get_root = _impl.can_get_root
+run_startup_hooks = _impl.run_startup_hooks
 
 
 def b(data):
