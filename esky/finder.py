@@ -188,11 +188,11 @@ class DefaultVersionFinder(VersionFinder):
         return name
 
     def _fetch_file(self,app,url):
-        infile = self.open_url(urljoin(self.download_url,url))
-        try:
-            nm = os.path.basename(urlparse(url).path)
-            outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
-            if not os.path.exists(outfilenm):
+        nm = os.path.basename(urlparse(url).path)
+        outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
+        if not os.path.exists(outfilenm):
+            infile = self.open_url(urljoin(self.download_url,url))
+            try:
                 partfilenm = outfilenm + ".part"
                 partfile = open(partfilenm,"wb")
                 try:
@@ -207,8 +207,8 @@ class DefaultVersionFinder(VersionFinder):
                 else:
                     partfile.close()
                     os.rename(partfilenm,outfilenm)
-        finally:
-            infile.close()
+            finally:
+                infile.close()
         return outfilenm
 
     def _prepare_version(self,app,version,path):
@@ -232,7 +232,15 @@ class DefaultVersionFinder(VersionFinder):
                         raise PatchError(err)
                     patches = path
                 else:
-                    extract_zipfile(path[0][0],uppath)
+                    try:
+                        extract_zipfile(path[0][0],uppath)
+                    except (zipfile.BadZipfile,zipfile.LargeZipFile):
+                        self.version_graph.remove_all_links(path[0][1])
+                        try:
+                            os.unlink(path[0][0])
+                        except EnvironmentError:
+                            pass
+                        raise
                     patches = path[1:]
                 for (patchfile,patchurl) in patches:
                     try:
@@ -240,6 +248,10 @@ class DefaultVersionFinder(VersionFinder):
                             apply_patch(uppath,f)
                     except PatchError:
                         self.version_graph.remove_all_links(patchurl)
+                        try:
+                            os.unlink(pathfile)
+                        except EnvironmentError:
+                            pass
                         raise
             # Move anything that's not the version dir into esky-bootstrap
             vdir = join_app_version(app.name,version,app.platform)
