@@ -1,9 +1,4 @@
 
-v0.7.3:
-
-    * DefaultVersionFinder:  when a downloaded file fails because it is
-      corrupted, remove it from disk as well as from the version graph.
-
 v0.7.2:
 
     * added methods Esky.needs_cleanup() and VersionFinder.needs_cleanup();
@@ -13,6 +8,10 @@ v0.7.2:
     * allow Esky.lock() and Esky.unlock() to be called via sudo proxy.
     * support for Python 3 on win32 (cx-freeze only).
     * fixed compatability with Python 2.5 (via __future__ imports).
+    * Esky.cleanup_at_exit:  try to launch the latest version rather than
+      the current version, so current version can be cleaned up.
+    * DefaultVersionFinder:  when a downloaded file fails because it is
+      corrupted, remove it from disk as well as from the version graph.
 
 v0.7.1:
 

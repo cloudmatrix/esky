@@ -139,7 +139,6 @@ __ver_patch__ = 2
 __ver_sub__ = ""
 __version__ = "%d.%d.%d%s" % (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 
-
 import os
 import sys
 import shutil
@@ -523,12 +522,25 @@ class Esky(object):
             return self.sudo_proxy.cleanup_at_exit()
         if not getattr(sys,"frozen",False):
             exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()","--esky-spawn-cleanup"]
-        elif os.path.basename(sys.executable).lower() in ("python","pythonw"):
-            exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()","--esky-spawn-cleanup"]
         else:
-            if not _startup_hooks_were_run:
-                raise OSError(None,"unable to sudo: startup hooks not run")
-            exe = [sys.executable,"--esky-spawn-cleanup"]
+            exe = sys.executable
+            #  Try to re-launch the best available version, so that the
+            #  currently in-use version can be cleaned up.
+            if self.active_version is not None:
+               appdir = self.appdir
+               bestver = get_best_version(appdir,include_partial_installs=True)
+               (_,version,_) = split_app_version(bestver)
+               if self.active_version != version:
+                   if self.active_version in exe:
+                       exe = exe.replace(self.active_version,version)
+                       if not os.path.isfile(exe):
+                           exe = sys.executable
+            if os.path.basename(exe).lower() in ("python","pythonw"):
+                exe = [exe,"-c","import esky; esky.run_startup_hooks()","--esky-spawn-cleanup"]
+            else:
+                if not _startup_hooks_were_run:
+                    raise OSError(None,"unable to cleanup: startup hooks not run")
+                exe = [exe,"--esky-spawn-cleanup"]
         exe = exe + [b64encode(pickle.dumps(self,pickle.HIGHEST_PROTOCOL))]
         @atexit.register
         def spawn_cleanup():
