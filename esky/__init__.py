@@ -529,12 +529,13 @@ class Esky(object):
             if self.active_version is not None:
                appdir = self.appdir
                bestver = get_best_version(appdir,include_partial_installs=True)
-               (_,version,_) = split_app_version(bestver)
-               if self.active_version != version:
-                   if self.active_version in exe:
-                       exe = exe.replace(self.active_version,version)
-                       if not os.path.isfile(exe):
-                           exe = sys.executable
+               if bestver is not None:
+                   (_,version,_) = split_app_version(bestver)
+                   if self.active_version != version:
+                       if self.active_version in exe:
+                           exe = exe.replace(self.active_version,version)
+                           if not os.path.isfile(exe):
+                               exe = sys.executable
             if os.path.basename(exe).lower() in ("python","pythonw"):
                 exe = [exe,"-c","import esky; esky.run_startup_hooks()","--esky-spawn-cleanup"]
             else:
