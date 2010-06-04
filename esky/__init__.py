@@ -820,19 +820,23 @@ class Esky(object):
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
             else:
-                f = open(lockfile,"r")
                 try:
-                    fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                    f = open(lockfile,"r")
                 except EnvironmentError, e:
-                    if not e.errno:
+                    if e.errno != errno.ENOENT:
                         raise
-                    if e.errno not in (errno.EACCES,errno.EAGAIN,):
-                        raise
-                    raise VersionLockedError("version in use: %s" % (version,))
                 else:
-                    os.rename(bsfile,bsfile_old)
-                finally:
-                    f.close()
+                    try:
+                        fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                    except EnvironmentError, e:
+                        if e.errno not in (errno.EACCES,errno.EAGAIN,):
+                            raise
+                        msg = "version in use: %s" % (version,)
+                        raise VersionLockedError(msg)
+                    else:
+                        os.rename(bsfile,bsfile_old)
+                    finally:
+                        f.close()
         finally:
             self.unlock()
 
