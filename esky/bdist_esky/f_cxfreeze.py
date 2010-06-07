@@ -107,6 +107,8 @@ def freeze(dist):
     eskybscode = imp.get_magic() + struct.pack("<i",0)
     eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
     #  Copy any core dependencies
+    if "fcntl" not in sys.builtin_module_names:
+        dist.copy_to_bootstrap_env("fcntl.so")
     for nm in os.listdir(dist.freeze_dir):
         if is_core_dependency(nm):
             dist.copy_to_bootstrap_env(nm)
