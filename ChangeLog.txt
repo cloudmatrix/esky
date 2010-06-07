@@ -1,10 +1,11 @@
 
 v0.7.3:
 
-    * Be more careful about missing files with manipulating eskys that target
-      other platforms (e.g. upgrading a win32 esky on a linux box).
     * Esky.cleanup_at_exit:  don't fail if there are no installed versions,
       just use the current-executing script.
+    * be more careful about missing files with manipulating eskys that target
+      other platforms (e.g. upgrading a win32 esky on a linux box).
+    * ensure that fcntl is always available in the bootstrap env.
 
 v0.7.2:
 

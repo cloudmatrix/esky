@@ -101,6 +101,8 @@ def freeze(dist):
     bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
     bslib.close()
     #  Copy any core dependencies
+    if "fcntl" not in sys.builtin_module_names:
+        dist.copy_to_bootstrap_env("fcntl.so")
     for nm in os.listdir(dist.freeze_dir):
         if is_core_dependency(nm):
             dist.copy_to_bootstrap_env(nm)
