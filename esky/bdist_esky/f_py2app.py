@@ -89,6 +89,7 @@ def freeze(dist):
     #  Copy the core dependencies into the bootstrap env.
     pydir = "python%d.%d" % sys.version_info[:2]
     dist.copy_to_bootstrap_env("Contents/Info.plist")
+    dist.copy_to_bootstrap_env("Contents/PkgInfo")
     dist.copy_to_bootstrap_env("Contents/Frameworks/Python.framework")
     dist.copy_to_bootstrap_env("Contents/Resources/include")
     dist.copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
