@@ -172,8 +172,7 @@ from esky.sudo import SudoProxy, has_root, allow_from_sudo
 from esky.util import split_app_version, join_app_version,\
                       is_version_dir, is_uninstalled_version_dir,\
                       parse_version, get_best_version, appdir_from_executable,\
-                      copy_ownership_info
-
+                      copy_ownership_info, lock_version_dir
 
 
 
@@ -892,11 +891,21 @@ _startup_hooks_were_run = False
 def run_startup_hooks():
     global _startup_hooks_were_run
     _startup_hooks_were_run = True
+    # Lock the version dir while we're executing, so other instances don't
+    # delete files out from under us.
+    if getattr(sys,"frozen",False):
+        appdir = appdir_from_executable(sys.executable)
+        vdir = sys.executable[len(appdir):].split(os.sep)[1]
+        vdir = os.path.join(appdir,vdir)
+        if is_version_dir(vdir):
+            lock_version_dir(vdir)
+    # Run the "spawn-cleanup" hook if given.
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-cleanup":
         app = pickle.loads(b64decode(sys.argv[2]))
         time.sleep(10)        
         app.cleanup()
         sys.exit(0)
+    # Let esky.sudo run its hooks.
     import esky.sudo
     esky.sudo.run_startup_hooks()
 

@@ -1,7 +1,5 @@
 
  * arrange for py2app apps to have the correct name
- * lock active version dir in startuphooks.  this adds some startup overhead
-   but improves safety.
  * put all esky control files in an "esky" subdir, for cleanliness
  * trickery to detect process termination even from signals etc:
       * O_TEMPORARY and ReadDirectoryChangesW on win32
