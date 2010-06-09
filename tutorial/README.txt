@@ -44,7 +44,7 @@ frozen by py2exe, but with an extra file containing metadata for use when
 updating the app.
 
 You can distribute these files to your users in any manner - e.g. by having
-then download and extract the zipfile directly, or by packaging it up into
+them download and extract the zipfile directly, or by packaging it up into
 an installer.  As long as the above file layout and directory structure is
 maintained, the application will be capable of auto-updating itself with esky.
 
@@ -75,33 +75,66 @@ For convenience, it also has this method:
 Looking at the code in stage2/example.py, we can see that the application now
 checks whether it is running as a frozen app, and if so it:
 
-    * creates an Esky pointing at an appropriate URL,
+    * creates an Esky pointing at an appropriate URL, and
     * calls the "auto_update" method on the esky to search for and install
-      a new version of the app, and
-    * calls the "cleanup" method to remove any cruft left over from e.g.
-      a previous failed upgrade.
+      a new version of the app.
 
 A real application would probably want to perform these tasks in a background
-thread.  Nonetheless, our simple example application is now capable of auto-
-updating itself over the internet.
+thread, prompt the user for confirmation, and so-on.  Nonetheless, our simple
+example application is now capable of auto-updating itself over the internet.
+
 
 
 Step 3:  Distributing Updates
 =============================
 
-There's no code for this step, as you've already seen how it works.  Whenever
-a new version of the application is released, run the "bdist_esky" command and
-link to the resulting zipfile from update URL specified in your code.  The
-app will automatically detect the update, download and install it.
+You've already seen how this step works.  Whenever a new version of the 
+application is released, run the "bdist_esky" command and make the resulting
+zipfile available for download from the update URL specified in your code.
+The app will automatically detect the update, download and install it.
 
 One point of watch out for: you must not change the name of the zipfile
 produced by bdist_esky.  Since it embeds version and platform information,
 changing the name could cause esky to get confused about which version really
 is the latest.
 
-When esky grows support for differential updates, this section will be
-expanded with some instructions on how to generate them...
+Esky also supports distributing your updates as a patch instead of (or as well
+as) a full zipfile download.  To see this in action, copy the "dist" folder
+you built in stage 2 into the "stage3" folder.  You should have the following
+files:
 
+    stage3/example.py
+    stage3/setup.py
+    stage3/dist/example-0.2.win32.zip
+
+Now run "python setup.py bdist_esky_patch" in the stage3 directory.  This will
+generate the zipfile for the new version along with a patch against any other
+zipfiles found in the "dist" dir.  You should now have:
+
+    stage3/dist/example-0.2.win32.zip
+    stage3/dist/example-0.3.win32.zip
+    stage3/dist/example-0.3.win32.from-0.2.patch
+
+As before, simply make this patch file available for download from your update
+URL and esky will detect and use it as appropriate.
+
+It's also possible to generate patches between two existing zipfiles, without
+going through the setup.py script.  Simply invoke the "esky.patch" module
+directly as follows:
+
+    python -m esky.patch -z diff ../stage1/dist/example-0.1.win32.zip ./dist/example-0.2.win32.zip ./dist/example-0.2.win32.from-0.1.patch
+
+Don't forget the "-z" argument - it tells the patcher to unzip the source files
+before starting work.  You should now have:
+
+    stage3/dist/example-0.2.win32.zip
+    stage3/dist/example-0.2.win32.from-0.1.patch
+    stage3/dist/example-0.3.win32.zip
+    stage3/dist/example-0.3.win32.from-0.2.patch
+
+By the way, esky is smart enough to apply a sequence of patches to get to the
+latest version, so there's no need to also generate a patch from version 0.1
+to 0.3 in this case.
 
 
 Step 4:  Customising the Freeze Process
@@ -113,7 +146,7 @@ bdist_esky command - it automatically detects any available freezer modules
 If necessary, however, you can pass options either on the setup.py command line,
 or using the "options" argument to the setup() function.
 
-The code in the "stage3" directory shows an example of how to customise the
+The code in the "stage4" directory shows an example of how to customise the
 freeze process.  Here we specify a custom icon for the executable, list some
 modules to explicitly include and exclude from the freeze, and give additional
 options that are passed through to py2exe.

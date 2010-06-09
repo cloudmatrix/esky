@@ -8,6 +8,7 @@ if getattr(sys,"frozen",False):
         app.auto_update()
     except Exception, e:
         print "ERROR UPDATING APP:", e
+    app.cleanup()
 
-print "HELLO AGAIN WORLD"
+print "HELLO WORLD"
 
