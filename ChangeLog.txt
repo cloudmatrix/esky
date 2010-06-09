@@ -6,6 +6,9 @@ v0.7.3:
     * be more careful about missing files with manipulating eskys that target
       other platforms (e.g. upgrading a win32 esky on a linux box).
     * ensure that fcntl is always available in the bootstrap env.
+    * updated tutorial to talk about generating patches.
+    * have all executables lock the version dir at startup, even if they're
+      not launched through the bootstrap env.
 
 v0.7.2:
 

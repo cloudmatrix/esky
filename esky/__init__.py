@@ -57,7 +57,7 @@ downloaded and used as an upgrade by older versions of the application.
 
 When you find you need to move beyond the simple logic of Esky.auto_update()
 (e.g. to show feedback in the GUI) then the following properties and methods
-and available on the Esky class:
+are available on the Esky class:
 
     app.version:                the current best available version.
 
@@ -95,7 +95,6 @@ When properly installed, the on-disk layout of an app managed by esky looks
 like this:
 
     prog.exe                 - esky bootstrapping executable
-    updates/                 - work area for fetching/unpacking updates
     appname-X.Y.platform/    - specific version of the application
         prog.exe             - executable(s) as produced by freezer module
         library.zip          - pure-python frozen modules
@@ -104,6 +103,7 @@ like this:
         esky-bootstrap.txt   - list of files expected in the bootstrapping env
         esky-lockfile.txt    - lock file to control access to in-use versions
         ...other deps...
+    updates/                 - work area for fetching/unpacking updates
 
 This is also the layout of the zipfiles produced by bdist_esky.  The 
 "appname-X.Y" directory is simply a frozen app directory with some extra
@@ -135,9 +135,10 @@ from __future__ import with_statement
 
 __ver_major__ = 0
 __ver_minor__ = 7
-__ver_patch__ = 2
+__ver_patch__ = 3
 __ver_sub__ = ""
-__version__ = "%d.%d.%d%s" % (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
+__ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
+__version__ = "%d.%d.%d%s" % __ver_tuple__
 
 import os
 import sys
@@ -194,7 +195,7 @@ class Esky(object):
     DefaultVersionFinder instance.
     """
 
-    lock_timeout = 60*60  # 1 hour
+    lock_timeout = 60*60  # 1 hour timeout on appdir locks
 
     def __init__(self,appdir_or_exe,version_finder=None):
         self._init_from_appdir(appdir_or_exe)
@@ -224,7 +225,6 @@ class Esky(object):
     def _get_version_finder(self):
         return self.__version_finder
     def _set_version_finder(self,version_finder):
-        workdir = os.path.join(self.appdir,"updates")
         if version_finder is not None:
             if isinstance(version_finder,basestring):
                kwds = {"download_url":version_finder}
