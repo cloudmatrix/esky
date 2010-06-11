@@ -55,7 +55,7 @@ downloaded and used as an upgrade by older versions of the application.
 
 When you find you need to move beyond the simple logic of Esky.auto_update()
 (e.g. to show feedback in the GUI) then the following properties and methods
-and available on the Esky class:
+are available on the Esky class:
 
     app.version:                the current best available version.
 
@@ -93,7 +93,6 @@ When properly installed, the on-disk layout of an app managed by esky looks
 like this:
 
     prog.exe                 - esky bootstrapping executable
-    updates/                 - work area for fetching/unpacking updates
     appname-X.Y.platform/    - specific version of the application
         prog.exe             - executable(s) as produced by freezer module
         library.zip          - pure-python frozen modules
@@ -102,6 +101,7 @@ like this:
         esky-bootstrap.txt   - list of files expected in the bootstrapping env
         esky-lockfile.txt    - lock file to control access to in-use versions
         ...other deps...
+    updates/                 - work area for fetching/unpacking updates
 
 This is also the layout of the zipfiles produced by bdist_esky.  The 
 "appname-X.Y" directory is simply a frozen app directory with some extra
