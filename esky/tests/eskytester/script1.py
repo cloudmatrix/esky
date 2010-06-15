@@ -39,7 +39,6 @@ assert BTestClass().a == "B"
 
 #  Spawn another instance that just busy-loops,
 #  holding a lock on the current version.
-sys.stderr.flush()
 if len(sys.argv) > 1:
     while True:
         time.sleep(0.1)
@@ -93,6 +92,7 @@ assert os.path.isfile(eskytester.script_path(app,"script2"))
 assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform(),"esky-bootstrap.txt"))
 assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform(),"esky-bootstrap.txt"))
 
+
 #  Check that we can't uninstall a version that's in use.
 assert esky.util.is_locked_version_dir(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform()))
 try:
@@ -103,7 +103,7 @@ else:
     assert False, "in-use version was not locked"
 
 if sys.platform == "darwin":
-    open("../../../../tests-completed","w").close()
+    open("../../../../../../tests-completed","w").close()
 else:
     open("tests-completed","w").close()
 

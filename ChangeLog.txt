@@ -1,4 +1,13 @@
 
+v0.7.4:
+
+    * py2app:  ensure apps are always inside an "<appname>.app" directory,
+      so they will appear correctly in finder etc.
+    * esky.util:  added deep_extract_zipfile() function to extract a zipfile
+      while ignoring any common directory prefix.
+    * esky.finder:  allow downloaded zipfiles to have a containing folder
+      around the appdir content, to allow friendlier zipfile behaviour.
+
 v0.7.3:
 
     * Esky.cleanup_at_exit:  don't fail if there are no installed versions,

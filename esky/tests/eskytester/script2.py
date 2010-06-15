@@ -114,7 +114,7 @@ else:
 
 
 if sys.platform == "darwin":
-    open("../../../../tests-completed","w").close()
+    open("../../../../../../tests-completed","w").close()
 else:
     open("tests-completed","w").close()
 

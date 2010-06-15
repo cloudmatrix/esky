@@ -40,10 +40,30 @@ def pairwise(iterable):
         pass
     return izip(a,b)
 
+
+def common_prefix(iterables):
+    """Find the longest common prefix of a series of iterables."""
+    iterables = iter(iterables)
+    try:
+        prefix = iterables.next()
+    except StopIteration:
+        raise ValueError("at least one iterable is required")
+    for item in iterables:
+        count = 0
+        for (c1,c2) in izip(prefix,item):
+            if c1 != c2:
+                break
+            count += 1
+        prefix = prefix[:count]
+    return prefix
+
 def appdir_from_executable(exepath):
     """Find the top-level application directory, given sys.executable."""
     vdir = _bs_appdir_from_executable(exepath)
-    return os.path.dirname(vdir)
+    appdir = os.path.dirname(vdir)
+    if os.path.exists(os.path.join(appdir,"esky-bootstrap.txt")):
+        appdir = os.path.dirname(appdir)
+    return appdir
 
 
 def extract_zipfile(source,target,name_filter=None):
@@ -86,6 +106,15 @@ def extract_zipfile(source,target,name_filter=None):
         zf.close()
 
 
+def zipfile_common_prefix_dir(source):
+    """Find the common prefix directory of all files in a zipfile."""
+    zf = zipfile.ZipFile(source)
+    prefix = common_prefix(zf.namelist())
+    if "/" in prefix:
+        return prefix.rsplit("/",1)[0] + "/"
+    else:
+        return ""
+
 def deep_extract_zipfile(source,target,name_filter=None):
     """Extract the deep contents of a zipfile into a target directory.
 
@@ -96,10 +125,8 @@ def deep_extract_zipfile(source,target,name_filter=None):
     This is useful to allow distribution of "friendly" zipfiles that don't
     overwrite files in the current directory when extracted by hand.
     """
-    zf = zipfile.ZipFile(source)
-    prefix = common_prefix(zf.namelist())
-    if "/" in prefix:
-        prefix = prefix.rsplit("/",1)[0] + "/"
+    prefix = zipfile_common_prefix_dir(source)
+    if prefix:
         def new_name_filter(nm):
             if not nm.startswith(prefix):
                 return None

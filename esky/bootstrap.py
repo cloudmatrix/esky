@@ -140,25 +140,48 @@ def chainload(target_dir):
         _chainload(target_dir)
 
 
+def get_exe_locations(target_dir):
+    """Generate possible locations from which to chainload in the target dir."""
+    appdir = dirname(target_dir)
+    #  If we're in an appdir, first try to launch from within "<appname>.app"
+    #  directory.  We must also try the default scheme for backwards compat.
+    if sys.platform == "darwin":
+        if basename(dirname(sys.executable)) == "MacOS":
+            if __esky_name__ is None:
+                yield pathjoin(target_dir,
+                               __esky_name__+".app",
+                               sys.executable[len(appdir)+1:])
+            else:
+                for nm in listdir(target_dir):
+                    if nm.endswith(".app"):
+                        yield pathjoin(target_dir,
+                                       nm,
+                                       sys.executable[len(appdir)+1:])
+    #  This is the default scheme: the same path as the exe in the appdir.
+    yield target_dir + sys.executable[len(appdir):]
+    #  If sys.executable was a backup file, try using orig filename.
+    orig_exe = get_original_filename(sys.executable)
+    if orig_exe is not None:
+        yield target_dir + orig_executable[len(appdir):]
+
+
 def _chainload(target_dir):
     """Default implementation of the chainload() function.
 
     Specific freezer modules may provide a more efficient, reliable or
     otherwise better version of this function.
     """
-    appdir = dirname(target_dir)
-    target_exe = target_dir + sys.executable[len(appdir):]
-    try:
-        execv(target_exe,[target_exe] + sys.argv[1:])
-    except EnvironmentError:
-        e = sys.exc_info()[1]
-        if e.errno == errno.ENOENT:
-            # Tried to chainload something that doesn't exist.
-            # Perhaps executing from a backup file?
-            orig_exe = get_original_filename(sys.executable)
-            if orig_exe is not None:
-                target_exe = target+dir + orig_executable[len(appdir):]
-                execv(target_exe,[target_exe] + sys.argv[1:])
+    exc_type,exc_value,traceback = None,None,None
+    for target_exe in get_exe_locations(target_dir):
+        try:
+            execv(target_exe,[target_exe] + sys.argv[1:])
+        except EnvironmentError:
+            exc_type,exc_value,traceback = sys.exc_info()
+            if exc_value.errno != errno.ENOENT:
+                raise
+    else:
+        if exc_value is not None:
+            raise exc_type,exc_value,exc_traceback
 
 
 def get_best_version(appdir,include_partial_installs=False,appname=None):

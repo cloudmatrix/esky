@@ -178,9 +178,10 @@ class TestEsky(unittest.TestCase):
         extract_zipfile(zfname,deploydir)
         #  Run the scripts in order.
         if options["bdist_esky"]["freezer_module"] == "py2app":
-            cmd1 = os.path.join(deploydir,"Contents","MacOS","script1")
-            cmd2 = os.path.join(deploydir,"Contents","MacOS","script2")
-            cmd3 = os.path.join(deploydir,"Contents","MacOS","script3")
+            appdir = os.listdir(deploydir)[0]
+            cmd1 = os.path.join(deploydir,appdir,"Contents","MacOS","script1")
+            cmd2 = os.path.join(deploydir,appdir,"Contents","MacOS","script2")
+            cmd3 = os.path.join(deploydir,appdir,"Contents","MacOS","script3")
         else:
             if sys.platform == "win32":
                 cmd1 = os.path.join(deploydir,"script1.exe")

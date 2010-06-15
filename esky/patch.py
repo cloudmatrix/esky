@@ -41,6 +41,11 @@ To patch or diff zipfiles as though they were a directory, pass the "-z" or
 
   python -m esky.patch --zipped diff <source>.zip <target>.zip <patch>
 
+To "deep unzip" the zipfiles so that any leading directories are ignored, use
+the "-Z" or "--deep-zipped" option instead:
+
+  python -m esky.patch -Z diff <source>.zip <target>.zip <patch>
+
 This can be useful for generating differential esky updates by hand, when you
 already have the corresponding zip files.
 
@@ -88,7 +93,8 @@ PATCH_HEADER = "ESKYPTCH".encode("ascii")
 
 
 from esky.errors import Error
-from esky.util import extract_zipfile, create_zipfile
+from esky.util import extract_zipfile, create_zipfile, deep_extract_zipfile,\
+                      zipfile_common_prefix_dir
 
 __all__ = ["PatchError","DiffError","main","write_patch","apply_patch",
            "Differ","Patcher"]
@@ -1179,11 +1185,16 @@ def main(args):
     parser = optparse.OptionParser()
     parser.add_option("-z","--zipped",action="store_true",dest="zipped",
                       help="work with zipped source/target dirs")
+    parser.add_option("-Z","--deep-zipped",action="store_true",
+                      dest="deep_zipped",
+                      help="work with deep zipped source/target dirs")
     parser.add_option("","--diff-window",dest="diff_window",metavar="N",
                       help="set the window size for diffing files")
     parser.add_option("","--dry-run",dest="dry_run",action="store_true",
                       help="print commands instead of executing them")
     (opts,args) = parser.parse_args(args)
+    if opts.deep_zipped:
+        opts.zipped = True
     if opts.zipped:
         workdir = tempfile.mkdtemp()
     if opts.diff_window:
@@ -1214,15 +1225,21 @@ def main(args):
                 if os.path.isfile(source):
                     source_zip = source
                     source = os.path.join(workdir,"source")
-                    extract_zipfile(source_zip,source)
+                    if opts.deep_zipped:
+                        deep_extract_zipfile(source_zip,source)
+                    else:
+                        extract_zipfile(source_zip,source)
                 if os.path.isfile(target):
                     target_zip = target
                     target = os.path.join(workdir,"target")
-                    extract_zipfile(target_zip,target)
+                    if opts.deep_zipped:
+                        deep_extract_zipfile(target_zip,target)
+                    else:
+                        extract_zipfile(target_zip,target)
             write_patch(source,target,stream,diff_window_size=opts.diff_window)
         elif cmd == "patch":
             #  Patch a file or directory.
-            #  If --zipped is specified, thetarget is unzipped to a temporary
+            #  If --zipped is specified, the target is unzipped to a temporary
             #  directory before processing, then overwritten with a zipfile
             #  containing the new directory contents.
             target = args[1]
@@ -1235,13 +1252,22 @@ def main(args):
                 if os.path.isfile(target):
                     target_zip = target
                     target = os.path.join(workdir,"target")
-                    extract_zipfile(target_zip,target)
+                    if opts.deep_zipped:
+                        deep_extract_zipfile(target_zip,target)
+                    else:
+                        extract_zipfile(target_zip,target)
             apply_patch(target,stream,dry_run=opts.dry_run)
             if opts.zipped and target_zip is not None:
                 target_dir = os.path.dirname(target_zip)
                 (fd,target_temp) = tempfile.mkstemp(dir=target_dir)
                 os.close(fd)
-                create_zipfile(target,target_temp)
+                if opts.deep_zipped:
+                    prefix = zipfile_common_prefix_dir(target_zip)
+                    def name_filter(nm):
+                        return prefix + nm
+                    create_zipfile(target,target_temp,name_filter)
+                else:
+                    create_zipfile(target,target_temp)
                 if sys.platform == "win32":
                     os.unlink(target_zip)
                 os.rename(target_temp,target_zip)
