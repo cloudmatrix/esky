@@ -237,11 +237,11 @@ class bdist_esky(Command):
         if os.path.exists(self.bootstrap_dir):
             shutil.rmtree(self.bootstrap_dir)
         os.makedirs(self.freeze_dir)
+        #  Hand things off to the selected freezer module
+        self.freezer_module.freeze(self)
         #  Create the necessary control files
         if platform != "win32":
             open(os.path.join(self.freeze_dir,"esky-lockfile.txt"),"w").close()
-        #  Hand things off to the selected freezer module
-        self.freezer_module.freeze(self)
         #  Zip up the distribution
         print "zipping up the esky"
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
