@@ -27,7 +27,7 @@ import esky
 import esky.patch
 import esky.sudo
 from esky import bdist_esky
-from esky.util import extract_zipfile, get_platform
+from esky.util import extract_zipfile, deep_extract_zipfile, get_platform
 from esky.fstransact import FSTransaction, files_differ
 
 try:
@@ -158,11 +158,11 @@ class TestEsky(unittest.TestCase):
         os.unlink(os.path.join(tdir,"dist","eskytester-0.3.%s.zip"%(platform,)))
         #  Check that the patches apply cleanly
         uzdir = os.path.join(tdir,"unzip")
-        extract_zipfile(os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,)),uzdir)
+        deep_extract_zipfile(os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,)),uzdir)
         with open(os.path.join(tdir,"dist","eskytester-0.3.%s.from-0.1.patch"%(platform,)),"rb") as f:
             esky.patch.apply_patch(uzdir,f)
         shutil.rmtree(uzdir)
-        extract_zipfile(os.path.join(tdir,"dist","eskytester-0.2.%s.zip"%(platform,)),uzdir)
+        deep_extract_zipfile(os.path.join(tdir,"dist","eskytester-0.2.%s.zip"%(platform,)),uzdir)
         with open(os.path.join(tdir,"dist","eskytester-0.3.%s.from-0.2.patch"%(platform,)),"rb") as f:
             esky.patch.apply_patch(uzdir,f)
         shutil.rmtree(uzdir)

@@ -24,7 +24,7 @@ from urlparse import urlparse, urljoin
 
 from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
-from esky.util import extract_zipfile, copy_ownership_info
+from esky.util import deep_extract_zipfile, copy_ownership_info
 from esky.patch import apply_patch, PatchError
 
 
@@ -224,6 +224,8 @@ class DefaultVersionFinder(VersionFinder):
                 self._copy_best_version(app,uppath)
             else:
                 if path[0][0].endswith(".patch"):
+                    #  We're direcly applying a series of patches.
+                    #  Copy the current version across and go from there.
                     try:
                         self._copy_best_version(app,uppath)
                     except EnvironmentError, e:
@@ -232,8 +234,10 @@ class DefaultVersionFinder(VersionFinder):
                         raise PatchError(err)
                     patches = path
                 else:
+                    #  We're starting from a zipfile.  Extract the first dir
+                    #  containing more than a single item and go from there.
                     try:
-                        extract_zipfile(path[0][0],uppath)
+                        deep_extract_zipfile(path[0][0],uppath)
                     except (zipfile.BadZipfile,zipfile.LargeZipFile):
                         self.version_graph.remove_all_links(path[0][1])
                         try:

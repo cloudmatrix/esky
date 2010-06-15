@@ -86,6 +86,32 @@ def extract_zipfile(source,target,name_filter=None):
         zf.close()
 
 
+def deep_extract_zipfile(source,target,name_filter=None):
+    """Extract the deep contents of a zipfile into a target directory.
+
+    This is just like extract_zipfile() except that any common prefix dirs
+    are removed.  For example, if everything in the zipfile is under the
+    directory "example.app" then that prefix will be removed during unzipping.
+
+    This is useful to allow distribution of "friendly" zipfiles that don't
+    overwrite files in the current directory when extracted by hand.
+    """
+    zf = zipfile.ZipFile(source)
+    prefix = common_prefix(zf.namelist())
+    if "/" in prefix:
+        prefix = prefix.rsplit("/",1)[0] + "/"
+        def new_name_filter(nm):
+            if not nm.startswith(prefix):
+                return None
+            if name_filter is not None:
+                return name_filter(nm[len(prefix):])
+            return nm[len(prefix):]
+    else:
+         new_name_filter = name_filter
+    return extract_zipfile(source,target,new_name_filter)
+
+
+
 def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
     """Bundle the contents of a given directory into a zipfile.
 
@@ -94,7 +120,8 @@ def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
 
     If given, the optional argument 'get_zipinfo' must be a function mapping
     filenames to ZipInfo objects.  It may also return None to indicate that
-    defaults should be used.
+    defaults should be used, or a string to indicate that defaults should be
+    used with a new archive name.
 
     If given, the optional argument 'members' must be an iterable yielding
     names or ZipInfo objects.  Files will be added to the archive in the
@@ -126,6 +153,8 @@ def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
             fpath = os.path.join(source,fpath)
         if zinfo is None:
             zf.write(fpath,fpath[len(source)+1:])
+        elif isinstance(zinfo,basestring):
+            zf.write(fpath,zinfo)
         else:
             with open(fpath,"rb") as f:
                 zf.writestr(zinfo,f.read())

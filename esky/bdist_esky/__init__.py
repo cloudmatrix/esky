@@ -545,7 +545,7 @@ class bdist_esky_patch(Command):
             print "patching", target_esky, "against", source_esky, "=>", patchfile
             if not self.dry_run:
                 try:
-                    esky.patch.main(["-z","diff",source_esky,target_esky,patchfile])
+                    esky.patch.main(["-Z","diff",source_esky,target_esky,patchfile])
                 except:
                     import traceback
                     traceback.print_exc()
