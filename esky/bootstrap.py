@@ -132,9 +132,10 @@ def chainload(target_dir):
     except EnvironmentError:
         #  If the bootstrap file is missing, the version is being uninstalled.
         #  Our only option is to re-execute ourself and find the new version.
-        if exists(pathjoin(target_dir,"esky-bootstrap.txt")):
-            raise
-        execv(sys.executable,sys.argv)
+        if exists(dirname(target_dir)):
+            if not exists(pathjoin(target_dir,"esky-bootstrap.txt")):
+                execv(sys.executable,sys.argv)
+        raise
     else:
         #  If all goes well, we can actually launch the target version.
         _chainload(target_dir)
