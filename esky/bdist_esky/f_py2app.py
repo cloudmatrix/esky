@@ -60,7 +60,8 @@ def freeze(dist):
     #  Remove any .pyc files with a corresponding .py file.
     #  This helps avoid timestamp changes that might interfere with
     #  the generation of useful patches between versions.
-    app_dir = os.path.join(dist.freeze_dir,dist.distribution.get_name()+".app")
+    appnm = dist.distribution.get_name()+".app"
+    app_dir = os.path.join(dist.freeze_dir,appnm)
     resdir = os.path.join(app_dir,"Contents/Resources")
     for (dirnm,_,filenms) in os.walk(resdir):
         for nm in filenms:
@@ -90,7 +91,7 @@ def freeze(dist):
     def copy_to_bootstrap_env(src,dst=None):
         if dst is None:
             dst = src
-        src = os.path.join(dist.distribution.get_name()+".app",src)
+        src = os.path.join(appnm,src)
         dist.copy_to_bootstrap_env(src,dst)
     copy_to_bootstrap_env("Contents/Info.plist")
     copy_to_bootstrap_env("Contents/PkgInfo")
@@ -105,6 +106,12 @@ def freeze(dist):
     copy_to_bootstrap_env("Contents/Resources/__error__.sh")
     copy_to_bootstrap_env("Contents/Resources/__boot__.py")
     copy_to_bootstrap_env("Contents/Resources/site.py")
+    #  Copy any other mentioned files (icons etc) into the bootstrap env
+    with open(os.path.join(app_dir,"Contents","Info.plist"),"rt") as f:
+        infotxt = f .read()
+    for nm in os.listdir(os.path.join(app_dir,"Contents","Resources")):
+        if nm in infotxt:
+            copy_to_bootstrap_env("Contents/Resources/"+nm)
     #  Create the bootstraping code, using custom code if specified.
     #  It gets stored as plain python code in Contents/Resources/__boot__.py
     code_source = [inspect.getsource(esky.bootstrap)]
