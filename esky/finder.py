@@ -253,7 +253,7 @@ class DefaultVersionFinder(VersionFinder):
                     except PatchError:
                         self.version_graph.remove_all_links(patchurl)
                         try:
-                            os.unlink(pathfile)
+                            os.unlink(patchfile)
                         except EnvironmentError:
                             pass
                         raise
