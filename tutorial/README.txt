@@ -122,9 +122,9 @@ It's also possible to generate patches between two existing zipfiles, without
 going through the setup.py script.  Simply invoke the "esky.patch" module
 directly as follows:
 
-    python -m esky.patch -z diff ../stage1/dist/example-0.1.win32.zip ./dist/example-0.2.win32.zip ./dist/example-0.2.win32.from-0.1.patch
+    python -m esky.patch -Z diff ../stage1/dist/example-0.1.win32.zip ./dist/example-0.2.win32.zip ./dist/example-0.2.win32.from-0.1.patch
 
-Don't forget the "-z" argument - it tells the patcher to unzip the source files
+Don't forget the "-Z" argument - it tells the patcher to unzip the source files
 before starting work.  You should now have:
 
     stage3/dist/example-0.2.win32.zip
