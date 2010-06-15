@@ -85,7 +85,10 @@ def extract_zipfile(source,target,name_filter=None):
             if nm.endswith("/"):
                 continue
             if name_filter:
-                outfilenm = os.path.join(target,name_filter(nm))
+                outfilenm = name_filter(nm)
+                if outfilenm is None:
+                    continue
+                outfilenm = os.path.join(target,outfilenm)
             else:
                 outfilenm = os.path.join(target,nm)
             if not os.path.isdir(os.path.dirname(outfilenm)):
