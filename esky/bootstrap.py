@@ -54,6 +54,9 @@ else:
     raise RuntimeError("unsupported platform: " + sys.platform)
 
 
+__esky_name__ = None
+
+
 def pathjoin(*args):
     """Local re-implementation of os.path.join."""
     return SEP.join(args)
@@ -182,7 +185,7 @@ def _chainload(target_dir):
                 raise
     else:
         if exc_value is not None:
-            raise exc_type,exc_value,exc_traceback
+            raise exc_type,exc_value,traceback
 
 
 def get_best_version(appdir,include_partial_installs=False,appname=None):
