@@ -1,5 +1,8 @@
 
- * get realpath of sys.executable (may have to do this by hand)
+ * get realpath of sys.executable (may have to do this by hand, hard in RPython)
+ * when compiling the bootstrap exes, copy resources (e.g. icons) from the frozsen exes
+ * cache executables compiled by compile_to_bootstrap_exe, so we don't
+   have to repeat the process in the common case where they're all the same.
  * put all esky control files in an "esky" subdir, for cleanliness
  * trickery to detect process termination even from signals etc:
       * O_TEMPORARY and ReadDirectoryChangesW on win32

@@ -157,11 +157,13 @@ def freeze(dist):
     #  Create the bootstraping code, using custom code if specified.
     #  It gets stored as a marshalled list of code objects directly in the exe.
     code_source = [inspect.getsource(esky.bootstrap)]
-    code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
-    code_source.append(_CUSTOM_WIN32_CHAINLOADER)
+    if not dist.compile_bootstrap_exes:
+        code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
+        code_source.append(_CUSTOM_WIN32_CHAINLOADER)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
     if dist.bootstrap_module is None:
-        code_source.append("bootstrap()")
+        code_source.append("if not __esky_compile_with_pypy__:")
+        code_source.append("    bootstrap()")
     else:
         bsmodule = __import__(dist.bootstrap_module)
         for submod in dist.bootstrap_module.split(".")[1:]:
@@ -169,63 +171,69 @@ def freeze(dist):
         code_source.append(inspect.getsource(bsmodule))
         code_source.append("raise RuntimeError('didnt chainload')")
     code_source = "\n".join(code_source)
-    code = marshal.dumps([compile(code_source,"__main__.py","exec")])
-    coderes = struct.pack("iiii",
-                     0x78563412, # a magic value used for integrity checking,
-                     0, # no optimization
-                     False,  # normal buffered output
-                     len(code),
-                     ) + "\000" + code + "\000"
-    #  We try to bundle the python DLL into all bootstrap executables, even
-    #  if it's not bundled in the frozen distribution.  This helps keep the
-    #  bootstrap env small and minimises the chances of something going wrong.
-    pydll = u"python%d%d.dll" % sys.version_info[:2]
-    frozen_pydll = os.path.join(dist.freeze_dir,pydll)
-    if os.path.exists(frozen_pydll):
-        for nm in os.listdir(dist.freeze_dir):
-            if nm == pydll:
+    if dist.compile_bootstrap_exes:
+        for exe in dist.get_executables(rewrite=False):
+            if not exe.include_in_bootstrap_env:
                 continue
-            if nm.lower().endswith(".pyd") or nm.lower().endswith(".dll"):
-                #  There's an unbundled C-extension, so we can't bundle
-                #  the DLL  or our bootstrapper won't work.
-                pydll_bytes = None
-                break
-        else:
-            with open(frozen_pydll,"rb") as f:
-                pydll_bytes = f.read()
+            dist.compile_to_bootstrap_exe(exe.name,code_source)
     else:
-        #  They've bundlded the dll into the zipfile.  Rather than parse
-        #  it back out, I'm just going to grab it from the filesystem.
-        sz = 0
-        res = 0
-        while res == sz:
-            sz += 512
-            buf = ctypes.create_string_buffer(sz)
-            res = ctypes.windll.kernel32.GetModuleFileNameA(sys.dllhandle,ctypes.byref(buf),sz)
-            if not res:
-                raise ctypes.WinError()
-        with open(buf.value,"rb") as f:
-            pydll_bytes = f.read()
-    #  Copy any core dependencies into the bootstrap env.
-    for nm in os.listdir(dist.freeze_dir):
-        if is_core_dependency(nm):
-            if nm == pydll and pydll_bytes is not None:
+        code = marshal.dumps([compile(code_source,"__main__.py","exec")])
+        coderes = struct.pack("iiii",
+                         0x78563412, # magic value used for integrity checking
+                         0, # no optimization
+                         False,  # normal buffered output
+                         len(code),
+                         ) + "\000" + code + "\000"
+        #  We try to bundle the python DLL into all bootstrap executables, even
+        #  if it's not bundled in the frozen distribution.  This helps keep the
+        #  bootstrap env small and minimise the chance of something going wrong.
+        pydll = u"python%d%d.dll" % sys.version_info[:2]
+        frozen_pydll = os.path.join(dist.freeze_dir,pydll)
+        if os.path.exists(frozen_pydll):
+            for nm in os.listdir(dist.freeze_dir):
+                if nm == pydll:
+                    continue
+                if nm.lower().endswith(".pyd") or nm.lower().endswith(".dll"):
+                    #  There's an unbundled C-extension, so we can't bundle
+                    #  the DLL  or our bootstrapper won't work.
+                    pydll_bytes = None
+                    break
+            else:
+                with open(frozen_pydll,"rb") as f:
+                    pydll_bytes = f.read()
+        else:
+            #  They've bundled the dll into the zipfile.  Rather than parse
+            #  it back out, I'm just going to grab it from the filesystem.
+            sz = 0
+            res = 0
+            while res == sz:
+                sz += 512
+                buf = ctypes.create_string_buffer(sz)
+                res = ctypes.windll.kernel32.GetModuleFileNameA(sys.dllhandle,ctypes.byref(buf),sz)
+                if not res:
+                    raise ctypes.WinError()
+            with open(buf.value,"rb") as f:
+                pydll_bytes = f.read()
+        #  Copy any core dependencies into the bootstrap env.
+        for nm in os.listdir(dist.freeze_dir):
+            if is_core_dependency(nm):
+                if nm == pydll and pydll_bytes is not None:
+                    continue
+                dist.copy_to_bootstrap_env(nm)
+        #  Copy the loader program for each script into the bootstrap env.
+        for exe in dist.get_executables(rewrite=False):
+            if not exe.include_in_bootstrap_env:
                 continue
-            dist.copy_to_bootstrap_env(nm)
-    #  Copy the loader program for each script into the bootstrap env.
-    for exe in dist.get_executables(rewrite=False):
-        if not exe.include_in_bootstrap_env:
-            continue
-        exepath = dist.copy_to_bootstrap_env(exe.name)
-        #  Insert the bootstrap code into the exe as a resource.
-        #  This appears to have the happy side-effect of stripping any extra
-        #  data from the end of the exe, which is exactly what we want when
-        #  zipfile=None is specified; otherwise each bootstrap EXE would also
-        #  contain the whole bundled zipfile.
-        winres.add_resource(exepath,coderes,u"PYTHONSCRIPT",1,0)
-        #  Inline the pythonXY.dll as a resource in the exe.
-        if pydll_bytes is not None:
-            winres.add_resource(exepath,pydll_bytes,pydll.upper(),1,0)
+            exepath = dist.copy_to_bootstrap_env(exe.name)
+            #  Insert the bootstrap code into the exe as a resource.
+            #  This appears to have the happy side-effect of stripping any extra
+            #  data from the end of the exe, which is exactly what we want when
+            #  zipfile=None is specified; otherwise each bootstrap EXE would
+            #  also contain the whole bundled zipfile.
+            winres.add_resource(exepath,coderes,u"PYTHONSCRIPT",1,0)
+            #  Inline the pythonXY.dll as a resource in the exe.
+            if pydll_bytes is not None:
+                winres.add_resource(exepath,pydll_bytes,pydll.upper(),1,0)
 
 #  Code to fake out any bootstrappers that try to import from esky.
 _FAKE_ESKY_BOOTSTRAP_MODULE = """

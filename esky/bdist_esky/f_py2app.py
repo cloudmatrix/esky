@@ -86,40 +86,15 @@ def freeze(dist):
     for (src,arcnm) in dist.get_package_data():
         lib.write(src,arcnm)
     lib.close()
-    #  Copy the core dependencies into the bootstrap env.
-    pydir = "python%d.%d" % sys.version_info[:2]
-    def copy_to_bootstrap_env(src,dst=None):
-        if dst is None:
-            dst = src
-        src = os.path.join(appnm,src)
-        dist.copy_to_bootstrap_env(src,dst)
-    copy_to_bootstrap_env("Contents/Info.plist")
-    copy_to_bootstrap_env("Contents/PkgInfo")
-    copy_to_bootstrap_env("Contents/Frameworks/Python.framework")
-    copy_to_bootstrap_env("Contents/Resources/include")
-    copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
-    if "fcntl" not in sys.builtin_module_names:
-        dynload = "Contents/Resources/lib/"+pydir+"/lib-dynload"
-        for nm in os.listdir(os.path.join(app_dir,dynload)):
-            if nm.startswith("fcntl"):
-                copy_to_bootstrap_env(os.path.join(dynload,nm))
-    copy_to_bootstrap_env("Contents/Resources/__error__.sh")
-    copy_to_bootstrap_env("Contents/Resources/__boot__.py")
-    copy_to_bootstrap_env("Contents/Resources/site.py")
-    #  Copy any other mentioned files (icons etc) into the bootstrap env
-    with open(os.path.join(app_dir,"Contents","Info.plist"),"rt") as f:
-        infotxt = f .read()
-    for nm in os.listdir(os.path.join(app_dir,"Contents","Resources")):
-        if nm in infotxt:
-            copy_to_bootstrap_env("Contents/Resources/"+nm)
     #  Create the bootstraping code, using custom code if specified.
-    #  It gets stored as plain python code in Contents/Resources/__boot__.py
     code_source = [inspect.getsource(esky.bootstrap)]
-    code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
-    code_source.append(_EXTRA_BOOTSTRAP_CODE)
+    if not dist.compile_bootstrap_exes:
+        code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
+        code_source.append(_EXTRA_BOOTSTRAP_CODE)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
     if dist.bootstrap_module is None:
-        code_source.append("bootstrap()")
+        code_source.append("if not __esky_compile_with_pypy__:")
+        code_source.append("    bootstrap()")
     else:
         bsmodule = __import__(dist.bootstrap_module)
         for submod in dist.bootstrap_module.split(".")[1:]:
@@ -127,17 +102,51 @@ def freeze(dist):
         code_source.append(inspect.getsource(bsmodule))
         code_source.append("raise RuntimeError('didnt chainload')")
     code_source = "\n".join(code_source)
-    with open(dist.bootstrap_dir+"/Contents/Resources/__boot__.py","wt") as f:
-        f.write("".join(code_source))
-    with open(dist.bootstrap_dir+"/Contents/Resources/site.py","wt") as f:
-        f.write("")
-    # TODO: copy icons and other required resources
-    #  Copy the loader program for each script into the bootstrap env.
-    copy_to_bootstrap_env("Contents/MacOS/python")
-    for exe in dist.get_executables():
-        if not exe.include_in_bootstrap_env:
-            continue
-        exepath = copy_to_bootstrap_env("Contents/MacOS/"+exe.name)
+    if dist.compile_bootstrap_exes:
+        for exe in dist.get_executables(rewrite=False):
+            if not exe.include_in_bootstrap_env:
+                continue
+            dist.compile_to_bootstrap_exe(exe.name,code_source)
+    else:
+        #  Copy the core dependencies into the bootstrap env.
+        pydir = "python%d.%d" % sys.version_info[:2]
+        def copy_to_bootstrap_env(src,dst=None):
+            if dst is None:
+                dst = src
+            src = os.path.join(appnm,src)
+            dist.copy_to_bootstrap_env(src,dst)
+        copy_to_bootstrap_env("Contents/Info.plist")
+        copy_to_bootstrap_env("Contents/PkgInfo")
+        copy_to_bootstrap_env("Contents/Frameworks/Python.framework")
+        copy_to_bootstrap_env("Contents/Resources/include")
+        copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
+        if "fcntl" not in sys.builtin_module_names:
+            dynload = "Contents/Resources/lib/"+pydir+"/lib-dynload"
+            for nm in os.listdir(os.path.join(app_dir,dynload)):
+                if nm.startswith("fcntl"):
+                    copy_to_bootstrap_env(os.path.join(dynload,nm))
+        copy_to_bootstrap_env("Contents/Resources/__error__.sh")
+        copy_to_bootstrap_env("Contents/Resources/__boot__.py")
+        copy_to_bootstrap_env("Contents/Resources/site.py")
+        #  Copy any other mentioned files (icons etc) into the bootstrap env
+        with open(os.path.join(app_dir,"Contents","Info.plist"),"rt") as f:
+            infotxt = f .read()
+        for nm in os.listdir(os.path.join(app_dir,"Contents","Resources")):
+            if nm in infotxt:
+                copy_to_bootstrap_env("Contents/Resources/"+nm)
+        #  Copy the bootstrapping code into the __boot__.py file.
+        bsdir = dist.boostrap_dir
+        with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
+            f.write("".join(code_source))
+        #  Clear the site.py file, we don't need any of that.
+        with open(bsdir+"/Contents/Resources/site.py","wt") as f:
+            f.write("")
+        #  Copy the loader program for each script into the bootstrap env.
+        copy_to_bootstrap_env("Contents/MacOS/python")
+        for exe in dist.get_executables():
+            if not exe.include_in_bootstrap_env:
+                continue
+            exepath = copy_to_bootstrap_env("Contents/MacOS/"+exe.name)
 
 
 def zipit(dist,bsdir,zfname):

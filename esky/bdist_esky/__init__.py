@@ -22,6 +22,7 @@ import sys
 import shutil
 import zipfile
 import tempfile
+import hashlib
 from glob import glob
 
 import distutils.command
@@ -34,6 +35,11 @@ from esky.util import get_platform, is_core_dependency, create_zipfile, \
 if sys.platform == "win32":
     from esky import winres
     from xml.dom import minidom
+
+try:
+    import pypy.translator.goal.translate
+except ImportError:
+    pypy = None
 
 
 #  setuptools likes to be imported before anything else that
@@ -148,7 +154,13 @@ class bdist_esky(Command):
                          freezer module.
 
         bootstrap_module:  a custom module to use for esky bootstrapping;
-                           the default calls esky.bootstrap.common.bootstrap()
+                           the default calls esky.bootstrap.bootstrap()
+
+        compile_bootstrap_exes:  whether to compile the bootstrapping code to a
+                                 stand-alone exe; this requires PyPy installed
+                                 and the bootstrap code to be valid RPython.
+                                 When false, the bootstrap env will use a
+                                 trimmed-down copy of the freezer module exe.
 
         dont_run_startup_hooks:  don't force all executables to call
                                  esky.run_startup_hooks() on startup.
@@ -171,6 +183,8 @@ class bdist_esky(Command):
                      "options to pass to the underlying freezer module"),
                     ('bootstrap-module=', None,
                      "module to use for bootstrapping the application"),
+                    ('compile-bootstrap-exes=', None,
+                     "whether to compile the bootstrapping exes with pypy"),
                     ('bundle-msvcrt=', None,
                      "whether to bundle MSVCRT as private assembly"),
                     ('includes=', None,
@@ -181,7 +195,7 @@ class bdist_esky(Command):
                      "don't force execution of esky.run_startup_hooks()"),
                    ]
 
-    boolean_options = ["bundle-msvcrt","dont-run-startup-hooks"]
+    boolean_options = ["bundle-msvcrt","dont-run-startup-hooks","compile-bootstrap-exes"]
 
     def initialize_options(self):
         self.dist_dir = None
@@ -192,9 +206,14 @@ class bdist_esky(Command):
         self.bundle_msvcrt = False
         self.dont_run_startup_hooks = False
         self.bootstrap_module = None
+        self.compile_bootstrap_exes = False
+        self._compiled_exes = {}
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
+        if self.compile_bootstrap_exes and pypy is None:
+            err = "compiling bootstrap exes requires pypy installed."
+            raise RuntimeError(err)
         if self.freezer_module is None:
             for freezer_module in ("py2exe","py2app","bbfreeze","cxfreeze"):
                 self.freezer_module = _FREEZERS[freezer_module]
@@ -466,6 +485,35 @@ class bdist_esky(Command):
                 if fnm.lower().endswith(".manifest"):
                     yield os.path.join(winsxs,fnm)
 
+    def compile_to_bootstrap_exe(self,name,source):
+        """Compile the given sourcecode into a bootstrapping exe."""
+        source = "__esky_compile_with_pypy__ = True\n" + source
+        cdir = os.path.join(self.tempdir,"compile")
+        if not os.path.exists(cdir):
+            os.mkdir(cdir)
+        source_hash = hashlib.md5(source).hexdigest()
+        try:
+            outfile = self._compiled_exes[source_hash]
+        except KeyError:
+            infile = os.path.join(cdir,"esky_bootstrap_%s.py" % (source_hash,))
+            outfile = os.path.join(cdir,"esky_bootstrap_%s" % (source_hash,))
+            if sys.platform == "win32":
+                outfile += ".exe"
+            with open(infile,"wt") as f:
+                f.write(source)
+            orig_argv = sys.argv[:]
+            try:
+                sys.argv[1:] = ["--output",outfile,"--batch"]
+                if sys.platform == "win32":
+                    # TODO: how to tell if this is necessary?
+                    sys.argv.append("--cc=mingw32")
+                sys.argv.append(infile)
+                pypy.translator.goal.translate.main()
+            finally:
+               sys.argv = orig_argv
+            self._compiled_exes[source_hash] = outfile
+        self.copy_to_bootstrap_env(outfile,name)
+
     def copy_to_bootstrap_env(self,src,dst=None):
         """Copy the named file into the bootstrap environment.
 
@@ -560,4 +608,6 @@ distutils.command.__all__.append("bdist_esky")
 distutils.command.__all__.append("bdist_esky_patch")
 sys.modules["distutils.command.bdist_esky"] = sys.modules["esky.bdist_esky"]
 sys.modules["distutils.command.bdist_esky_patch"] = sys.modules["esky.bdist_esky"]
+
+
 

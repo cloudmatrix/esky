@@ -71,10 +71,15 @@ def freeze(dist):
     #  Create the bootstrap code, using custom code if specified.
     code_source = [inspect.getsource(esky.bootstrap)]
     if sys.platform == "win32":
-        code_source.append(_CUSTOM_WIN32_CHAINLOADER)
+        if dist.compile_bootstrap_exes:
+            pass
+            #code_source.append(_CUSTOM_WIN32_CHAINLOADER_PYPY)
+        else:
+            code_source.append(_CUSTOM_WIN32_CHAINLOADER)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
     if dist.bootstrap_module is None:
-        code_source.append("bootstrap()")
+        code_source.append("if not __esky_compile_with_pypy__:")
+        code_source.append("    bootstrap()")
     else:
         code_source.append("__name__ = '__main__'")
         bsmodule = __import__(dist.bootstrap_module)
@@ -83,45 +88,51 @@ def freeze(dist):
         code_source.append(inspect.getsource(bsmodule))
         code_source.append("raise RuntimeError('didnt chainload')")
     code_source = "\n".join(code_source)
-    maincode = imp.get_magic() + struct.pack("<i",0)
-    maincode += marshal.dumps(compile(code_source,"__main__.py","exec"))
-    #  Create code for a fake esky.bootstrap module
-    eskycode = imp.get_magic() + struct.pack("<i",0)
-    eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
-    eskybscode = imp.get_magic() + struct.pack("<i",0)
-    eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
-    #  Store bootstrap code as __main__ in the bootstrap library.zip.
-    #  The frozen library.zip might have the loader prepended to it, but
-    #  that gets overwritten here.
-    bslib_path = dist.copy_to_bootstrap_env("library.zip")
-    bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
-    cdate = (2000,1,1,0,0,0)
-    bslib.writestr(zipfile.ZipInfo("__main__.pyc",cdate),maincode)
-    bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
-    bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
-    bslib.close()
-    #  Copy any core dependencies
-    if "fcntl" not in sys.builtin_module_names:
+    if dist.compile_bootstrap_exes:
+        for exe in dist.get_executables(rewrite=False):
+            if not exe.include_in_bootstrap_env:
+                continue
+            dist.compile_to_bootstrap_exe(exe.name,code_source)
+    else:
+        maincode = imp.get_magic() + struct.pack("<i",0)
+        maincode += marshal.dumps(compile(code_source,"__main__.py","exec"))
+        #  Create code for a fake esky.bootstrap module
+        eskycode = imp.get_magic() + struct.pack("<i",0)
+        eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
+        eskybscode = imp.get_magic() + struct.pack("<i",0)
+        eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
+        #  Store bootstrap code as __main__ in the bootstrap library.zip.
+        #  The frozen library.zip might have the loader prepended to it, but
+        #  that gets overwritten here.
+        bslib_path = dist.copy_to_bootstrap_env("library.zip")
+        bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
+        cdate = (2000,1,1,0,0,0)
+        bslib.writestr(zipfile.ZipInfo("__main__.pyc",cdate),maincode)
+        bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
+        bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
+        bslib.close()
+        #  Copy any core dependencies
+        if "fcntl" not in sys.builtin_module_names:
+            for nm in os.listdir(dist.freeze_dir):
+                if nm.startswith("fcntl"):
+                    dist.copy_to_bootstrap_env(nm)
         for nm in os.listdir(dist.freeze_dir):
-            if nm.startswith("fcntl"):
+            if is_core_dependency(nm):
                 dist.copy_to_bootstrap_env(nm)
-    for nm in os.listdir(dist.freeze_dir):
-        if is_core_dependency(nm):
-            dist.copy_to_bootstrap_env(nm)
-    #  Copy the bbfreeze interpreter if necessary
-    if f.include_py:
-        if sys.platform == "win32":
-            dist.copy_to_bootstrap_env("py.exe")
-        else:
-            dist.copy_to_bootstrap_env("py")
-    #  Copy the loader program for each script.
-    #  We explicitly strip the loader binaries, in case they were made
-    #  by linking to the library.zip.
-    for exe in dist.get_executables(rewrite=False):
-        if not exe.include_in_bootstrap_env:
-            continue
-        exepath = dist.copy_to_bootstrap_env(exe.name)
-        f.stripBinary(exepath)
+        #  Copy the bbfreeze interpreter if necessary
+        if f.include_py:
+            if sys.platform == "win32":
+                dist.copy_to_bootstrap_env("py.exe")
+            else:
+                dist.copy_to_bootstrap_env("py")
+        #  Copy the loader program for each script.
+        #  We explicitly strip the loader binaries, in case they were made
+        #  by linking to the library.zip.
+        for exe in dist.get_executables(rewrite=False):
+            if not exe.include_in_bootstrap_env:
+                continue
+            exepath = dist.copy_to_bootstrap_env(exe.name)
+            f.stripBinary(exepath)
 
 
 #  On Windows, execv is flaky and expensive.  If the chainloader is the same
@@ -162,3 +173,35 @@ def _chainload(target_dir):
 """
 
 
+_CUSTOM_WIN32_CHAINLOADER_PYPY = """
+import ctypes
+_orig_chainload = _chainload
+def _chainload(target_dir):
+  raise RuntimeError
+  mydir = dirname(sys.executable)
+  pydll = "python%s%s.dll" % sys.version_info[:2]
+  if not exists(pathjoin(target_dir,pydll)):
+      _orig_chainload(target_dir)
+  else:
+      py = ctypes.CDLL(pydll)
+      #Py_NoSiteFlag = 1;
+      #Py_FrozenFlag = 1;
+      #Py_IgnoreEnvironmentFlag = 1;
+      #Py_SetPythonHome("");
+
+      #set_program_path(argv[0]);
+      py.Py_Initialize();
+      py.PySys_SetArgv(len(sys.argv),sys.argv);
+      if sys.platform == "win32":
+          syspath = dirname(py.Py_GetProgramFullPath());
+          syspath = syspath + "\\library.zip;" + syspath
+          py.PySys_SetPath(syspath);
+      else:
+          py.PySys_SetPath(py.Py_GetPath());
+      locals = py.PyDict_New()
+      py.PyDict_SetItemString(locals,"__builtins__",py.PyEval_GetBuiltins())
+      code = py.PyRun_String("print 'hello'")
+      py.PyFinalize()
+      sys.exit(code)
+
+"""

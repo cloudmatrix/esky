@@ -15,6 +15,10 @@ of bootstrapping into apps made with older versions of esky, since a partial
 update could result in the boostrapper from a new version being forced
 to load an old version.
 
+If you want to compile your bootstrapping exes into standalone executables,
+this module must also be written in the "RPython" dialect used by the PyPy
+translation toolchain.
+
 The code from this module is always executed in the bootstrapping environment
 before any custom bootstrapping code.  It provides the following functions for
 use during the bootstrap process:
@@ -32,15 +36,23 @@ use during the bootstrap process:
 import sys
 import errno
 
+#  RPython doesn't handle SystemExit automatically, so we put the exit code
+#  in this global var and catch SystemExit ourselves at the outmost scope.
+#  correctly handle the SystemExit exception.
+_exit_code = [0]
+
 #  The os module is not builtin, so we grab what we can from the
 #  platform-specific modules and fudge the rest.
 if "posix" in sys.builtin_module_names:
     import fcntl
     from posix import listdir, stat, unlink, rename, execv
+    from posix import open as os_open
+    from posix import close as os_close
     SEP = "/"
 elif "nt" in sys.builtin_module_names:
-    fcntl = None
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
+    from nt import open as os_open
+    from nt import close as os_close
     SEP = "\\"
     #  The standard execv terminates the spawning process, which makes
     #  it impossible to wait for it.  This alternative is waitable, but
@@ -49,17 +61,101 @@ elif "nt" in sys.builtin_module_names:
     #        with some custom code in child startup.
     def execv(filename,args):
         res = spawnv(P_WAIT,filename,args)
+        _exit_code[0] = res
         raise SystemExit(res)
+    #  A fake fcntl module which is false, but can fake out RPython
+    class fcntl:
+        LOCK_SH = 0
+        def flock(self,fd,mode):
+            pass
+        def __nonzero__(self):
+            return False
+    fcntl = fcntl()
 else:
     raise RuntimeError("unsupported platform: " + sys.platform)
 
 
-__esky_name__ = None
+__esky_name__ = ""
+
+try:
+    __esky_compile_with_pypy__
+except NameError:
+    __esky_compile_with_pypy__ = False
+
+if __esky_compile_with_pypy__:
+    # RPython doesn't have access to the "sys" module, so we fake it out.
+    # The entry_point function will set these value appropriately.
+    _sys = sys
+    class sys:
+        platform = _sys.platform
+        executable = _sys.executable
+        argv = _sys.argv
+        version_info = _sys.version_info
+        def exit(self,code):
+            _exit_code[0] = code
+            raise SystemExit(code)
+        def exc_info(self):
+            return None,None,None
+    sys = sys()
+    #  RPython doesn't provide the sorted() builtin, and actually makes sorting
+    #  quite complicated in general.
+    from pypy.rlib.listsort import TimSort
+    class ListSort(TimSort):
+        def lt(self,a,b):
+            return True
+            i = 0
+            while i < len(a) and i < len(b):
+                if a[i] < b[i]:
+                    return True
+                if a[i] > b[i]:
+                    return False
+                i += 1
+            if len(a) < len(b):
+                return True
+            return False
+    def sorted(lst,reverse=False):
+        lst = [item for item in lst]
+        ListSort(lst).sort()
+        # TODO: sort seems to be descending by default?
+        if not reverse:
+            lst.reverse()
+        return lst
+    # RPython doesn't provide the "zfill" or "isalnum" methods on strings.
+    def zfill(str,n):
+        while len(str) < n:
+            str = "0" + str
+        return str
+    def isalnum(str):
+        for c in str:
+            if not c.isalnum():
+                return False
+        return True
+    # RPython doesn't provide the "fcntl" module.  Fake it.
+    # TODO: implement it using ctypes.
+    if fcntl:
+        class fcntl:
+            LOCK_SH = fcntl.LOCK_SH
+            def flock(self,fd,mode):
+                pass
+        fcntl = fcntl()
+else:
+    #  We need to use a compatability wrapper for some string methods missing
+    #  in RPython, since we can't just add them as methods on the str type.
+    def zfill(str,n):
+        return str.zfill(n)
+    def isalnum(str):
+        return str.isalnum()
 
 
 def pathjoin(*args):
     """Local re-implementation of os.path.join."""
-    return SEP.join(args)
+    path = args[0]
+    for arg in list(args[1:]):
+        if arg.startswith(SEP):
+            path = arg
+        else:
+            path = path + SEP + arg
+    return path
 
 def basename(p):
     """Local re-implementation of os.path.basename."""
@@ -73,12 +169,12 @@ def exists(path):
     """Local re-implementation of os.path.exists."""
     try:
         stat(path)
-    except EnvironmentError:
-        e = sys.exc_info()[1]
-        if e.errno not in (errno.ENOENT,errno.ENOTDIR,errno.ESRCH,):
-            raise
-        else:
-            return False
+    except EnvironmentError, e:
+        # TODO: how to get the errno under RPython?
+        if not __esky_compile_with_pypy__:
+            if e.errno not in (errno.ENOENT,errno.ENOTDIR,errno.ESRCH,):
+                raise
+        return False
     else:
         return True
 
@@ -111,7 +207,7 @@ def bootstrap():
     """
     appdir = appdir_from_executable(sys.executable)
     best_version = None
-    if __esky_name__ is not None:
+    if __esky_name__:
         best_version = get_best_version(appdir,appname=__esky_name__)
     if best_version is None:
         best_version = get_best_version(appdir)
@@ -137,7 +233,8 @@ def chainload(target_dir):
         #  Our only option is to re-execute ourself and find the new version.
         if exists(dirname(target_dir)):
             if not exists(pathjoin(target_dir,"esky-bootstrap.txt")):
-                execv(sys.executable,sys.argv)
+                execv(sys.executable,list(sys.argv))
+                return
         raise
     else:
         #  If all goes well, we can actually launch the target version.
@@ -146,27 +243,31 @@ def chainload(target_dir):
 
 def get_exe_locations(target_dir):
     """Generate possible locations from which to chainload in the target dir."""
+    # TODO: let this be a generator when not compiling with PyPy, so we can
+    # avoid a few stat() calls in the common case.
+    locs = []
     appdir = dirname(target_dir)
     #  If we're in an appdir, first try to launch from within "<appname>.app"
     #  directory.  We must also try the default scheme for backwards compat.
     if sys.platform == "darwin":
         if basename(dirname(sys.executable)) == "MacOS":
-            if __esky_name__ is None:
-                yield pathjoin(target_dir,
-                               __esky_name__+".app",
-                               sys.executable[len(appdir)+1:])
+            if __esky_name__:
+                locs.append(pathjoin(target_dir,
+                                     __esky_name__+".app",
+                                     sys.executable[len(appdir)+1:]))
             else:
                 for nm in listdir(target_dir):
                     if nm.endswith(".app"):
-                        yield pathjoin(target_dir,
-                                       nm,
-                                       sys.executable[len(appdir)+1:])
+                        locs.append(pathjoin(target_dir,
+                                             nm,
+                                             sys.executable[len(appdir)+1:]))
     #  This is the default scheme: the same path as the exe in the appdir.
-    yield target_dir + sys.executable[len(appdir):]
+    locs.append(target_dir + sys.executable[len(appdir):])
     #  If sys.executable was a backup file, try using orig filename.
     orig_exe = get_original_filename(sys.executable)
     if orig_exe is not None:
-        yield target_dir + orig_executable[len(appdir):]
+        locs.append(target_dir + orig_exe[len(appdir):])
+    return locs
 
 
 def _chainload(target_dir):
@@ -179,13 +280,22 @@ def _chainload(target_dir):
     for target_exe in get_exe_locations(target_dir):
         try:
             execv(target_exe,[target_exe] + sys.argv[1:])
-        except EnvironmentError:
-            exc_type,exc_value,traceback = sys.exc_info()
-            if exc_value.errno != errno.ENOENT:
-                raise
+            return
+        except EnvironmentError, exc_value:
+            #  Careful, RPython lacks a usable exc_info() function.
+            exc_type,_,traceback = sys.exc_info()
+            if not __esky_compile_with_pypy__:
+                if exc_value.errno != errno.ENOENT:
+                    raise
+            else:
+                if exists(target_exe):
+                    raise
     else:
         if exc_value is not None:
-            raise exc_type,exc_value,traceback
+            if exc_type is not None:
+                raise exc_type,exc_value,traceback
+            else:
+                raise exc_value
 
 
 def get_best_version(appdir,include_partial_installs=False,appname=None):
@@ -287,7 +397,7 @@ def split_app_version(s):
     idx = 1
     while idx < len(bits):
         if bits[idx]:
-            if not bits[idx][0].isalpha() or not bits[idx].isalnum():
+            if not bits[idx][0].isalpha() or not isalnum(bits[idx]):
                 break
         idx += 1
     appname = "-".join(bits[:idx])
@@ -308,12 +418,12 @@ def join_app_version(appname,version,platform):
 def parse_version(s):
     """Parse a version string into a chronologically-sortable key
 
-    This function returns a tuple of strings that compares with the results
+    This function returns a sequence of strings that compares with the results
     for other versions in a chronologically sensible way.  You'd use it to
     compare two version strings like so:
 
         if parse_version("1.9.2") > parse_version("1.10.0"):
-            print "what rubbish, that's an older version!"
+            raise RuntimeError("what rubbish, that's an older version!")
 
     This is essentially the parse_version() function from pkg_resources,
     but re-implemented to avoid using modules that may not be available
@@ -328,20 +438,22 @@ def parse_version(s):
             while parts and parts[-1]=='00000000':
                 parts.pop()
         parts.append(part)
-    return tuple(parts)
+    return parts
 
 
 _replace_p = {'pre':'c', 'preview':'c','-':'final-','rc':'c','dev':'@'}.get
 def _parse_version_parts(s):
+    parts = []
     for part in _split_version_components(s):
         part = _replace_p(part,part)
         if not part or part=='.':
             continue
         if part[:1] in '0123456789':
-            yield part.zfill(8)    # pad for numeric comparison
+            parts.append(zfill(part,8))    # pad for numeric comparison
         else:
-            yield '*'+part
-    yield '*final'  # ensure that alpha/beta/candidate are before final
+            parts.append('*'+part)
+    parts.append('*final')  # ensure that alpha/beta/candidate are before final
+    return parts
 
 
 def _split_version_components(s):
@@ -351,6 +463,7 @@ def _split_version_components(s):
     Unfortunately the 're' module isn't in the bootstrap, so we have to do
     an equivalent parse by hand.  Forunately, that's pretty easy.
     """
+    comps = []
     start = 0
     while start < len(s):
         end = start+1
@@ -365,8 +478,9 @@ def _split_version_components(s):
         else:
             while end < len(s) and not (s[end].isdigit() or s[end].isalpha() or s[end] in (".","-")):
                 end += 1
-        yield s[start:end]
+        comps.append(s[start:end])
         start = end
+    return comps
 
 
 def get_original_filename(backname):
@@ -378,11 +492,11 @@ def get_original_filename(backname):
 
     If no matching original file is found, None is returned.
     """
-    filtered = ".".join(filter(lambda n: n != "old",backname.split(".")))
+    filtered = ".".join([n for n in backname.split(".") if n != "old"])
     for nm in listdir(dirname(backname)):
         if nm == backname:
             continue
-        if filtered == ".".join(filter(lambda n: n != "old",nm.split("."))):
+        if filtered == ".".join([n for n in nm.split(".") if n != "old"]):
             return pathjoin(dirname(backname),nm)
     return None
 
@@ -395,7 +509,7 @@ def lock_version_dir(vdir):
         #  On win32, we just hold bootstrap file open for reading.
         #  This will prevent it from being renamed during uninstall.
         lockfile = pathjoin(vdir,"esky-bootstrap.txt")
-        _locked_version_dirs.setdefault(vdir,[]).append(open(lockfile,"rt"))
+        _locked_version_dirs.setdefault(vdir,[]).append(os_open(lockfile,0,0))
     else:
         #  On posix platforms we take a shared flock on esky-lockfile.txt.
         #  While fcntl.fcntl locks are apparently the new hotness, they have
@@ -406,11 +520,27 @@ def lock_version_dir(vdir):
         #  To complicate matters, python sometimes emulated flock with fcntl!
         #  We therefore use a separate lock file to avoid unpleasantness.
         lockfile = pathjoin(vdir,"esky-lockfile.txt")
-        f = open(lockfile,"r")
+        f = os_open(lockfile,0,0)
         _locked_version_dirs.setdefault(vdir,[]).append(f)
         fcntl.flock(f,fcntl.LOCK_SH)
 
 def unlock_version_dir(vdir):
     """Unlock the given version dir, allowing it to be uninstalled."""
-    _locked_version_dirs[vdir].pop().close()
+    os_close(_locked_version_dirs[vdir].pop())
+
+if __esky_compile_with_pypy__:
+    import os.path
+    def main():
+        bootstrap()
+    def target(driver,args):
+        """Target function for compiling a standalone bootstraper with PyPy."""
+        def entry_point(argv):
+             sys.executable = pathjoin(os.getcwd(),argv[0])
+             sys.argv = argv
+             try:
+                 main()
+             except SystemExit, e:
+                 return _exit_code[0]
+             return 0
+        return entry_point, None
 

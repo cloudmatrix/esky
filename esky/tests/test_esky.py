@@ -46,6 +46,10 @@ try:
     import cx_Freeze
 except ImportError:
     cx_Freeze = None
+try:
+    import pypy
+except ImportError:
+    pypy = None
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -95,6 +99,28 @@ class TestEsky(unittest.TestCase):
         def test_esky_py2exe_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
+    if pypy is not None:
+        def test_esky_py2exe_pypy(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                "compile_bootstrap_exes":1}})
+        def test_esky_py2exe_pypy_bundle1(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                "compile_bootstrap_exes":1,
+                                                "freezer_options": {
+                                                   "bundle_files":1
+                                                }}})
+        def test_esky_py2exe_pypy_bundle2(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                "compile_bootstrap_exes":1,
+                                                "freezer_options": {
+                                                   "bundle_files":2
+                                                }}})
+        def test_esky_py2exe_pypy_bundle3(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                "compile_bootstrap_exes":1,
+                                                "freezer_options": {
+                                                   "bundle_files":3
+                                                }}})
 
   if py2app is not None:
     def test_esky_py2app(self):
@@ -103,6 +129,10 @@ class TestEsky(unittest.TestCase):
         def test_esky_py2app_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
+    if pypy is not None:
+        def test_esky_py2app_pypy(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"py2app",
+                                                "compile_bootstrap_exes":1}})
 
   if bbfreeze is not None:
     def test_esky_bbfreeze(self):
@@ -111,6 +141,10 @@ class TestEsky(unittest.TestCase):
         def test_esky_bbfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
+    if pypy is not None:
+        def test_esky_bbfreeze_pypy(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze",
+                                                "compile_bootstrap_exes":1}})
 
   if cx_Freeze is not None:
     def test_esky_cxfreeze(self):
@@ -119,6 +153,10 @@ class TestEsky(unittest.TestCase):
         def test_esky_cxfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
+    if pypy is not None:
+        def test_esky_cxfreeze_pypy(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze",
+                                                "compile_bootstrap_exes":1}})
 
 
   def _run_eskytester(self,options):
@@ -168,6 +206,7 @@ class TestEsky(unittest.TestCase):
         shutil.rmtree(uzdir)
         #  Serve the updates at http://localhost:8000/dist/
         print "running local update server"
+        print os.listdir("dist")
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
         server_thread = threading.Thread(target=server.serve_forever)
         server_thread.daemon = True

@@ -7,6 +7,7 @@ setup(
   name = "example-app",
   version = "0.1",
   #  All executables are listed in the "scripts" argument
-  scripts = ["example.py"]
+  scripts = ["example.py"],
+  options = {"bdist_esky": {"compile_bootstrap_exes": True}},
 )
 
