@@ -526,9 +526,6 @@ class bdist_esky(Command):
             try:
                 sys.argv[0] = sys.executable
                 sys.argv[1:] = ["--output",outfile,"--batch"]
-                if sys.platform == "win32":
-                    # TODO: how to tell if this is necessary?
-                    sys.argv.append("--cc=mingw32")
                 sys.argv.append(infile)
                 pypy.translator.goal.translate.main()
             finally:

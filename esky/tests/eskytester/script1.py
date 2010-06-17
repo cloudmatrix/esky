@@ -58,6 +58,7 @@ else:
         assert proc.poll() is None
         @atexit.register
         def cleanup():
+            assert proc.poll() is None
             if hasattr(proc,"terminate"):
                 proc.terminate()
             else:

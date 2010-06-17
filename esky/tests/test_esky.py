@@ -206,7 +206,6 @@ class TestEsky(unittest.TestCase):
         shutil.rmtree(uzdir)
         #  Serve the updates at http://localhost:8000/dist/
         print "running local update server"
-        print os.listdir("dist")
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
         server_thread = threading.Thread(target=server.serve_forever)
         server_thread.daemon = True
