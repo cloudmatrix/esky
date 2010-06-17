@@ -40,6 +40,11 @@ try:
     import pypy.translator.goal.translate
 except ImportError:
     pypy = None
+    COMPILED_BOOTSTRAP_CACHE = None
+else:
+    COMPILED_BOOTSTRAP_CACHE = os.path.dirname(__file__)
+    if not os.path.isdir(COMPILED_BOOTSTRAP_CACHE):
+        COMPILED_BOOTSTRAP_CACHE = None
 
 
 #  setuptools likes to be imported before anything else that
@@ -486,23 +491,40 @@ class bdist_esky(Command):
                     yield os.path.join(winsxs,fnm)
 
     def compile_to_bootstrap_exe(self,name,source):
-        """Compile the given sourcecode into a bootstrapping exe."""
+        """Compile the given sourcecode into a bootstrapping exe.
+
+        This method compiles the given sourcecode into a stand-alone exe using
+        PyPy, then stores that in the bootstrap env under the given name. If
+        the source has been previously compiled, a cached version of the exe
+        may be used.
+        """
         source = "__esky_compile_with_pypy__ = True\n" + source
         cdir = os.path.join(self.tempdir,"compile")
         if not os.path.exists(cdir):
             os.mkdir(cdir)
         source_hash = hashlib.md5(source).hexdigest()
+        inname = "bootstrap_%s.py" % (source_hash,)
+        outname = "bootstrap_%s" % (source_hash,)
+        if sys.platform == "win32":
+            outname += ".exe"
+        #  First try to use a precompiled version.
+        if COMPILED_BOOTSTRAP_CACHE is not None:
+            cachedname = outname + "." + get_platform()
+            outfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,cachedname)
+            if os.path.exists(outfile):
+                self.copy_to_bootstrap_env(outfile,name)
+                return
+        #  Otherwise we have to compile it anew.
         try:
             outfile = self._compiled_exes[source_hash]
         except KeyError:
-            infile = os.path.join(cdir,"esky_bootstrap_%s.py" % (source_hash,))
-            outfile = os.path.join(cdir,"esky_bootstrap_%s" % (source_hash,))
-            if sys.platform == "win32":
-                outfile += ".exe"
+            infile = os.path.join(cdir,inname)
+            outfile = os.path.join(cdir,outname)
             with open(infile,"wt") as f:
                 f.write(source)
             orig_argv = sys.argv[:]
             try:
+                sys.argv[0] = sys.executable
                 sys.argv[1:] = ["--output",outfile,"--batch"]
                 if sys.platform == "win32":
                     # TODO: how to tell if this is necessary?
@@ -513,6 +535,14 @@ class bdist_esky(Command):
                sys.argv = orig_argv
             self._compiled_exes[source_hash] = outfile
         self.copy_to_bootstrap_env(outfile,name)
+        #  Try to save the compiled exe for future use.
+        if COMPILED_BOOTSTRAP_CACHE is not None:
+            cachedname = outname + "." + get_platform()
+            cachedfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,cachedname)
+            try:
+                shutil.copy2(outfile,cachedfile)
+            except EnvironmentError:
+                pass
 
     def copy_to_bootstrap_env(self,src,dst=None):
         """Copy the named file into the bootstrap environment.
