@@ -49,11 +49,20 @@ if "posix" in sys.builtin_module_names:
     from posix import open as os_open
     from posix import close as os_close
     SEP = "/"
+    def isabs(path):
+        return (path.startswith(SEP))
 elif "nt" in sys.builtin_module_names:
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
     from nt import open as os_open
     from nt import close as os_close
     SEP = "\\"
+    def isabs(path):
+        if path.startswith(SEP):
+            return True
+        if len(path) >= 2:
+            if path[0].isalpha() and path[1] == ":":
+                return True
+        return False
     #  The standard execv terminates the spawning process, which makes
     #  it impossible to wait for it.  This alternative is waitable, but
     #  risks leaving zombie children if it is killed externally.
@@ -151,7 +160,7 @@ def pathjoin(*args):
     """Local re-implementation of os.path.join."""
     path = args[0]
     for arg in list(args[1:]):
-        if arg.startswith(SEP):
+        if isabs(arg):
             path = arg
         else:
             path = path + SEP + arg
@@ -541,6 +550,9 @@ if __esky_compile_with_pypy__:
                  main()
              except SystemExit, e:
                  return _exit_code[0]
+             except Exception, e:
+                 print e
+                 return 1
              return 0
         return entry_point, None
 
