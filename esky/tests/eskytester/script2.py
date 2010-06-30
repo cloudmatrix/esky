@@ -93,7 +93,7 @@ if len(sys.argv) == 1:
         f1.close()
         f2.close()
     if sys.platform == "darwin":
-        os.unlink(os.path.join(v3dir,"esky/bootstrap/Contents/MacOS/script2"))
+        os.unlink(os.path.join(v3dir,ESKY_CONTROL_DIR,"bootstrap/Contents/MacOS/script2"))
     elif sys.platform != "win32":
         # win32 won't let us delete it since we loaded it as a library
         # when checking whether it was safe to overwrite.
