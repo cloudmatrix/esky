@@ -489,10 +489,14 @@ class bdist_esky(Command):
                     for fnm in filenms:
                         fpath = os.path.join(dirnm,fnm)
                         dpath = dst + fpath[len(srcpath):]
+                        if os.sep != "/":
+                            dpath = dpath.replace(os.sep,"/")
                         f_manifest.write(dpath)
                         f_manifest.write("\n")
             else:
                 f_manifest.write(dst)
+                if os.sep != "/":
+                    dst = dst.replace(os.sep,"/")
                 f_manifest.write("\n")
         return dstpath
 
