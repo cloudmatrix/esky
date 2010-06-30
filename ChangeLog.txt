@@ -1,10 +1,15 @@
 
 v0.8.0:
 
-  THIS RELEASE BREAKS BACKWARD-COMPATABILITY IN THE ON-DISK FILE LAYOUT.
+  THIS RELEASE INTRODUCES A NEW ON-DISK FILE LAYOUT - SEE BELOW FOR NOTES
 
     * moved all esky control files into an "esky-files" subdir, to avoid
       clutter in the top-level version dir if/when additional files are added.
+         * there are compatability hooks for the old file layout, but they
+           will be removed in the 0.9.* series.
+         * therefore, if you have deployed applications using esky 0.7.* or
+           lower, you MUST deploy an update using the 0.8.* series before
+           migrating to  any newer versions of esky.
     * bootstrap-manifest.txt:  always use forward-slashes in paths, even
       when building for Windows.
     * Esky.fetch_version() now accepts a "callback" argument, which will be

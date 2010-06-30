@@ -139,7 +139,9 @@ def chainload(target_dir):
         #  Our only option is to re-execute ourself and find the new version.
         if exists(dirname(target_dir)):
             if not exists(pathjoin(target_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
-                execv(sys.executable,sys.argv)
+                # TODO: remove compatability hook
+                if not exists(pathjoin(target_dir,"esky-bootstrap.txt")):
+                    execv(sys.executable,sys.argv)
         raise
     else:
         #  If all goes well, we can actually launch the target version.
@@ -259,7 +261,12 @@ def is_version_dir(vdir):
 
     Currently it only need contain the "esky-files/bootstrap-mainfest.txt" file.
     """
-    return exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
+    if exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
+        return True
+    # TODO: remove compatability hook
+    if exists(pathjoin(vdir,"esky-bootstrap.txt")):
+        return True
+    return False
 
 
 def is_installed_version_dir(vdir):
@@ -268,7 +275,11 @@ def is_installed_version_dir(vdir):
     Currently, a completed installation is indicated by the lack of an
     "esky-files/bootstrap" directory.
     """
-    return not exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap"))
+    # TODO: remove compatability hook
+    if not exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap")):
+        if not exists(pathjoin(vdir,"esky-bootstrap")):
+            return True
+    return False
 
 
 def is_uninstalled_version_dir(vdir):
@@ -277,7 +288,13 @@ def is_uninstalled_version_dir(vdir):
     A partially-uninstalled version dir has had the "bootstrap-manifest.txt"
     renamed to "bootstrap-manifest-old.txt".
     """
-    return exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest-old.txt"))
+    if exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest-old.txt")):
+        return True
+    # TODO: remove compatability hooks
+    if exists(pathjoin(vdir,"esky-bootstrap-old.txt")):
+        return True
+    return False
+    
 
 
 def split_app_version(s):
@@ -397,6 +414,9 @@ def lock_version_dir(vdir):
         #  On win32, we just hold bootstrap file open for reading.
         #  This will prevent it from being renamed during uninstall.
         lockfile = pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
+        # TODO: remove compatability hooks
+        if not exists(lockfile):
+            lockfile = pathjoin(vdir,"esky-bootstrap.txt")
         _locked_version_dirs.setdefault(vdir,[]).append(open(lockfile,"rt"))
     else:
         #  On posix platforms we take a shared flock on esky-files/lockfile.txt.
@@ -408,6 +428,9 @@ def lock_version_dir(vdir):
         #  To complicate matters, python sometimes emulated flock with fcntl!
         #  We therefore use a separate lock file to avoid unpleasantness.
         lockfile = pathjoin(vdir,ESKY_CONTROL_DIR,"lockfile.txt")
+        # TODO: remove compatability hooks
+        if not exists(lockfile):
+            lockfile = pathjoin(vdir,"esky-lockfile.txt")
         f = open(lockfile,"r")
         _locked_version_dirs.setdefault(vdir,[]).append(f)
         fcntl.flock(f,fcntl.LOCK_SH)

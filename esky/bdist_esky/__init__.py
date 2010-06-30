@@ -244,6 +244,10 @@ class bdist_esky(Command):
             lockfile = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt")
             with open(lockfile,"w") as lf:
                 lf.write("this file is used by esky to lock the version dir\n")
+            # TODO: remove compatability hook
+            shutil.copyfile(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt"),os.path.join(self.freeze_dir,"esky-lockfile.txt"))
+        # TODO: remove compatability hook
+        shutil.copyfile(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),os.path.join(self.freeze_dir,"esky-bootstrap.txt"))
         #  Zip up the distribution
         print "zipping up the esky"
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))

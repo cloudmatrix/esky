@@ -818,9 +818,15 @@ class Esky(object):
         target = os.path.join(self.appdir,target_name)
         #  Guard against malicious input (might be called with root privs)
         assert os.path.dirname(target) == self.appdir
+        # TODO: remove compatability hooks
         lockfile = os.path.join(target,ESKY_CONTROL_DIR,"lockfile.txt")
+        if not os.path.exists(lockfile):
+            lockfile = os.path.join(target,"esky-lockfile.txt")
         bsfile = os.path.join(target,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         bsfile_old = os.path.join(target,ESKY_CONTROL_DIR,"bootstrap-manifest-old.txt")
+        if not os.path.exists(bsfile):
+            bsfile = os.path.join(target,"esky-bootstrap.txt")
+            bsfile_old = os.path.join(target,"esky-bootstrap-old.txt")
         self.lock()
         try:
             if not os.path.exists(target):
@@ -899,6 +905,8 @@ class Esky(object):
         to be in the main app directory.
         """
         mpath = os.path.join(self.appdir,vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
+        if not os.path.exists(mpath):
+            mpath = os.path.join(self.appdir,vdir,"esky-bootstrap.txt")
         manifest = set()
         try:
             with open(mpath,"rt") as mf:
