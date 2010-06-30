@@ -146,7 +146,7 @@ def chainload(target_dir):
 
 def get_exe_locations(target_dir):
     """Generate possible locations from which to chainload in the target dir."""
-    appdir = dirname(target_dir)
+    appdir = appdir_from_executable(sys.executable)
     #  If we're in an appdir, first try to launch from within "<appname>.app"
     #  directory.  We must also try the default scheme for backwards compat.
     if sys.platform == "darwin":
