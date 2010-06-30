@@ -27,7 +27,8 @@ import esky
 import esky.patch
 import esky.sudo
 from esky import bdist_esky
-from esky.util import extract_zipfile, deep_extract_zipfile, get_platform
+from esky.util import extract_zipfile, deep_extract_zipfile, get_platform, \
+                      ESKY_CONTROL_DIR
 from esky.fstransact import FSTransaction, files_differ
 
 try:
@@ -232,7 +233,8 @@ class TestEsky(unittest.TestCase):
     try: 
         vdir = os.path.join(appdir,"testapp-0.1.%s" % (platform,))
         os.mkdir(vdir)
-        open(os.path.join(vdir,"esky-bootstrap.txt"),"wb").close()
+        os.mkdir(os.path.join(vdir,ESKY_CONTROL_DIR))
+        open(os.path.join(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         assert e1.name == "testapp"
         assert e1.version == "0.1"
@@ -273,7 +275,8 @@ class TestEsky(unittest.TestCase):
     appdir = tempfile.mkdtemp()
     try: 
         os.mkdir(os.path.join(appdir,"testapp-0.1"))
-        open(os.path.join(appdir,"testapp-0.1","esky-bootstrap.txt"),"wb").close()
+        os.mkdir(os.path.join(appdir,"testapp-0.1",ESKY_CONTROL_DIR))
+        open(os.path.join(appdir,"testapp-0.1",ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         e2 = esky.Esky(appdir,"http://example.com/downloads/")
         trigger1 = threading.Event(); trigger2 = threading.Event()

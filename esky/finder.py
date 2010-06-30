@@ -24,7 +24,8 @@ from urlparse import urlparse, urljoin
 
 from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
-from esky.util import deep_extract_zipfile, copy_ownership_info
+from esky.util import deep_extract_zipfile, copy_ownership_info, \
+                      ESKY_CONTROL_DIR
 from esky.patch import apply_patch, PatchError
 
 
@@ -257,19 +258,20 @@ class DefaultVersionFinder(VersionFinder):
                         except EnvironmentError:
                             pass
                         raise
-            # Move anything that's not the version dir into esky-bootstrap
+            # Move anything that's not the version dir into esky/bootstrap
             vdir = join_app_version(app.name,version,app.platform)
-            bspath = os.path.join(uppath,vdir,"esky-bootstrap")
+            bspath = os.path.join(uppath,vdir,ESKY_CONTROL_DIR,"bootstrap")
             if not os.path.isdir(bspath):
                 os.makedirs(bspath)
             for nm in os.listdir(uppath):
                 if nm != vdir:
                     os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
-            # Check that it has an esky-bootstrap.txt file
-            bsfile = os.path.join(uppath,vdir,"esky-bootstrap.txt")
+            # Check that it has an esky-files/bootstrap-manifest.txt file
+            bsfile = os.path.join(uppath,vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
             if not os.path.exists(bsfile):
                 self.version_graph.remove_all_links(path[0][1])
-                raise PatchError("patch didn't create esky-bootstrap.txt")
+                err = "patch didn't create bootstrap-manifest.txt"
+                raise PatchError(err)
             # Make it available for upgrading
             rdpath = self._ready_name(app,version)
             if os.path.exists(rdpath):
@@ -284,7 +286,7 @@ class DefaultVersionFinder(VersionFinder):
         best_vdir = join_app_version(app.name,app.version,app.platform)
         source = os.path.join(app.appdir,best_vdir)
         shutil.copytree(source,os.path.join(uppath,best_vdir))
-        with open(os.path.join(source,"esky-bootstrap.txt"),"r") as manifest:
+        with open(os.path.join(source,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"r") as manifest:
             for nm in manifest:
                 nm = nm.strip()
                 bspath = os.path.join(app.appdir,nm)

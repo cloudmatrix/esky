@@ -30,7 +30,7 @@ from distutils.util import convert_path
 
 import esky.patch
 from esky.util import get_platform, is_core_dependency, create_zipfile, \
-                      split_app_version, join_app_version
+                      split_app_version, join_app_version, ESKY_CONTROL_DIR
 if sys.platform == "win32":
     from esky import winres
     from xml.dom import minidom
@@ -241,7 +241,9 @@ class bdist_esky(Command):
         self.freezer_module.freeze(self)
         #  Create the necessary control files
         if platform != "win32":
-            open(os.path.join(self.freeze_dir,"esky-lockfile.txt"),"w").close()
+            lockfile = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt")
+            with open(lockfile,"w") as lf:
+                lf.write("this file is used by esky to lock the version dir\n")
         #  Zip up the distribution
         print "zipping up the esky"
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
@@ -481,7 +483,9 @@ class bdist_esky(Command):
             if not os.path.isdir(os.path.dirname(dstpath)):
                self.mkpath(os.path.dirname(dstpath))
             self.copy_file(srcpath,dstpath)
-        f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
+        if not os.path.isdir(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR)):
+            os.mkdir(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR))
+        f_manifest = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         with open(f_manifest,"at") as f_manifest:
             f_manifest.seek(0,os.SEEK_END)
             if os.path.isdir(srcpath):
