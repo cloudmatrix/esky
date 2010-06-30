@@ -46,8 +46,13 @@ class TestableEsky(esky.Esky):
 
     @allow_from_sudo(str)
     @_check_needsroot
-    def fetch_version(self,version):
-        return super(TestableEsky,self).fetch_version(version)
+    def fetch_version(self,version,callback=None):
+        return super(TestableEsky,self).fetch_version(version,callback)
+
+    @allow_from_sudo(str,iterator=True)
+    @_check_needsroot
+    def fetch_version_iter(self,version):
+        return super(TestableEsky,self).fetch_version_iter(version)
 
     @allow_from_sudo(str)
     @_check_needsroot

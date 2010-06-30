@@ -105,6 +105,7 @@ class SudoProxy(object):
                         break
                     else:
                         argtypes = _get_sudo_argtypes(self.target,methname)
+                        iterator = _get_sudo_iterator(self.target,methname)
                         if argtypes is None:
                             msg = "attribute '%s' not allowed from sudo"
                             raise AttributeError(msg % (attr,))
@@ -120,7 +121,17 @@ class SudoProxy(object):
                         except Exception, e:
                             pipe.write(pickle.dumps((False,e)))
                         else:
-                            pipe.write(pickle.dumps((True,res)))
+                            if not iterator:
+                                pipe.write(pickle.dumps((True,res)))
+                            else:
+                                try:
+                                    for item in res:
+                                        pipe.write(pickle.dumps((True,item)))
+                                except Exception, e:
+                                    pipe.write(pickle.dumps((False,e)))
+                                else:
+                                    SI = StopIteration
+                                    pipe.write(pickle.dumps((False,SI)))
                 except EOFError:
                     break
             #  Stay alive until the pipe is closed, but don't execute
@@ -142,20 +153,33 @@ class SudoProxy(object):
             raise AttributeError(msg)
         method = getattr(target,attr)
         pipe = self.__dict__["pipe"]
-        @wraps(method.im_func)
-        def wrapper(*args):
-            pipe.write(method.im_func.func_name.encode("ascii"))
-            for arg in args:
-                pipe.write(str(arg).encode("ascii"))
-            (success,result) = pickle.loads(pipe.read())
-            if not success:
-                raise result
-            return result
+        if not _get_sudo_iterator(target,attr):
+            @wraps(method.im_func)
+            def wrapper(*args):
+                pipe.write(method.im_func.func_name.encode("ascii"))
+                for arg in args:
+                    pipe.write(str(arg).encode("ascii"))
+                (success,result) = pickle.loads(pipe.read())
+                if not success:
+                    raise result
+                return result
+        else:
+            @wraps(method.im_func)
+            def wrapper(*args):
+                pipe.write(method.im_func.func_name.encode("ascii"))
+                for arg in args:
+                    pipe.write(str(arg).encode("ascii"))
+                (success,result) = pickle.loads(pipe.read())
+                while success:
+                    yield result
+                    (success,result) = pickle.loads(pipe.read())
+                if result is not StopIteration:
+                    raise result
         setattr(self,attr,wrapper)
         return wrapper
 
 
-def allow_from_sudo(*argtypes):
+def allow_from_sudo(*argtypes,**kwds):
     """Method decorator to allow access to a method via the sudo proxy.
 
     This decorator wraps an Esky method so that it can be called via the
@@ -176,6 +200,7 @@ def allow_from_sudo(*argtypes):
     """
     def decorator(func):
         func._esky_sudo_argtypes = argtypes
+        func._esky_sudo_iterator = kwds.pop("iterator",False)
         return func
     return decorator
 
@@ -196,6 +221,21 @@ def _get_sudo_argtypes(obj,methname):
             return argtypes
     return None
 
+def _get_sudo_iterator(obj,methname):
+    """Get the iterator flag for the given method.
+
+    This searches the base classes of obj if the given method is not declared
+    allowed_from_sudo, so that people don't have to constantly re-apply the
+    decorator.
+    """
+    for base in _get_mro(obj):
+        try:
+            iterator = base.__dict__[methname]._esky_sudo_iterator
+        except (KeyError,AttributeError):
+            pass
+        else:
+            return iterator
+    return False
 
 def _get_mro(obj):
     try:

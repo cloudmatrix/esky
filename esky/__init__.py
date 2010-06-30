@@ -695,11 +695,13 @@ class Esky(object):
                 best_version = version
         return best_version
 
-    @allow_from_sudo(str)
-    def fetch_version(self,version):
+    def fetch_version(self,version,callback=None):
         """Fetch the specified updated version of the app."""
         if self.sudo_proxy is not None:
-            return self.sudo_proxy.fetch_version(version)
+            for status in self.sudo_proxy.fetch_version_iter(version):
+                if callback is not None:
+                    callback(status)
+            return self.version_finder.has_version(self,version)
         if self.version_finder is None:
             raise NoVersionFinderError
         #  Guard against malicious input (might be called with root privs)
@@ -709,11 +711,37 @@ class Esky(object):
         #  Get the new version using the VersionFinder
         loc = self.version_finder.has_version(self,version)
         if not loc:
-            loc = self.version_finder.fetch_version(self,version)
+            loc = self.version_finder.fetch_version(self,version,callback)
         #  Adjust permissions to match the current version
         vdir = join_app_version(self.name,self.version,self.platform)
         copy_ownership_info(os.path.join(self.appdir,vdir),loc)
         return loc
+
+    @allow_from_sudo(str,iterator=True)
+    def fetch_version_iter(self,version):
+        """Fetch specified version of the app, with iterator control flow."""
+        if self.sudo_proxy is not None:
+            for status in self.sudo_proxy.fetch_version_iter(version):
+                yield status
+            return
+        if self.version_finder is None:
+            raise NoVersionFinderError
+        #  Guard against malicious input (might be called with root privs)
+        target = join_app_version(self.name,version,self.platform)
+        target = os.path.join(self.appdir,target)
+        assert os.path.dirname(target) == self.appdir
+        #  Get the new version using the VersionFinder
+        loc = self.version_finder.has_version(self,version)
+        if not loc:
+            for status in self.version_finder.fetch_version_iter(self,version):
+                if status["status"] != "ready":
+                    yield status
+                else:
+                    loc = status["path"]
+        #  Adjust permissions to match the current version
+        vdir = join_app_version(self.name,self.version,self.platform)
+        copy_ownership_info(os.path.join(self.appdir,vdir),loc)
+        yield {"status":"ready","path":loc}
 
     @allow_from_sudo(str)
     def install_version(self,version):

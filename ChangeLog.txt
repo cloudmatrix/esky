@@ -3,10 +3,15 @@ v0.8.0:
 
   THIS RELEASE BREAKS BACKWARD-COMPATABILITY IN THE ON-DISK FILE LAYOUT.
 
-    * move all esky control files into an "esky-files" subdir, to avoid clutter
-      in the top-level version dir if/when additional files are added.
+    * moved all esky control files into an "esky-files" subdir, to avoid
+      clutter in the top-level version dir if/when additional files are added.
     * bootstrap-manifest.txt:  always use forward-slashes in paths, even
       when building for Windows.
+    * Esky.fetch_version() now accepts a "callback" argument, which will be
+      called with a dictionary of download status information.  For those who
+      hate callback functions, you can also use Esky.fetch_version_iter() to
+      get an iterator over the download status information.
+
 
 v0.7.4:
 
