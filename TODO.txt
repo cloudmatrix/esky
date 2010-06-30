@@ -1,5 +1,6 @@
 
  * get realpath of sys.executable (may have to do this by hand)
+ * progress callbacks for various installation procedures
  * put all esky control files in an "esky" subdir, for cleanliness
  * trickery to detect process termination even from signals etc:
       * O_TEMPORARY and ReadDirectoryChangesW on win32

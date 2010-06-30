@@ -11,6 +11,8 @@ import esky
 import esky.tests
 import esky.util
 
+ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
+
 #  Test that the frozen app is actually working
 import eskytester
 eskytester.yes_i_am_working()
@@ -89,8 +91,8 @@ assert app.find_update() == "0.3"
 
 assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
-assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform(),"esky-bootstrap.txt"))
-assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform(),"esky-bootstrap.txt"))
+assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
+assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
 
 
 #  Check that we can't uninstall a version that's in use.

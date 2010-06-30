@@ -27,7 +27,7 @@ from glob import glob
 from py2exe.build_exe import py2exe
 
 import esky
-from esky.util import is_core_dependency
+from esky.util import is_core_dependency, ESKY_CONTROL_DIR
 from esky import winres
 
 try:
@@ -138,7 +138,8 @@ def freeze(dist):
             dist.mkpath(dstdir)
         dist.copy_file(src,dst)
     #  Place a marker fileso we know how it was frozen
-    marker_file = "esky-f-py2exe-%d%d.txt" % sys.version_info[:2]
+    os.mkdir(os.path.join(dist.freeze_dir,ESKY_CONTROL_DIR))
+    marker_file = os.path.join(ESKY_CONTROL_DIR,"f-py2exe-%d%d.txt")%sys.version_info[:2]
     open(os.path.join(dist.freeze_dir,marker_file),"w").close()
     #  Copy package data into the library.zip
     #  For now, we don't try to put package data into a bundled zipfile.
@@ -248,7 +249,7 @@ _CUSTOM_WIN32_CHAINLOADER = """
 _orig_chainload = _chainload
 def _chainload(target_dir):
   # careful to escape percent-sign, this gets interpolated below
-  marker_file = "esky-f-py2exe-%%d%%d.txt" %% sys.version_info[:2]
+  marker_file = pathjoin(ESKY_CONTROL_DIR,"f-py2exe-%%d%%d.txt")%%sys.version_info[:2]
   pydll = "python%%s%%s.dll" %% sys.version_info[:2]
   mydir = dirname(sys.executable)
   if not exists(pathjoin(target_dir,marker_file)):

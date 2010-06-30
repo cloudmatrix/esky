@@ -24,7 +24,8 @@ from urlparse import urlparse, urljoin
 
 from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
-from esky.util import deep_extract_zipfile, copy_ownership_info
+from esky.util import deep_extract_zipfile, copy_ownership_info, \
+                      ESKY_CONTROL_DIR
 from esky.patch import apply_patch, PatchError
 
 
@@ -63,8 +64,26 @@ class VersionFinder(object):
         """Find available versions of the app, returned as a list."""
         raise NotImplementedError
 
-    def fetch_version(self,app,version):
-        """Fetch a specific version of the app into a local directory."""
+    def fetch_version(self,app,version,callback=None):
+        """Fetch a specific version of the app into a local directory.
+
+        If specified, `callback` must be a callable object taking a dict as
+        its only argument.  It will be called periodically with status info
+        about the progress of the download.
+        """
+        for status in self.fetch_version_iter(app,version):
+            if callback is not None:
+                callback(status)
+        return self.has_version(app,version)
+
+    def fetch_version_iter(self,app,version):
+        """Fetch a specific version of the app, using iterator control flow.
+
+        This is just like the fetch_version() method, but it returns an
+        iterator which you must step through in order to process the download
+        The items yielded by the iterator are the same as those that would
+        be received by the callback function in fetch_version().
+        """
         raise NotImplementedError
 
     def has_version(self,app,version):
@@ -139,7 +158,9 @@ class DefaultVersionFinder(VersionFinder):
             shutil.rmtree(os.path.join(rddir,nm))
 
     def open_url(self,url):
-        return urllib2.urlopen(url)
+        f = urllib2.urlopen(url)
+        f.size = f.headers.get("content-length",None)
+        return f
 
     def find_versions(self,app):
         version_re = "[a-zA-Z0-9\\.-_]+"
@@ -166,7 +187,7 @@ class DefaultVersionFinder(VersionFinder):
             self.version_graph.add_link(from_version or "",version,href,cost)
         return self.version_graph.get_versions(app.version)
 
-    def fetch_version(self,app,version):
+    def fetch_version_iter(self,app,version):
         #  There's always the possibility that a patch fails to apply.
         #  _prepare_version will remove such patches from the version graph;
         #  we loop until we find a path that applies, or we run out of options.
@@ -180,24 +201,34 @@ class DefaultVersionFinder(VersionFinder):
                 raise EskyVersionError(version)
             local_path = []
             for url in path:
-                local_path.append((self._fetch_file(app,url),url))
+                for status in self._fetch_file_iter(app,url):
+                    if status["status"] == "ready":
+                        local_path.append((status["path"],url))
+                    else:
+                        yield status
             try:
                 self._prepare_version(app,version,local_path)
             except PatchError:
-                pass
-        return name
+                yield {"status":"retrying","size":None}
+        yield {"status":"ready","path":name}
 
-    def _fetch_file(self,app,url):
+    def _fetch_file_iter(self,app,url):
         nm = os.path.basename(urlparse(url).path)
         outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
         if not os.path.exists(outfilenm):
             infile = self.open_url(urljoin(self.download_url,url))
+            if not hasattr(infile,"size"):
+                infile.size = None
             try:
                 partfilenm = outfilenm + ".part"
                 partfile = open(partfilenm,"wb")
                 try:
                     data = infile.read(1024*512)
                     while data:
+                        yield {"status": "downloading",
+                               "size": infile.size,
+                               "received": partfile.tell(),
+                        }
                         partfile.write(data)
                         data = infile.read(1024*512)
                 except Exception:
@@ -209,7 +240,7 @@ class DefaultVersionFinder(VersionFinder):
                     os.rename(partfilenm,outfilenm)
             finally:
                 infile.close()
-        return outfilenm
+        yield {"status":"ready","path":outfilenm}
 
     def _prepare_version(self,app,version,path):
         """Prepare the requested version from downloaded data.
@@ -257,19 +288,20 @@ class DefaultVersionFinder(VersionFinder):
                         except EnvironmentError:
                             pass
                         raise
-            # Move anything that's not the version dir into esky-bootstrap
+            # Move anything that's not the version dir into esky/bootstrap
             vdir = join_app_version(app.name,version,app.platform)
-            bspath = os.path.join(uppath,vdir,"esky-bootstrap")
+            bspath = os.path.join(uppath,vdir,ESKY_CONTROL_DIR,"bootstrap")
             if not os.path.isdir(bspath):
                 os.makedirs(bspath)
             for nm in os.listdir(uppath):
                 if nm != vdir:
                     os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
-            # Check that it has an esky-bootstrap.txt file
-            bsfile = os.path.join(uppath,vdir,"esky-bootstrap.txt")
+            # Check that it has an esky-files/bootstrap-manifest.txt file
+            bsfile = os.path.join(uppath,vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
             if not os.path.exists(bsfile):
                 self.version_graph.remove_all_links(path[0][1])
-                raise PatchError("patch didn't create esky-bootstrap.txt")
+                err = "patch didn't create bootstrap-manifest.txt"
+                raise PatchError(err)
             # Make it available for upgrading
             rdpath = self._ready_name(app,version)
             if os.path.exists(rdpath):
@@ -284,7 +316,7 @@ class DefaultVersionFinder(VersionFinder):
         best_vdir = join_app_version(app.name,app.version,app.platform)
         source = os.path.join(app.appdir,best_vdir)
         shutil.copytree(source,os.path.join(uppath,best_vdir))
-        with open(os.path.join(source,"esky-bootstrap.txt"),"r") as manifest:
+        with open(os.path.join(source,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"r") as manifest:
             for nm in manifest:
                 nm = nm.strip()
                 bspath = os.path.join(app.appdir,nm)

@@ -27,7 +27,7 @@ from esky.bootstrap import get_best_version, get_all_versions,\
                            is_uninstalled_version_dir,\
                            split_app_version, join_app_version, parse_version,\
                            get_original_filename, lock_version_dir,\
-                           unlock_version_dir, fcntl
+                           unlock_version_dir, fcntl, ESKY_CONTROL_DIR
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 
 
@@ -61,7 +61,7 @@ def appdir_from_executable(exepath):
     """Find the top-level application directory, given sys.executable."""
     vdir = _bs_appdir_from_executable(exepath)
     appdir = os.path.dirname(vdir)
-    if os.path.exists(os.path.join(appdir,"esky-bootstrap.txt")):
+    if os.path.exists(os.path.join(appdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
         appdir = os.path.dirname(appdir)
     return appdir
 
@@ -257,7 +257,7 @@ def get_backup_filename(filename):
 def is_locked_version_dir(vdir):
     """Check whether the given version dir is locked."""
     if sys.platform == "win32":
-        lockfile = os.path.join(vdir,"esky-bootstrap.txt")
+        lockfile = os.path.join(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         try:
             os.rename(lockfile,lockfile)
         except EnvironmentError:
@@ -265,7 +265,7 @@ def is_locked_version_dir(vdir):
         else:
             return False
     else:
-        lockfile = os.path.join(vdir,"esky-lockfile.txt")
+        lockfile = os.path.join(vdir,ESKY_CONTROL_DIR,"lockfile.txt")
         f = open(lockfile,"r")
         try:
             fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
