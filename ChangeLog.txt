@@ -1,4 +1,10 @@
 
+
+V0.8.1:
+
+    * py2exe: don't bundle files by default, as this can cause issues with
+              some libraries (specifically win32ui from my experiments)
+
 v0.8.0:
 
   THIS RELEASE INTRODUCES A NEW ON-DISK FILE LAYOUT - SEE BELOW FOR NOTES

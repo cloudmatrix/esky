@@ -118,11 +118,6 @@ def freeze(dist):
     cmd = custom_py2exe(dist.distribution)
     cmd.includes = includes
     cmd.excludes = excludes
-    if "bundle_files" not in options and "zipfile" not in options:
-        #  If the user hasn't expressed a preference, bundle all PYD libs
-        #  into the zipfile as well.  This allows us to use a more efficient
-        #  chainloader mechanism.
-        cmd.bundle_files = 2
     for (nm,val) in options.iteritems():
         setattr(cmd,nm,val)
     cmd.dist_dir = dist.freeze_dir
@@ -188,7 +183,7 @@ def freeze(dist):
                 continue
             if nm.lower().endswith(".pyd") or nm.lower().endswith(".dll"):
                 #  There's an unbundled C-extension, so we can't bundle
-                #  the DLL  or our bootstrapper won't work.
+                #  the DLL or our bootstrapper won't work.
                 pydll_bytes = None
                 break
         else:
@@ -336,10 +331,12 @@ def _chainload(target_dir):
           codestart += 1
           codelist = marshal.loads(data[codestart:codestart+codesz])
           # Execute all code in the context of __main__ module.
-          locals = globals = sys.modules["__main__"].__dict__
+          # Remove our own cruft from it before doing so.
+          d_locals = d_globals = sys.modules["__main__"].__dict__
+          d_locals.clear()
           for code in codelist:
-              exec code in globals, locals
-          sys.exit(0)
+              exec code in d_globals, d_locals
+          raise SystemExit(0)
 """ % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*6),)
 
 
