@@ -1,4 +1,10 @@
 
+v0.8.2:
+
+    * added "pre_freeze_callback" and "pre_zip_callback" options to bdist_esky
+      command.  They provide a convenient way to hook the build process with
+      e.g. code signing routines.
+
 
 v0.8.1:
 

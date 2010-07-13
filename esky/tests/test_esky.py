@@ -51,6 +51,10 @@ except ImportError:
 sys.path.append(os.path.dirname(__file__))
 
 
+def assert_freezedir_exists(dist):
+    assert os.path.exists(dist.freeze_dir)
+
+
 if not hasattr(HTTPServer,"shutdown"):
     import socket
     def socketserver_shutdown(self):
@@ -149,6 +153,9 @@ class TestEsky(unittest.TestCase):
     try:
         options.setdefault("build",{})["build_base"] = os.path.join(tdir,"build")
         options.setdefault("bdist",{})["dist_dir"] = os.path.join(tdir,"dist")
+        #  Set some callbacks to test that they work correctly
+        options.setdefault("bdist_esky",{}).setdefault("pre_freeze_callback","esky.tests.test_esky.assert_freezedir_exists")
+        options.setdefault("bdist_esky",{}).setdefault("pre_zip_callback",assert_freezedir_exists)
         platform = get_platform()
         deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
