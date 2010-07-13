@@ -80,18 +80,21 @@ class TestEsky(unittest.TestCase):
     def test_esky_py2exe_bundle1(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
-                                              "bundle_files": 1
-                                            }}})
+                                              "bundle_files": 1}}})
     def test_esky_py2exe_bundle2(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
-                                              "bundle_files": 2
-                                            }}})
+                                              "bundle_files": 2}}})
     def test_esky_py2exe_bundle3(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
-                                              "bundle_files": 3
-                                            }}})
+                                              "bundle_files": 3}}})
+    if sys.platform == "win32":
+        def test_esky_py2exe_nocustomchainload(self):
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+               bscode = "_chainload = _orig_chainload\nbootstrap()"
+               self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                   "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():
         def test_esky_py2exe_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
@@ -108,6 +111,12 @@ class TestEsky(unittest.TestCase):
   if bbfreeze is not None:
     def test_esky_bbfreeze(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
+    if sys.platform == "win32":
+        def test_esky_bbfreeze_nocustomchainload(self):
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+               bscode = "_chainload = _orig_chainload\nbootstrap()"
+               self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze",
+                                                   "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():
         def test_esky_bbfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
@@ -116,6 +125,12 @@ class TestEsky(unittest.TestCase):
   if cx_Freeze is not None:
     def test_esky_cxfreeze(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
+    if sys.platform == "win32":
+        def test_esky_cxfreeze_nocustomchainload(self):
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+               bscode = "_chainload = _orig_chainload\nbootstrap()"
+               self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze",
+                                                   "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():
         def test_esky_cxfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):

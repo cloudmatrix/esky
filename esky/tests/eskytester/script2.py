@@ -62,9 +62,7 @@ if len(sys.argv) == 1:
     assert os.path.isdir(v1dir)
     assert not os.path.isdir(v3dir)
     if os.environ.get("ESKY_NEEDSROOT",""):
-        print "GETTING ROOT"
         app.get_root()
-        print "GOT ROOT"
     app.cleanup()
     assert not os.path.isdir(v1dir)
     assert not os.path.isdir(v3dir)

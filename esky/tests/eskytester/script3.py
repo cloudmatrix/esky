@@ -23,9 +23,7 @@ assert app.active_version == app.version == "0.3"
 assert app.find_update() is None
 
 if os.environ.get("ESKY_NEEDSROOT",""):
-    print "GETTING ROOT"
     app.get_root()
-    print "GOT ROOT"
 
 app.cleanup()
 assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
@@ -43,7 +41,8 @@ if sys.platform == "win32":
 
 #  On windows, test that we were chainloaded without an execv
 if sys.platform == "win32":
-    assert hasattr(sys,"bootstrap_executable")
+    if "ESKY_NO_CUSTOM_CHAINLOAD" not in os.environ:
+        assert hasattr(sys,"bootstrap_executable")
 
 if sys.platform == "darwin":
     open("../../../../../../tests-completed","w").close()

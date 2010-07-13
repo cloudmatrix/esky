@@ -942,6 +942,9 @@ def run_startup_hooks():
         time.sleep(10)        
         app.cleanup()
         sys.exit(0)
+    # Let esky.slaveproc run its hooks.
+    import esky.slaveproc
+    esky.slaveproc.run_startup_hooks()
     # Let esky.sudo run its hooks.
     import esky.sudo
     esky.sudo.run_startup_hooks()

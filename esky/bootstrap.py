@@ -42,14 +42,37 @@ if "posix" in sys.builtin_module_names:
     SEP = "/"
 elif "nt" in sys.builtin_module_names:
     fcntl = None
+    import nt
     from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
     SEP = "\\"
     #  The standard execv terminates the spawning process, which makes
-    #  it impossible to wait for it.  This alternative is waitable, but
-    #  risks leaving zombie children if it is killed externally.
-    #  TODO: some way to kill children when this is killed - should be doable
-    #        with some custom code in child startup.
+    #  it impossible to wait for it.  This alternative is waitable, and
+    #  uses the esky.slaveproc machinery to avoid leaving zombie children.
     def execv(filename,args):
+        #  Create an O_TEMPORARY file and pass its name to the slave process.
+        #  When this master process dies, the file will be deleted and the
+        #  slave process will know to terminate.
+        tdir = nt.environ.get("TEMP",None)
+        if tdir:
+            tfile = None
+            try:
+                nt.mkdir(pathjoin(tdir,"esky-slave-procs"))
+            except EnvironmentError:
+                pass
+            if exists(pathjoin(tdir,"esky-slave-procs")):
+                flags = nt.O_CREAT|nt.O_EXCL|nt.O_TEMPORARY|nt.O_NOINHERIT
+                for i in xrange(10):
+                    tfilenm = "slave-%d.%d.txt" % (nt.getpid(),i,)
+                    tfilenm = pathjoin(tdir,"esky-slave-procs",tfilenm)
+                    try:
+                        tfile = nt.open(tfilenm,flags)
+                        break
+                    except EnvironmentError:
+                        raise
+                        pass
+        if tdir and tfile:
+            args.insert(1,tfilenm)
+            args.insert(1,"--esky-slave-proc")
         res = spawnv(P_WAIT,filename,args)
         raise SystemExit(res)
 else:
