@@ -22,6 +22,7 @@ import subprocess
 from base64 import b64encode, b64decode
 
 from esky.sudo import sudo_base as base
+import esky.slaveproc
 
 pickle = base.pickle
 HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
@@ -293,11 +294,14 @@ def spawn_sudo(proxy):
     if getattr(sys,"frozen",False):
         if not _startup_hooks_were_run:
             raise OSError(None,"unable to sudo: startup hooks not run")
-        exe = [sys.executable,"--esky-spawn-sudo"]
+        exe = [sys.executable]
     else:
-        exe = [sys.executable,"-c","import esky.sudo; esky.sudo.run_startup_hooks()","--esky-spawn-sudo"]
-    exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
-    exe = exe + [b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))]
+        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
+    args = ["--esky-spawn-sudo"]
+    args.append(b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL)))
+    args.append(b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL)))
+    # Make it a slave process so it dies if we die
+    exe = exe + esky.slaveproc.get_slave_process_args() + args
     if sys.getwindowsversion()[0] < 6:
         kwds = {}
         if sys.hexversion >= 0x20600000:

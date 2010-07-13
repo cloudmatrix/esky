@@ -18,12 +18,12 @@ import os
 import errno
 import struct
 import signal
-import subprocess
 import tempfile
 from base64 import b64encode, b64decode
 from functools import wraps
 
 from esky.sudo import sudo_base as base
+import esky.slaveproc
 
 pickle = base.pickle
 HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
@@ -138,15 +138,19 @@ def spawn_sudo(proxy):
     c_pipe = pipe.connect()
 
     if not getattr(sys,"frozen",False):
-        exe = [sys.executable,"-c","import esky.sudo; esky.sudo.run_startup_hooks()","--esky-spawn-sudo"]
+        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
     elif os.path.basename(sys.executable).lower() in ("python","pythonw"):
-        exe = [sys.executable,"-c","import esky.sudo; esky.sudo.run_startup_hooks()","--esky-spawn-sudo"]
+        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
     else:
         if not _startup_hooks_were_run:
             raise OSError(None,"unable to sudo: startup hooks not run")
-        exe = [sys.executable,"--esky-spawn-sudo"]
-    exe = exe + [b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL))]
-    exe = exe + [b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))]
+        exe = [sys.executable]
+    args = ["--esky-spawn-sudo"]
+    args.append(b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL)))
+    args.append(b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL)))
+
+    # Make it a slave process so it dies if we die
+    exe = exe + esky.slaveproc.get_slave_process_args() + args
 
     auth = ctypes.c_void_p()
 
@@ -172,7 +176,6 @@ def spawn_sudo(proxy):
                      | kAuthorizationFlagInteractionAllowed \
                      | kAuthorizationFlagExtendRights
         
-        #err = sec.AuthorizationCopyRights(auth,byref(rights),None,kAuthFlags,None)
         err = sec.AuthorizationCopyRights(auth,None,None,kAuthFlags,None)
         if err:
             raise OSError(errno.EACCES,"could not sudo: %d" % (err,))
