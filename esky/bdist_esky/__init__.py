@@ -150,6 +150,9 @@ class bdist_esky(Command):
         bootstrap_module:  a custom module to use for esky bootstrapping;
                            the default calls esky.bootstrap.common.bootstrap()
 
+        bootstrap_code:  a custom code string to use for esky bootstrapping;
+                         the default calls esky.bootstrap.common.bootstrap()
+
         dont_run_startup_hooks:  don't force all executables to call
                                  esky.run_startup_hooks() on startup.
 
@@ -171,6 +174,8 @@ class bdist_esky(Command):
                      "options to pass to the underlying freezer module"),
                     ('bootstrap-module=', None,
                      "module to use for bootstrapping the application"),
+                    ('bootstrap-code=', None,
+                     "code to use for bootstrapping the application"),
                     ('bundle-msvcrt=', None,
                      "whether to bundle MSVCRT as private assembly"),
                     ('includes=', None,
@@ -192,6 +197,7 @@ class bdist_esky(Command):
         self.bundle_msvcrt = False
         self.dont_run_startup_hooks = False
         self.bootstrap_module = None
+        self.bootstrap_code = None
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
