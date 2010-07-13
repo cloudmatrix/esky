@@ -1,8 +1,5 @@
 
  * get realpath of sys.executable (may have to do this by hand)
- * trickery to detect process termination even from signals etc:
-      * O_TEMPORARY and ReadDirectoryChangesW on win32
-      * fcntl on a tempfile for unix?
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * py2exe: support DLLs as well as executables (maybe?)
  * respect various distutils settings e.g. verbose, dry_run

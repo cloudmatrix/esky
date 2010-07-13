@@ -1,7 +1,11 @@
 
 
-V0.8.1:
+v0.8.1:
 
+    * added "bootstrap-code" option to bdist_esky, allowing you to specify
+      custom bootstrapping code without having to put it in a module.
+    * added "esky.slaveproc" module, to support automatic teardown of slave
+      processes when their master process dies.
     * py2exe: don't bundle files by default, as this can cause issues with
               some libraries (specifically win32ui from my experiments)
 
