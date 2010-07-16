@@ -337,6 +337,7 @@ def _chainload(target_dir):
           # Remove our own cruft from it before doing so.
           d_locals = d_globals = sys.modules["__main__"].__dict__
           d_locals.clear()
+          d_locals["__name__"] = "__main__"
           for code in codelist:
               exec code in d_globals, d_locals
           raise SystemExit(0)
