@@ -174,7 +174,7 @@ def freeze(dist):
                      0, # no optimization
                      False,  # normal buffered output
                      len(code),
-                     ) + "\000" + code + "\000"
+                     ) + "\x00" + code + "\x00\x00"
     #  We try to bundle the python DLL into all bootstrap executables, even
     #  if it's not bundled in the frozen distribution.  This helps keep the
     #  bootstrap env small and minimises the chances of something going wrong.
