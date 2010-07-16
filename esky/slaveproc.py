@@ -36,8 +36,8 @@ def monitor_master_process(fpath):
     if threading is None:
         return None
     def monitor():
-        wait_for_master(fpath)
-        os._exit(1)
+        if wait_for_master(fpath):
+            os._exit(1)
     t = threading.Thread(target=monitor)
     t.daemon = True
     t.start()
@@ -137,7 +137,7 @@ if sys.platform == "win32":
     def wait_for_master(fpath):
         """Wait for the master process to die."""
         if ReadDirectoryChangesW is None:
-            return
+            return False
         result = ctypes.create_string_buffer(1024)
         nbytes = ctypes.c_ulong()
         handle = CreateFileW(os.path.join(os.path.dirname(fpath),u""),
@@ -155,6 +155,7 @@ if sys.platform == "win32":
                                       ctypes.byref(nbytes),None,None)
         finally:
             CloseHandle(handle)
+        return True
 
     def get_slave_process_args():
         """Get the arguments that should be passed to a new slave process."""
@@ -180,8 +181,9 @@ else:
         try:
             fd = os.open(fpath,os.O_RDWR)
             fcntl.flock(fd,fcntl.LOCK_EX)
+            return True
         except EnvironmentError:
-            pass
+            return False
 
     def get_slave_process_args():
         """Get the arguments that should be passed to a new slave process."""
