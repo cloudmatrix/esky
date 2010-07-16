@@ -3,9 +3,10 @@ v0.8.3:
 
     * implemented lazy imports, to reduce the startup time burden on frozen
       applications that must call esky.run_startup_hooks().
+    * moved "files_differ" function into esky.util.
     * esky.slaveproc:  don't kill the slave process if something goes wrong
       with the monitoring process.
-    * moved "files_differ" function into esky.util.
+    * py2exe:  make sure bootstrapped code runs as __main__
 
 v0.8.2:
 

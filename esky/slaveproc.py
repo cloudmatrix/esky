@@ -48,7 +48,12 @@ class threading(LazyImport):
 class ctypes(LazyImport):
     def _esky_lazy_import():
         import ctypes
+        import ctypes.wintypes
         return ctypes
+    class wintypes(LazyImport):
+        def _esky_lazy_import():
+            import ctypes.wintypes
+            return ctypes.wintypes
 
 
 def monitor_master_process(fpath):

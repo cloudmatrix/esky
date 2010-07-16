@@ -16,6 +16,7 @@ import os
 import sys
 import tempfile
 import ctypes
+import ctypes.wintypes
 from ctypes import WinError, windll, c_char, POINTER, byref, sizeof
 
 if sys.platform != "win32":
@@ -81,6 +82,7 @@ def find_resource(filename_or_handle,res_type,res_id,res_lang=None):
     a pointer based at the module handle; ideally we'd do our own parsing.
     """ 
     tdir = None
+    free_library = False
     try:
         if res_lang is None:
             res_lang = _DEFAULT_RESLANG
@@ -107,7 +109,6 @@ def find_resource(filename_or_handle,res_type,res_id,res_lang=None):
             free_library = True
         else:
             l_handle = filename_or_handle
-            free_library = False
         r_handle = k32.FindResourceExW(l_handle,res_type,res_id,res_lang)
         if not r_handle:
             raise WinError()
