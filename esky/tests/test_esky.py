@@ -28,8 +28,8 @@ import esky.patch
 import esky.sudo
 from esky import bdist_esky
 from esky.util import extract_zipfile, deep_extract_zipfile, get_platform, \
-                      ESKY_CONTROL_DIR
-from esky.fstransact import FSTransaction, files_differ
+                      ESKY_CONTROL_DIR, files_differ
+from esky.fstransact import FSTransaction
 
 try:
     import py2exe

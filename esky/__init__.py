@@ -133,6 +133,7 @@ and generally tries to tidy up in the main application directory.
 """
 
 from __future__ import with_statement
+from __future__ import absolute_import
 
 __ver_major__ = 0
 __ver_minor__ = 8
@@ -141,41 +142,95 @@ __ver_sub__ = ""
 __ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
 
-import os
 import sys
-import shutil
 import errno
-import socket
-import time
-import subprocess
-import atexit
-from functools import wraps
-from base64 import b64encode, b64decode
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
-try:
-    import threading
-except ImportError:
-    threading = None
 
 if sys.platform != "win32":
     import fcntl
-else:
-    from esky.winres import is_safe_to_overwrite
 
 from esky.errors import *
-from esky.fstransact import FSTransaction, files_differ
-from esky.finder import DefaultVersionFinder
 from esky.sudo import SudoProxy, has_root, allow_from_sudo
 from esky.util import split_app_version, join_app_version,\
                       is_version_dir, is_uninstalled_version_dir,\
                       parse_version, get_best_version, appdir_from_executable,\
-                      copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR
+                      copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR,\
+                      files_differ, LazyImport
 
+#  Since all frozen apps are required to import this module and call the
+#  run_startup_hooks() function, we use a simple lazy import mechanism to 
+#  make the initial import of this module as fast as possible.
+
+class LazyImport(LazyImport):
+    _esky_lazy_namespace = globals()
+
+class os(LazyImport):
+    def _esky_lazy_import():
+        import os
+        return os
+
+class shutil(LazyImport):
+    def _esky_lazy_import():
+        import shutil
+        return shutil
+
+class socket(LazyImport):
+    def _esky_lazy_import():
+        import socket
+        return socket
+
+class time(LazyImport):
+    def _esky_lazy_import():
+        import time
+        return time
+
+class subprocess(LazyImport):
+    def _esky_lazy_import():
+        import subprocess
+        return subprocess
+
+class atexit(LazyImport):
+    def _esky_lazy_import():
+        import atexit
+        return atexit
+
+class base64(LazyImport):
+    def _esky_lazy_import():
+        import base64
+        return base64
+
+class pickle(LazyImport):
+    def _esky_lazy_import():
+        try:
+            import cPickle as pickle
+        except ImportError:
+            import pickle
+        return pickle
+
+class threading(LazyImport):
+    def _esky_lazy_import():
+        try:
+            import threading
+        except ImportError:
+            threading = None
+        return threading
+
+class esky(LazyImport):
+    def _esky_lazy_import():
+        import esky
+        return esky
+    class finder(LazyImport):
+        def _esky_lazy_import():
+            import esky.finder
+            return esky.finder
+    class fstransact(LazyImport):
+        def _esky_lazy_import():
+            import esky.fstransact
+            return esky.fstransact
+    if sys.platform == "win32":
+        class winres(LazyImport):
+            def _esky_lazy_import():
+                import esky.winres
+                return esky.winres
 
 
 class Esky(object):
@@ -229,7 +284,7 @@ class Esky(object):
         if version_finder is not None:
             if isinstance(version_finder,basestring):
                kwds = {"download_url":version_finder}
-               version_finder = DefaultVersionFinder(**kwds)
+               version_finder = esky.finder.DefaultVersionFinder(**kwds)
         self.__version_finder = version_finder
     version_finder = property(_get_version_finder,_set_version_finder)
 
@@ -542,7 +597,8 @@ class Esky(object):
                 if not _startup_hooks_were_run:
                     raise OSError(None,"unable to cleanup: startup hooks not run")
                 exe = [exe,"--esky-spawn-cleanup"]
-        exe = exe + [b64encode(pickle.dumps(self,pickle.HIGHEST_PROTOCOL))]
+        appdata = pickle.dumps(self,pickle.HIGHEST_PROTOCOL)
+        exe = exe + [base64.b64encode(appdata)]
         @atexit.register
         def spawn_cleanup():
             rnul = open(os.devnull,"r")
@@ -765,7 +821,7 @@ class Esky(object):
         try:
             if not os.path.exists(target):
                 os.rename(source,target)
-            trn = FSTransaction()
+            trn = esky.fstransact.FSTransaction()
             try:
                 self._unpack_bootstrap_env(version,trn)
             except Exception:
@@ -794,7 +850,7 @@ class Esky(object):
                 if sys.platform == "win32" and os.path.exists(bsdst):
                     if not files_differ(bssrc,bsdst):
                         trn.remove(bssrc)
-                    elif is_safe_to_overwrite(bssrc,bsdst):
+                    elif esky.winres.is_safe_to_overwrite(bssrc,bsdst):
                         ovrdir = os.path.join(target,ESKY_CONTROL_DIR,"overwrite")
                         if not os.path.exists(ovrdir):
                             os.mkdir(ovrdir)
@@ -834,7 +890,7 @@ class Esky(object):
             #  Clean up the bootstrapping environment in a transaction.
             #  This might fail on windows if the version is locked.
             try:
-                trn = FSTransaction()
+                trn = esky.fstransact.FSTransaction()
                 try:
                     self._cleanup_bootstrap_env(version,trn)
                 except Exception:
@@ -938,7 +994,7 @@ def run_startup_hooks():
             lock_version_dir(vdir)
     # Run the "spawn-cleanup" hook if given.
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-cleanup":
-        app = pickle.loads(b64decode(sys.argv[2]))
+        app = pickle.loads(base64.b64decode(sys.argv[2]))
         time.sleep(10)        
         app.cleanup()
         sys.exit(0)

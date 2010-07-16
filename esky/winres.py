@@ -21,8 +21,7 @@ from ctypes import WinError, windll, c_char, POINTER, byref, sizeof
 if sys.platform != "win32":
     raise ImportError("winres is only avilable on Windows platforms")
 
-from esky.util import pairwise
-from esky.fstransact import files_differ
+from esky.util import pairwise, files_differ
 
 
 LOAD_LIBRARY_AS_DATAFILE = 0x00000002

@@ -7,38 +7,224 @@
 """
 
 from __future__ import with_statement
+from __future__ import absolute_import
 
-import os
-import re
 import sys
-import shutil
-import zipfile
 import errno
-from itertools import tee, izip
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
 
-from distutils.util import get_platform as _distutils_get_platform
+#  Since esky apps are required to call the esky.run_startup_hooks() method on
+#  every invocation, we want as little overhead as possible when importing
+#  this main module.  We therefore use a simple lazy-loading scheme for many
+#  of our imports, built from the classes below.
 
+class LazyImport(object):
+    """Dummy LazyImport class.
+
+    This is a dummy LazyImport class, used for bootstrapping the real class.
+    Why?  _LazyImportMetaclass requires a reference to LazyImport to work its
+    magic, but such a reference isn't available when creating the LazyImport
+    class itself.
+    """
+    pass
+
+
+class _LazyImportMetaclass(type):
+    """Metaclass for lazy import declarations.
+
+    This metaclass applies a small amount of magic to clean up the syntax of
+    lazy import declarations using LazyImport.  Specifically:
+
+        * providing the _esky_lazy_target property that will load the import
+          on first access.
+        * providing a __getattr__ implementation that proxies to this property.
+        * automatically making _esky_lazy_import a staticmethod.
+        * adjusting the namespace of nested lazy imports, to simplify import
+          of dotted names.
+
+    """
+
+    def __new__(mcls,name,bases,attrs):
+        cls = super(_LazyImportMetaclass,mcls).__new__(mcls,name,bases,attrs)
+        for nm,obj in attrs.iteritems():
+            if nm == "_esky_lazy_import":
+                cls._esky_lazy_import = staticmethod(obj)
+            elif isinstance(obj,type) and issubclass(obj,LazyImport):
+                obj._esky_lazy_namespace = cls
+        return cls
+
+    @property
+    def _esky_lazy_target(cls):
+        """Property giving the target object for proxying."""
+        ns = cls._esky_lazy_namespace
+        try:
+            obj = ns[cls.__name__]
+        except TypeError:
+            obj = getattr(ns,cls.__name__)
+            if obj is cls:
+                obj = cls._esky_lazy_import()
+                setattr(ns,cls.__name__,obj)
+        else:
+            if obj is cls:
+                obj = cls._esky_lazy_import()
+                ns[cls.__name__] = obj
+        return obj
+
+    def __getattr__(cls,attr):
+        return getattr(cls._esky_lazy_target,attr)
+
+    def __nonzero__(cls):
+        return bool(cls._esky_lazy_target)
+
+
+class LazyImport(LazyImport):
+    """Class for lazy import declaration.
+
+    This class provide a simple mechanism for declaring lazy imports.  The
+    syntax is more verbose than other approaches, but it's designed not to
+    hide the actual "import" statement from tools like py2exe or grep.
+
+    Declare a lazy import as follows:
+
+        class somemodule(LazyImport):
+            _esky_lazy_namespace = globals()
+            def _esky_lazy_import():
+                import somemodule
+                return somemodule
+
+    The "somemodule" object will then be a transparent wrapper object that
+    performs the import upon first access, and replaces itself in the given
+    namespace.
+
+    For dotted imports, construct the object heirarchy by nesting declarations:
+
+        class mypkg(LazyImport):
+            _esky_lazy_namespace = globals()
+            def _esky_lazy_import():
+                import mypkg
+                return mypkg
+            class mymod(LazyImport):
+                def _esky_lazy_import():
+                    from mypkg import mymod
+                    return mymod
+
+    """
+
+    __metaclass__ = _LazyImportMetaclass
+
+    _esky_lazy_namespace = globals()
+
+    def _esky_lazy_import():
+        """Static method perfoming the actual import.
+
+        The return value of this method will replace the lazy import wrapper
+        in the delcared namespace.  It is automagically made a static method.
+        """
+        return None
+
+
+class os(LazyImport):
+    def _esky_lazy_import():
+        import os
+        return os
+
+class shutil(LazyImport):
+    def _esky_lazy_import():
+        import shutil
+        return shutil
+
+class re(LazyImport):
+    def _esky_lazy_import():
+        import re
+        return re
+
+class zipfile(LazyImport):
+    def _esky_lazy_import():
+        import zipfile
+        return zipfile
+
+class itertools(LazyImport):
+    def _esky_lazy_import():
+        import itertools
+        return itertools
+
+class StringIO(LazyImport):
+    def _esky_lazy_import():
+        try:
+            import cStringIO as StringIO
+        except ImportError:
+            import StringIO
+        return StringIO
+
+class distutils(LazyImport):
+    def _esky_lazy_import():
+        import distutils
+        return distutils
+    class util(LazyImport):
+        def _esky_lazy_import():
+            import distutils.log   # need to prompt cxfreeze about this dep
+            import distutils.util
+            return distutils.util
+
+from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 from esky.bootstrap import get_best_version, get_all_versions,\
                            is_version_dir, is_installed_version_dir,\
                            is_uninstalled_version_dir,\
                            split_app_version, join_app_version, parse_version,\
                            get_original_filename, lock_version_dir,\
                            unlock_version_dir, fcntl, ESKY_CONTROL_DIR
-from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
+
+
+def files_differ(file1,file2,start=0,stop=None):
+    """Check whether two files are actually different."""
+    try:
+        stat1 = os.stat(file1)
+        stat2 = os.stat(file2)
+    except EnvironmentError:
+         return True
+    if stop is None and stat1.st_size != stat2.st_size:
+        return True
+    f1 = open(file1,"rb")
+    try:
+        f2 = open(file2,"rb")
+        if start >= stat1.st_size:
+            return False
+        elif start < 0:
+            start = stat1.st_size + start
+        if stop is None or stop > stat1.st_size:
+            stop = stat1.st_size
+        elif stop < 0:
+            stop = stat1.st_size + stop
+        if stop <= start:
+            return False
+        toread = stop - start
+        f1.seek(start)
+        f2.seek(start)
+        try:
+            sz = min(1024*256,toread)
+            data1 = f1.read(sz)
+            data2 = f2.read(sz)
+            while sz > 0 and data1 and data2:
+                if data1 != data2:
+                    return True
+                toread -= sz
+                sz = min(1024*256,toread)
+                data1 = f1.read(sz)
+                data2 = f2.read(sz)
+            return (data1 != data2)
+        finally:
+            f2.close()
+    finally:
+        f1.close()
 
 
 def pairwise(iterable):
     """Iterator over pairs of elements from the given iterable."""
-    a,b = tee(iterable)
+    a,b = itertools.tee(iterable)
     try:
         b.next()
     except StopIteration:
         pass
-    return izip(a,b)
+    return itertools.izip(a,b)
 
 
 def common_prefix(iterables):
@@ -50,7 +236,7 @@ def common_prefix(iterables):
         raise ValueError("at least one iterable is required")
     for item in iterables:
         count = 0
-        for (c1,c2) in izip(prefix,item):
+        for (c1,c2) in itertools.izip(prefix,item):
             if c1 != c2:
                 break
             count += 1
@@ -202,7 +388,7 @@ def get_platform():
     is guaranteed not to contain any periods. This makes it much easier to
     parse out of filenames.
     """
-    return _distutils_get_platform().replace(".","_")
+    return distutils.util.get_platform().replace(".","_")
  
 
 def is_core_dependency(filenm):

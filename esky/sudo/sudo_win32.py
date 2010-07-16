@@ -292,7 +292,7 @@ def spawn_sudo(proxy):
     pipe = SecureStringPipe()
     c_pipe = pipe.connect()
     if getattr(sys,"frozen",False):
-        if not _startup_hooks_were_run:
+        if not esky._startup_hooks_were_run:
             raise OSError(None,"unable to sudo: startup hooks not run")
         exe = [sys.executable]
     else:
@@ -322,11 +322,7 @@ def spawn_sudo(proxy):
     return (proc,pipe)
 
 
-_startup_hooks_were_run = False
-
 def run_startup_hooks():
-    global _startup_hooks_were_run
-    _startup_hooks_were_run = True
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
         proxy = pickle.loads(b64decode(sys.argv[2]))
         pipe = pickle.loads(b64decode(sys.argv[3]))

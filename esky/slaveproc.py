@@ -18,14 +18,37 @@ to watch for the disappearance of this file.
 
 """
 
-import os
-import sys
-import tempfile
+from __future__ import absolute_import
 
-try:
-    import threading
-except ImportError:
-    threading = None
+import sys
+
+from esky.util import LazyImport
+
+class LazyImport(LazyImport):
+    _esky_lazy_namespace = globals()
+
+class os(LazyImport):
+    def _esky_lazy_import():
+        import os
+        return os
+
+class tempfile(LazyImport):
+    def _esky_lazy_import():
+        import tempfile
+        return tempfile
+
+class threading(LazyImport):
+    def _esky_lazy_import():
+        try:
+            import threading
+        except ImportError:
+            threading = None
+        return threading
+
+class ctypes(LazyImport):
+    def _esky_lazy_import():
+        import ctypes
+        return ctypes
 
 
 def monitor_master_process(fpath):
@@ -33,7 +56,7 @@ def monitor_master_process(fpath):
 
     If the master process dies, the current process is terminated.
     """
-    if threading is None:
+    if not threading:
         return None
     def monitor():
         if wait_for_master(fpath):
@@ -48,10 +71,7 @@ def get_slave_process_args():
     """Get the arguments that should be passed to a new slave process."""
 
 
-_startup_hooks_were_run = False
 def run_startup_hooks():
-    global _startup_hooks_were_run
-    _startup_hooks_were_run = True
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-slave-proc":
         del sys.argv[1]
         if len(sys.argv) > 1:
@@ -67,31 +87,30 @@ if sys.platform == "win32":
     #  On win32, the master process creates a tempfile that will be deleted
     #  when it exits.  Use ReadDirectoryChanges to block on this event.
 
-    import ctypes
-    import time
+    def wait_for_master(fpath):
+        """Wait for the master process to die."""
+        try:
+            RDCW = ctypes.windll.kernel32.ReadDirectoryChangesW
+        except AttributeError:
+            return False
 
-    INVALID_HANDLE_VALUE = 0xFFFFFFFF
-    FILE_NOTIFY_CHANGE_FILE_NAME = 0x01
+        INVALID_HANDLE_VALUE = 0xFFFFFFFF
+        FILE_NOTIFY_CHANGE_FILE_NAME = 0x01
 
-    FILE_LIST_DIRECTORY = 0x01
-    FILE_SHARE_READ = 0x01
-    FILE_SHARE_WRITE = 0x02
-    OPEN_EXISTING = 3
-    FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+        FILE_LIST_DIRECTORY = 0x01
+        FILE_SHARE_READ = 0x01
+        FILE_SHARE_WRITE = 0x02
+        OPEN_EXISTING = 3
+        FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
 
-    try:
-        ctypes.wintypes.LPVOID
-    except AttributeError:
-        ctypes.wintypes.LPVOID = ctypes.c_void_p
+        try:
+            ctypes.wintypes.LPVOID
+        except AttributeError:
+            ctypes.wintypes.LPVOID = ctypes.c_void_p
 
-    try:
-        ReadDirectoryChangesW = ctypes.windll.kernel32.ReadDirectoryChangesW
-    except AttributeError:
-        ReadDirectoryChangesW = None
-    else:
         def _errcheck_bool(value,func,args):
             if not value:
-                raise ctypes.WinError()
+                 raise ctypes.WinError()
             return args
 
         def _errcheck_handle(value,func,args):
@@ -101,9 +120,9 @@ if sys.platform == "win32":
                 raise ctypes.WinError()
             return args
 
-        ReadDirectoryChangesW.errcheck = _errcheck_bool
-        ReadDirectoryChangesW.restype = ctypes.wintypes.BOOL
-        ReadDirectoryChangesW.argtypes = (
+        RDCW.errcheck = _errcheck_bool
+        RDCW.restype = ctypes.wintypes.BOOL
+        RDCW.argtypes = (
             ctypes.wintypes.HANDLE, # hDirectory
             ctypes.wintypes.LPVOID, # lpBuffer
             ctypes.wintypes.DWORD, # nBufferLength
@@ -133,26 +152,21 @@ if sys.platform == "win32":
             ctypes.wintypes.HANDLE, # hObject
         )
 
-
-    def wait_for_master(fpath):
-        """Wait for the master process to die."""
-        if ReadDirectoryChangesW is None:
-            return False
         result = ctypes.create_string_buffer(1024)
         nbytes = ctypes.c_ulong()
         handle = CreateFileW(os.path.join(os.path.dirname(fpath),u""),
-                          FILE_LIST_DIRECTORY,
-                          FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          None,
-                          OPEN_EXISTING,
-                          FILE_FLAG_BACKUP_SEMANTICS,
-                          None
+                             FILE_LIST_DIRECTORY,
+                             FILE_SHARE_READ | FILE_SHARE_WRITE,
+                             None,
+                             OPEN_EXISTING,
+                             FILE_FLAG_BACKUP_SEMANTICS,
+                             None
                  )
         try:
             while os.path.exists(fpath):
-                ReadDirectoryChangesW(handle,ctypes.byref(result),len(result),
-                                      True,FILE_NOTIFY_CHANGE_FILE_NAME,
-                                      ctypes.byref(nbytes),None,None)
+                RDCW(handle,ctypes.byref(result),len(result),
+                     True,FILE_NOTIFY_CHANGE_FILE_NAME,
+                     ctypes.byref(nbytes),None,None)
         finally:
             CloseHandle(handle)
         return True

@@ -1,4 +1,12 @@
 
+v0.8.3:
+
+    * implemented lazy imports, to reduce the startup time burden on frozen
+      applications that must call esky.run_startup_hooks().
+    * esky.slaveproc:  don't kill the slave process if something goes wrong
+      with the monitoring process.
+    * moved "files_differ" function into esky.util.
+
 v0.8.2:
 
     * added "pre_freeze_callback" and "pre_zip_callback" options to bdist_esky
