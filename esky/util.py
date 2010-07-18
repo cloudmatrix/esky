@@ -14,156 +14,108 @@ import errno
 
 #  Since esky apps are required to call the esky.run_startup_hooks() method on
 #  every invocation, we want as little overhead as possible when importing
-#  this main module.  We therefore use a simple lazy-loading scheme for many
-#  of our imports, built from the classes below.
+#  the main module.  We therefore use a simple lazy-loading scheme for many
+#  of our imports, built from the functions below.
 
-class LazyImport(object):
-    """Dummy LazyImport class.
+def lazy_import(func):
+    """Decorator for declaring a lazy import.
 
-    This is a dummy LazyImport class, used for bootstrapping the real class.
-    Why?  _LazyImportMetaclass requires a reference to LazyImport to work its
-    magic, but such a reference isn't available when creating the LazyImport
-    class itself.
+    This decorator turns a function into an object that will act as a lazy
+    importer.  Whenever the object's attributes are accessed, the function
+    is called and its return value used in place of the object.  So you
+    can declare lazy imports like this:
+
+        @lazy_import
+        def socket():
+            import socket
+            return socket
+
+    The name "socket" will then be bound to a transparent object proxy which
+    will import the socket module upon first use.
+ 
+    The syntax here is slightly more verbose than other lazy import recipes,
+    but it's designed not to hide the actual "import" statements from tools
+    like py2exe or grep.
     """
-    pass
+    try:
+        f = sys._getframe(1)
+    except Exception:
+        namespace = None
+    else:
+        namespace = f.f_locals
+    return _LazyImport(func.func_name,func,namespace)
 
 
-class _LazyImportMetaclass(type):
-    """Metaclass for lazy import declarations.
+class _LazyImport(object):
+    """Class representing a lazy import."""
 
-    This metaclass applies a small amount of magic to clean up the syntax of
-    lazy import declarations using LazyImport.  Specifically:
-
-        * providing the _esky_lazy_target property that will load the import
-          on first access.
-        * providing a __getattr__ implementation that proxies to this property.
-        * automatically making _esky_lazy_import a staticmethod.
-        * adjusting the namespace of nested lazy imports, to simplify import
-          of dotted names.
-
-    """
-
-    def __new__(mcls,name,bases,attrs):
-        cls = super(_LazyImportMetaclass,mcls).__new__(mcls,name,bases,attrs)
-        for nm,obj in attrs.iteritems():
-            if nm == "_esky_lazy_import":
-                cls._esky_lazy_import = staticmethod(obj)
-            elif isinstance(obj,type) and issubclass(obj,LazyImport):
-                obj._esky_lazy_namespace = cls
-        return cls
+    def __init__(self,name,loader,namespace=None):
+        self._esky_lazy_name = name
+        self._esky_lazy_loader = loader
+        self._esky_lazy_namespace = namespace
+        self._esky_lazy_target_ = None
 
     @property
-    def _esky_lazy_target(cls):
+    def _esky_lazy_target(self):
         """Property giving the target object for proxying."""
-        ns = cls._esky_lazy_namespace
-        try:
-            obj = ns[cls.__name__]
-        except TypeError:
-            obj = getattr(ns,cls.__name__)
-            if obj is cls:
-                obj = cls._esky_lazy_import()
-                setattr(ns,cls.__name__,obj)
-        else:
-            if obj is cls:
-                obj = cls._esky_lazy_import()
-                ns[cls.__name__] = obj
-        return obj
+        if self._esky_lazy_target_ is None:
+            self._esky_lazy_target_ = self._esky_lazy_loader()
+            ns = self._esky_lazy_namespace
+            if ns is not None:
+                try: 
+                    if ns[self._esky_lazy_name] is self:
+                        ns[self._esky_lazy_name] = self._esky_lazy_target_
+                except KeyError:
+                    pass
+        return self._esky_lazy_target_
 
-    def __getattr__(cls,attr):
-        return getattr(cls._esky_lazy_target,attr)
+    def __getattr__(self,attr):
+        return getattr(self._esky_lazy_target,attr)
 
-    def __nonzero__(cls):
-        return bool(cls._esky_lazy_target)
+    def __nonzero__(self):
+        return bool(self._esky_lazy_target)
 
 
-class LazyImport(LazyImport):
-    """Class for lazy import declaration.
+@lazy_import
+def os():
+    import os
+    return os
 
-    This class provide a simple mechanism for declaring lazy imports.  The
-    syntax is more verbose than other approaches, but it's designed not to
-    hide the actual "import" statement from tools like py2exe or grep.
+@lazy_import
+def shutil():
+    import shutil
+    return shutil
 
-    Declare a lazy import as follows:
+@lazy_import
+def re():
+    import re
+    return re
 
-        class somemodule(LazyImport):
-            _esky_lazy_namespace = globals()
-            def _esky_lazy_import():
-                import somemodule
-                return somemodule
+@lazy_import
+def zipfile():
+    import zipfile
+    return zipfile
 
-    The "somemodule" object will then be a transparent wrapper object that
-    performs the import upon first access, and replaces itself in the given
-    namespace.
+@lazy_import
+def itertools():
+    import itertools
+    return itertools
 
-    For dotted imports, construct the object heirarchy by nesting declarations:
+@lazy_import
+def StringIO():
+    try:
+        import cStringIO as StringIO
+    except ImportError:
+        import StringIO
+    return StringIO
 
-        class mypkg(LazyImport):
-            _esky_lazy_namespace = globals()
-            def _esky_lazy_import():
-                import mypkg
-                return mypkg
-            class mymod(LazyImport):
-                def _esky_lazy_import():
-                    from mypkg import mymod
-                    return mymod
+@lazy_import
+def distutils():
+    import distutils
+    import distutils.log   # need to prompt cxfreeze about this dep
+    import distutils.util
+    return distutils
 
-    """
-
-    __metaclass__ = _LazyImportMetaclass
-
-    _esky_lazy_namespace = globals()
-
-    def _esky_lazy_import():
-        """Static method perfoming the actual import.
-
-        The return value of this method will replace the lazy import wrapper
-        in the delcared namespace.  It is automagically made a static method.
-        """
-        return None
-
-
-class os(LazyImport):
-    def _esky_lazy_import():
-        import os
-        return os
-
-class shutil(LazyImport):
-    def _esky_lazy_import():
-        import shutil
-        return shutil
-
-class re(LazyImport):
-    def _esky_lazy_import():
-        import re
-        return re
-
-class zipfile(LazyImport):
-    def _esky_lazy_import():
-        import zipfile
-        return zipfile
-
-class itertools(LazyImport):
-    def _esky_lazy_import():
-        import itertools
-        return itertools
-
-class StringIO(LazyImport):
-    def _esky_lazy_import():
-        try:
-            import cStringIO as StringIO
-        except ImportError:
-            import StringIO
-        return StringIO
-
-class distutils(LazyImport):
-    def _esky_lazy_import():
-        import distutils
-        return distutils
-    class util(LazyImport):
-        def _esky_lazy_import():
-            import distutils.log   # need to prompt cxfreeze about this dep
-            import distutils.util
-            return distutils.util
 
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 from esky.bootstrap import get_best_version, get_all_versions,\

@@ -22,38 +22,32 @@ from __future__ import absolute_import
 
 import sys
 
-from esky.util import LazyImport
+from esky.util import lazy_import
 
-class LazyImport(LazyImport):
-    _esky_lazy_namespace = globals()
 
-class os(LazyImport):
-    def _esky_lazy_import():
-        import os
-        return os
+@lazy_import
+def os():
+    import os
+    return os
 
-class tempfile(LazyImport):
-    def _esky_lazy_import():
-        import tempfile
-        return tempfile
+@lazy_import
+def tempfile():
+    import tempfile
+    return tempfile
 
-class threading(LazyImport):
-    def _esky_lazy_import():
-        try:
-            import threading
-        except ImportError:
-            threading = None
-        return threading
+@lazy_import
+def threading():
+    try:
+        import threading
+    except ImportError:
+        threading = None
+    return threading
 
-class ctypes(LazyImport):
-    def _esky_lazy_import():
-        import ctypes
-        import ctypes.wintypes
-        return ctypes
-    class wintypes(LazyImport):
-        def _esky_lazy_import():
-            import ctypes.wintypes
-            return ctypes.wintypes
+@lazy_import
+def ctypes():
+    import ctypes
+    import ctypes.wintypes
+    return ctypes
 
 
 def monitor_master_process(fpath):
