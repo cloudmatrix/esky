@@ -194,6 +194,10 @@ class bdist_esky(Command):
                      "list of modules to specifically exclude"),
                     ('dont-run-startup-hooks=', None,
                      "don't force execution of esky.run_startup_hooks()"),
+                    ('pre-freeze-callback=', None,
+                     "function to call just before starting to freeze the app"),
+                    ('pre-zip-callback=', None,
+                     "function to call just before starting to zip up the app"),
                    ]
 
     boolean_options = ["bundle-msvcrt","dont-run-startup-hooks"]
