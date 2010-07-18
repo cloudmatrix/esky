@@ -1,4 +1,50 @@
 
+v0.8.3:
+
+    * implemented lazy imports, to reduce the startup time burden on frozen
+      applications that must call esky.run_startup_hooks().
+    * moved "files_differ" function into esky.util.
+    * esky.slaveproc:  don't kill the slave process if something goes wrong
+      with the monitoring process.
+    * py2exe:  make sure bootstrapped code runs as __main__
+
+v0.8.2:
+
+    * added "pre_freeze_callback" and "pre_zip_callback" options to bdist_esky
+      command.  They provide a convenient way to hook the build process with
+      e.g. code signing routines.
+
+
+v0.8.1:
+
+    * added "bootstrap-code" option to bdist_esky, allowing you to specify
+      custom bootstrapping code without having to put it in a module.
+    * added "esky.slaveproc" module, to support automatic teardown of slave
+      processes when their master process dies.
+          * this is currently used for simulated execv() under win32, and
+            for the helper process in esky.sudo.
+    * py2exe: don't bundle files by default, as this can cause issues with
+              some libraries (specifically win32ui from my experiments).
+
+v0.8.0:
+
+  THIS RELEASE INTRODUCES A NEW ON-DISK FILE LAYOUT - SEE BELOW FOR NOTES
+
+    * moved all esky control files into an "esky-files" subdir, to avoid
+      clutter in the top-level version dir if/when additional files are added.
+         * there are compatability hooks for the old file layout, but they
+           will be removed in the 0.9.* series.
+         * therefore, if you have deployed applications using esky 0.7.* or
+           lower, you MUST deploy an update using the 0.8.* series before
+           migrating to any newer versions of esky.
+    * bootstrap-manifest.txt:  always use forward-slashes in paths, even
+      when building for Windows.
+    * Esky.fetch_version() now accepts a "callback" argument, which will be
+      called with a dictionary of download status information.  For those who
+      hate callback functions, you can also use Esky.fetch_version_iter() to
+      get an iterator over the download status information.
+
+
 v0.7.4:
 
     * py2app:  ensure apps are always inside an "<appname>.app" directory,

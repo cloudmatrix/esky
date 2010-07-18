@@ -20,11 +20,12 @@ as long as you can atomically replace a file.
 
 """
 
+import os
 import sys
 import shutil
-import os
 
-from esky.util import get_backup_filename
+from esky.util import get_backup_filename, files_differ
+
 
 #  Try to access the transacted filesystem APIs on win32
 CreateTransaction = None
@@ -47,49 +48,6 @@ if sys.platform == "win32":
             CreateDirectoryTransacted = kernel32.CreateDirectoryTransactedA
         except (WindowsError,AttributeError):
             CreateTransaction = None
-
-
-def files_differ(file1,file2,start=0,stop=None):
-    """Check whether two files are actually different."""
-    try:
-        stat1 = os.stat(file1)
-        stat2 = os.stat(file2)
-    except EnvironmentError:
-         return True
-    if stop is None and stat1.st_size != stat2.st_size:
-        return True
-    f1 = open(file1,"rb")
-    try:
-        f2 = open(file2,"rb")
-        if start >= stat1.st_size:
-            return False
-        elif start < 0:
-            start = stat1.st_size + start
-        if stop is None or stop > stat1.st_size:
-            stop = stat1.st_size
-        elif stop < 0:
-            stop = stat1.st_size + stop
-        if stop <= start:
-            return False
-        toread = stop - start
-        f1.seek(start)
-        f2.seek(start)
-        try:
-            sz = min(1024*256,toread)
-            data1 = f1.read(sz)
-            data2 = f2.read(sz)
-            while sz > 0 and data1 and data2:
-                if data1 != data2:
-                    return True
-                toread -= sz
-                sz = min(1024*256,toread)
-                data1 = f1.read(sz)
-                data2 = f2.read(sz)
-            return (data1 != data2)
-        finally:
-            f2.close()
-    finally:
-        f1.close()
 
 
 if CreateTransaction:

@@ -35,12 +35,20 @@ except Exception:
 NAME = "esky"
 VERSION = info["__version__"]
 DESCRIPTION = "keep frozen apps fresh"
+LONG_DESC = info["__doc__"]
 AUTHOR = "Ryan Kelly"
-AUTHOR_EMAIL = "rfk@cloud.me"
-URL = "http://github.com/clouddotme/esky/"
+AUTHOR_EMAIL = "rfk@cloudmatrix.com.au"
+URL = "http://github.com/cloudmatrix/esky/"
 LICENSE = "BSD"
 KEYWORDS = "update auto-update freeze"
-LONG_DESC = info["__doc__"]
+CLASSIFIERS = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 2",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: BSD License"
+]
+
 
 PACKAGES = ["esky","esky.bdist_esky","esky.tests","esky.tests.eskytester",
             "esky.sudo"]
@@ -60,6 +68,7 @@ setup(name=NAME,
       ext_modules=EXT_MODULES,
       package_data=PKG_DATA,
       license=LICENSE,
+      classifiers=CLASSIFIERS,
       **setup_kwds
      )
 

@@ -11,6 +11,8 @@ import esky
 import esky.tests
 import esky.util
 
+ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
+
 #  Test that the frozen app is actually working
 import eskytester
 eskytester.yes_i_am_working()
@@ -18,6 +20,7 @@ eskytester.yes_my_deps_are_working()
 eskytester.yes_my_data_is_installed()
 
 assert sys.frozen
+assert __name__ == "__main__"
 app = esky.tests.TestableEsky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.active_version == "0.1"
@@ -66,15 +69,14 @@ else:
                   ctypes.windll.kernel32.TerminateProcess(int(proc._handle),-1)
                else:
                   os.kill(proc.pid,signal.SIGTERM)
+            proc.wait()
     spawn_busy_loop(app)
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
 if os.environ.get("ESKY_NEEDSROOT",""):
     already_root = app.has_root()
-    print "GETTING ROOT"
     app.get_root()
     assert app.has_root()
-    print "GOT ROOT"
     app.drop_root()
     assert app.has_root() == already_root
     app.get_root()
@@ -90,8 +92,8 @@ assert app.find_update() == "0.3"
 
 assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
-assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform(),"esky-bootstrap.txt"))
-assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform(),"esky-bootstrap.txt"))
+assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
+assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
 
 
 #  Check that we can't uninstall a version that's in use.

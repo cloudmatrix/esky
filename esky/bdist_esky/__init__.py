@@ -31,7 +31,7 @@ from distutils.util import convert_path
 
 import esky.patch
 from esky.util import get_platform, is_core_dependency, create_zipfile, \
-                      split_app_version, join_app_version
+                      split_app_version, join_app_version, ESKY_CONTROL_DIR
 if sys.platform == "win32":
     from esky import winres
     from xml.dom import minidom
@@ -161,6 +161,9 @@ class bdist_esky(Command):
         bootstrap_module:  a custom module to use for esky bootstrapping;
                            the default calls esky.bootstrap.bootstrap()
 
+        bootstrap_code:  a custom code string to use for esky bootstrapping;
+                         this precludes the use of the bootstrap_module option.
+
         compile_bootstrap_exes:  whether to compile the bootstrapping code to a
                                  stand-alone exe; this requires PyPy installed
                                  and the bootstrap code to be valid RPython.
@@ -174,6 +177,16 @@ class bdist_esky(Command):
                         as a private assembly.  The default is False; only
                         those with a valid license to redistriute these files
                         should enable it.
+
+
+
+        pre_freeze_callback:  function to call just before starting to freeze
+                              the application; this is a good opportunity to
+                              customize the bdist_esky instance.
+
+        pre_zip_callback:  function to call just before starting to zip up
+                           the frozen application; this is a good opportunity
+                           to e.g. sign the resulting executables.
     
     """
 
@@ -188,6 +201,8 @@ class bdist_esky(Command):
                      "options to pass to the underlying freezer module"),
                     ('bootstrap-module=', None,
                      "module to use for bootstrapping the application"),
+                    ('bootstrap-code=', None,
+                     "code to use for bootstrapping the application"),
                     ('compile-bootstrap-exes=', None,
                      "whether to compile the bootstrapping exes with pypy"),
                     ('bundle-msvcrt=', None,
@@ -211,8 +226,11 @@ class bdist_esky(Command):
         self.bundle_msvcrt = False
         self.dont_run_startup_hooks = False
         self.bootstrap_module = None
+        self.bootstrap_code = None
         self.compile_bootstrap_exes = False
         self._compiled_exes = {}
+        self.pre_freeze_callback = None
+        self.pre_zip_callback = None
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
@@ -241,7 +259,18 @@ class bdist_esky(Command):
                     err = err % (self.freezer_module,)
                     raise RuntimeError(err)
             self.freezer_module = freezer
+        if isinstance(self.pre_freeze_callback,basestring):
+            self.pre_freeze_callback = self._name2func(self.pre_freeze_callback)
+        if isinstance(self.pre_zip_callback,basestring):
+            self.pre_zip_callback = self._name2func(self.pre_zip_callback)
 
+    def _name2func(self,name):
+        """Convert a dotted name into a function reference."""
+        if "." not in name:
+            return globals()[name]
+        modname,funcname = name.rsplit(".",1)
+        mod = __import__(modname,fromlist=[funcname])
+        return getattr(mod,funcname)
 
     def run(self):
         self.tempdir = tempfile.mkdtemp()
@@ -251,7 +280,16 @@ class bdist_esky(Command):
             shutil.rmtree(self.tempdir)
 
     def _run(self):
-        #  Create the dirs into which to freeze the app
+        self._run_initialise_dirs()
+        if self.pre_freeze_callback is not None:
+            self.pre_freeze_callback(self)
+        self._run_freeze_scripts()
+        if self.pre_zip_callback is not None:
+            self.pre_zip_callback(self)
+        self._run_create_zipfile()
+
+    def _run_initialise_dirs(self):
+        """Create the dirs into which to freeze the app."""
         fullname = self.distribution.get_fullname()
         platform = get_platform()
         self.bootstrap_dir = os.path.join(self.dist_dir,
@@ -261,20 +299,32 @@ class bdist_esky(Command):
         if os.path.exists(self.bootstrap_dir):
             shutil.rmtree(self.bootstrap_dir)
         os.makedirs(self.freeze_dir)
-        #  Hand things off to the selected freezer module
+
+    def _run_freeze_scripts(self):
+        """Call the selected freezer module to freeze the scripts."""
+        fullname = self.distribution.get_fullname()
+        platform = get_platform()
         self.freezer_module.freeze(self)
-        #  Create the necessary control files
         if platform != "win32":
-            open(os.path.join(self.freeze_dir,"esky-lockfile.txt"),"w").close()
-        #  Zip up the distribution
+            lockfile = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt")
+            with open(lockfile,"w") as lf:
+                lf.write("this file is used by esky to lock the version dir\n")
+            # TODO: remove compatability hook
+            shutil.copyfile(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt"),os.path.join(self.freeze_dir,"esky-lockfile.txt"))
+        # TODO: remove compatability hook
+        shutil.copyfile(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),os.path.join(self.freeze_dir,"esky-bootstrap.txt"))
+
+    def _run_create_zipfile(self):
+        """Zip up the final distribution."""
         print "zipping up the esky"
+        fullname = self.distribution.get_fullname()
+        platform = get_platform()
         zfname = os.path.join(self.dist_dir,"%s.%s.zip"%(fullname,platform,))
         if hasattr(self.freezer_module,"zipit"):
             self.freezer_module.zipit(self,self.bootstrap_dir,zfname)
         else:
             create_zipfile(self.bootstrap_dir,zfname,compress=True)
         shutil.rmtree(self.bootstrap_dir)
-        
 
     def get_executables(self,rewrite=True):
         """Yield an Executable instance for each script to be frozen.
@@ -556,7 +606,9 @@ class bdist_esky(Command):
             if not os.path.isdir(os.path.dirname(dstpath)):
                self.mkpath(os.path.dirname(dstpath))
             self.copy_file(srcpath,dstpath)
-        f_manifest = os.path.join(self.freeze_dir,"esky-bootstrap.txt")
+        if not os.path.isdir(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR)):
+            os.mkdir(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR))
+        f_manifest = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         with open(f_manifest,"at") as f_manifest:
             f_manifest.seek(0,os.SEEK_END)
             if os.path.isdir(srcpath):
@@ -564,10 +616,14 @@ class bdist_esky(Command):
                     for fnm in filenms:
                         fpath = os.path.join(dirnm,fnm)
                         dpath = dst + fpath[len(srcpath):]
+                        if os.sep != "/":
+                            dpath = dpath.replace(os.sep,"/")
                         f_manifest.write(dpath)
                         f_manifest.write("\n")
             else:
                 f_manifest.write(dst)
+                if os.sep != "/":
+                    dst = dst.replace(os.sep,"/")
                 f_manifest.write("\n")
         return dstpath
 

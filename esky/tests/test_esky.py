@@ -27,8 +27,9 @@ import esky
 import esky.patch
 import esky.sudo
 from esky import bdist_esky
-from esky.util import extract_zipfile, deep_extract_zipfile, get_platform
-from esky.fstransact import FSTransaction, files_differ
+from esky.util import extract_zipfile, deep_extract_zipfile, get_platform, \
+                      ESKY_CONTROL_DIR, files_differ
+from esky.fstransact import FSTransaction
 
 try:
     import py2exe
@@ -52,6 +53,10 @@ except ImportError:
     pypy = None
 
 sys.path.append(os.path.dirname(__file__))
+
+
+def assert_freezedir_exists(dist):
+    assert os.path.exists(dist.freeze_dir)
 
 
 if not hasattr(HTTPServer,"shutdown"):
@@ -83,18 +88,21 @@ class TestEsky(unittest.TestCase):
     def test_esky_py2exe_bundle1(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
-                                              "bundle_files": 1
-                                            }}})
+                                              "bundle_files": 1}}})
     def test_esky_py2exe_bundle2(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
-                                              "bundle_files": 2
-                                            }}})
+                                              "bundle_files": 2}}})
     def test_esky_py2exe_bundle3(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
-                                              "bundle_files": 3
-                                            }}})
+                                              "bundle_files": 3}}})
+    if sys.platform == "win32":
+        def test_esky_py2exe_nocustomchainload(self):
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+               bscode = "_chainload = _orig_chainload\nbootstrap()"
+               self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                   "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():
         def test_esky_py2exe_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
@@ -137,6 +145,12 @@ class TestEsky(unittest.TestCase):
   if bbfreeze is not None:
     def test_esky_bbfreeze(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
+    if sys.platform == "win32":
+        def test_esky_bbfreeze_nocustomchainload(self):
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+               bscode = "_chainload = _orig_chainload\nbootstrap()"
+               self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze",
+                                                   "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():
         def test_esky_bbfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
@@ -149,6 +163,12 @@ class TestEsky(unittest.TestCase):
   if cx_Freeze is not None:
     def test_esky_cxfreeze(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
+    if sys.platform == "win32":
+        def test_esky_cxfreeze_nocustomchainload(self):
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+               bscode = "_chainload = _orig_chainload\nbootstrap()"
+               self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze",
+                                                   "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():
         def test_esky_cxfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
@@ -171,6 +191,9 @@ class TestEsky(unittest.TestCase):
     try:
         options.setdefault("build",{})["build_base"] = os.path.join(tdir,"build")
         options.setdefault("bdist",{})["dist_dir"] = os.path.join(tdir,"dist")
+        #  Set some callbacks to test that they work correctly
+        options.setdefault("bdist_esky",{}).setdefault("pre_freeze_callback","esky.tests.test_esky.assert_freezedir_exists")
+        options.setdefault("bdist_esky",{}).setdefault("pre_zip_callback",assert_freezedir_exists)
         platform = get_platform()
         deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
@@ -270,7 +293,8 @@ class TestEsky(unittest.TestCase):
     try: 
         vdir = os.path.join(appdir,"testapp-0.1.%s" % (platform,))
         os.mkdir(vdir)
-        open(os.path.join(vdir,"esky-bootstrap.txt"),"wb").close()
+        os.mkdir(os.path.join(vdir,ESKY_CONTROL_DIR))
+        open(os.path.join(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         assert e1.name == "testapp"
         assert e1.version == "0.1"
@@ -311,7 +335,8 @@ class TestEsky(unittest.TestCase):
     appdir = tempfile.mkdtemp()
     try: 
         os.mkdir(os.path.join(appdir,"testapp-0.1"))
-        open(os.path.join(appdir,"testapp-0.1","esky-bootstrap.txt"),"wb").close()
+        os.mkdir(os.path.join(appdir,"testapp-0.1",ESKY_CONTROL_DIR))
+        open(os.path.join(appdir,"testapp-0.1",ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         e2 = esky.Esky(appdir,"http://example.com/downloads/")
         trigger1 = threading.Event(); trigger2 = threading.Event()

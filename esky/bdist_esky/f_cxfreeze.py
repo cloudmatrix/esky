@@ -90,16 +90,20 @@ def freeze(dist):
         if not dist.compile_bootstrap_exes:
             code_source.append(_CUSTOM_WIN32_CHAINLOADER)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    if dist.bootstrap_module is None:
-        code_source.append("if not __esky_compile_with_pypy__:")
-        code_source.append("    bootstrap()")
-    else:
+    if dist.bootstrap_code is not None:
+        code_source.append("__name__ = '__main__'")
+        code_source.append(dist.bootstrap_code)
+        code_source.append("raise RuntimeError('didnt chainload')")
+    elif dist.bootstrap_module is not None:
         code_source.append("__name__ = '__main__'")
         bsmodule = __import__(dist.bootstrap_module)
         for submod in dist.bootstrap_module.split(".")[1:]:
             bsmodule = getattr(bsmodule,submod)
         code_source.append(inspect.getsource(bsmodule))
         code_source.append("raise RuntimeError('didnt chainload')")
+    else:
+        code_source.append("if not __esky_compile_with_pypy__:")
+        code_source.append("    bootstrap()")
     code_source = "\n".join(code_source)
     if dist.compile_bootstrap_exes:
         for exe in dist.get_executables(rewrite=False):

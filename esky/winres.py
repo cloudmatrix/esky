@@ -16,13 +16,13 @@ import os
 import sys
 import tempfile
 import ctypes
+import ctypes.wintypes
 from ctypes import WinError, windll, c_char, POINTER, byref, sizeof
 
 if sys.platform != "win32":
     raise ImportError("winres is only avilable on Windows platforms")
 
-from esky.util import pairwise
-from esky.fstransact import files_differ
+from esky.util import pairwise, files_differ
 
 
 LOAD_LIBRARY_AS_DATAFILE = 0x00000002
@@ -82,6 +82,7 @@ def find_resource(filename_or_handle,res_type,res_id,res_lang=None):
     a pointer based at the module handle; ideally we'd do our own parsing.
     """ 
     tdir = None
+    free_library = False
     try:
         if res_lang is None:
             res_lang = _DEFAULT_RESLANG
@@ -108,7 +109,6 @@ def find_resource(filename_or_handle,res_type,res_id,res_lang=None):
             free_library = True
         else:
             l_handle = filename_or_handle
-            free_library = False
         r_handle = k32.FindResourceExW(l_handle,res_type,res_id,res_lang)
         if not r_handle:
             raise WinError()
@@ -121,10 +121,10 @@ def find_resource(filename_or_handle,res_type,res_id,res_lang=None):
         r_ptr = k32.LockResource(r_info)
         if not r_ptr:
             raise WinError()
-        if free_library:
-            k32.FreeLibrary(l_handle)
         return (r_ptr - l_handle + 1,r_ptr - l_handle + r_size + 1)
     finally:
+        if free_library:
+            k32.FreeLibrary(l_handle)
         if tdir is not None:
             for nm in os.listdir(tdir):
                 os.unlink(os.path.join(tdir,nm))
@@ -149,22 +149,24 @@ def load_resource(filename_or_handle,res_type,res_id,res_lang=_DEFAULT_RESLANG):
     else:
         l_handle = filename_or_handle
         free_library = False
-    r_handle = k32.FindResourceExW(l_handle,res_type,res_id,res_lang)
-    if not r_handle:
-        raise WinError()
-    r_size = k32.SizeofResource(l_handle,r_handle)
-    if not r_size:
-        raise WinError()
-    r_info = k32.LoadResource(l_handle,r_handle)
-    if not r_info:
-        raise WinError()
-    r_ptr = k32.LockResource(r_info)
-    if not r_ptr:
-        raise WinError()
-    resource = ctypes.cast(r_ptr,POINTER(c_char))[0:r_size]
-    if free_library:
-        k32.FreeLibrary(l_handle)
-    return resource
+    try:
+        r_handle = k32.FindResourceExW(l_handle,res_type,res_id,res_lang)
+        if not r_handle:
+            raise WinError()
+        r_size = k32.SizeofResource(l_handle,r_handle)
+        if not r_size:
+            raise WinError()
+        r_info = k32.LoadResource(l_handle,r_handle)
+        if not r_info:
+            raise WinError()
+        r_ptr = k32.LockResource(r_info)
+        if not r_ptr:
+            raise WinError()
+        resource = ctypes.cast(r_ptr,POINTER(c_char))[0:r_size]
+        return resource
+    finally:
+        if free_library:
+            k32.FreeLibrary(l_handle)
 
 
 def add_resource(filename,resource,res_type,res_id,res_lang=_DEFAULT_RESLANG):
