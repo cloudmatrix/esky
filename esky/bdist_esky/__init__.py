@@ -540,20 +540,19 @@ class bdist_esky(Command):
                 if fnm.lower().endswith(".manifest"):
                     yield os.path.join(winsxs,fnm)
 
-    def compile_to_bootstrap_exe(self,name,source):
+    def compile_to_bootstrap_exe(self,exe,source):
         """Compile the given sourcecode into a bootstrapping exe.
 
         This method compiles the given sourcecode into a stand-alone exe using
-        PyPy, then stores that in the bootstrap env under the given name. If
-        the source has been previously compiled, a cached version of the exe
-        may be used.
+        PyPy, then stores that in the bootstrap env under the name of the given
+        Executable object.  If the source has been previously compiled then a
+        cached version of the exe may be used.
         """
         source = "__esky_compile_with_pypy__ = True\n" + source
         cdir = os.path.join(self.tempdir,"compile")
         if not os.path.exists(cdir):
             os.mkdir(cdir)
         source_hash = hashlib.md5(source).hexdigest()
-        inname = "bootstrap_%s.py" % (source_hash,)
         outname = "bootstrap_%s" % (source_hash,)
         if sys.platform == "win32":
             outname += ".exe"
@@ -562,7 +561,7 @@ class bdist_esky(Command):
             cachedname = outname + "." + get_platform()
             outfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,cachedname)
             if os.path.exists(outfile):
-                self.copy_to_bootstrap_env(outfile,name)
+                self.copy_to_bootstrap_env(outfile,exe.name)
                 return
         #  Otherwise we have to compile it anew.
         try:
@@ -581,7 +580,7 @@ class bdist_esky(Command):
             finally:
                sys.argv = orig_argv
             self._compiled_exes[source_hash] = outfile
-        self.copy_to_bootstrap_env(outfile,name)
+        self.copy_to_bootstrap_env(outfile,exe.name)
         #  Try to save the compiled exe for future use.
         if COMPILED_BOOTSTRAP_CACHE is not None:
             cachedname = outname + "." + get_platform()

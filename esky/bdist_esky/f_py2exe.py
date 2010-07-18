@@ -174,7 +174,7 @@ def freeze(dist):
         for exe in dist.get_executables(rewrite=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            dist.compile_to_bootstrap_exe(exe.name,code_source)
+            dist.compile_to_bootstrap_exe(exe,code_source)
     else:
         code = marshal.dumps([compile(code_source,"__main__.py","exec")])
         coderes = struct.pack("iiii",
