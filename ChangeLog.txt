@@ -1,8 +1,10 @@
 
 v0.8.5:
 
-    * bdist_esky:  accept wide variety of objects for bootstrap_code option.
-      Lists are concatenated, source is obtained using inspect.getsource().
+    * bdist_esky:  accept wider variety of objects for bootstrap_code option
+      and Executable.script attribute. Lists are concatenated, source is
+      obtained using inspect.getsource().
+    * Made bdist_esky.Executable a subclass of unicode rather than str.
 
 v0.8.4:
 

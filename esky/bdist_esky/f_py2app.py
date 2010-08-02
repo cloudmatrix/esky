@@ -128,7 +128,7 @@ def freeze(dist):
         f.write("")
     #  Copy the loader program for each script into the bootstrap env.
     copy_to_bootstrap_env("Contents/MacOS/python")
-    for exe in dist.get_executables():
+    for exe in dist.get_executables(normalise=False):
         if not exe.include_in_bootstrap_env:
             continue
         exepath = copy_to_bootstrap_env("Contents/MacOS/"+exe.name)

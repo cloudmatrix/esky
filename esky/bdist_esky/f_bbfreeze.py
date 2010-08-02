@@ -111,7 +111,7 @@ def freeze(dist):
     #  Copy the loader program for each script.
     #  We explicitly strip the loader binaries, in case they were made
     #  by linking to the library.zip.
-    for exe in dist.get_executables(rewrite=False):
+    for exe in dist.get_executables(normalise=False):
         if not exe.include_in_bootstrap_env:
             continue
         exepath = dist.copy_to_bootstrap_env(exe.name)
