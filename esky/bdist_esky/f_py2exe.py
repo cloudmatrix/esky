@@ -156,17 +156,8 @@ def freeze(dist):
     code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
     code_source.append(_CUSTOM_WIN32_CHAINLOADER)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    if dist.bootstrap_code is not None:
-        code_source.append(dist.bootstrap_code)
-        code_source.append("raise RuntimeError('didnt chainload')")
-    elif dist.bootstrap_module is not None:
-        bsmodule = __import__(dist.bootstrap_module)
-        for submod in dist.bootstrap_module.split(".")[1:]:
-            bsmodule = getattr(bsmodule,submod)
-        code_source.append(inspect.getsource(bsmodule))
-        code_source.append("raise RuntimeError('didnt chainload')")
-    else:
-        code_source.append("bootstrap()")
+    code_source.append(dist.get_bootstrap_code())
+    code_source.append("bootstrap()")
     code_source = "\n".join(code_source)
     code = marshal.dumps([compile(code_source,"__main__.py","exec")])
     coderes = struct.pack("iiii",

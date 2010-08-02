@@ -132,7 +132,7 @@ class TestEsky(unittest.TestCase):
     if sys.platform == "win32":
         def test_esky_cxfreeze_nocustomchainload(self):
             with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
-               bscode = "_chainload = _orig_chainload\nbootstrap()"
+               bscode = ["_chainload = _orig_chainload",None]
                self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze",
                                                    "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():

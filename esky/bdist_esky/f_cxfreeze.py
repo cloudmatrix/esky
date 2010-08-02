@@ -85,23 +85,13 @@ def freeze(dist):
             err = "use of package_data currently requires createLibraryZip=True"
             raise RuntimeError(err)
     #  Create the bootstrap code, using custom code if specified.
-    code_source = [inspect.getsource(esky.bootstrap)]
+    code_source = ["__name__ = '__main__'"]
+    code_source.append(inspect.getsource(esky.bootstrap))
     if sys.platform == "win32":
         code_source.append(_CUSTOM_WIN32_CHAINLOADER)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    if dist.bootstrap_code is not None:
-        code_source.append("__name__ = '__main__'")
-        code_source.append(dist.bootstrap_code)
-        code_source.append("raise RuntimeError('didnt chainload')")
-    elif dist.bootstrap_module is not None:
-        code_source.append("__name__ = '__main__'")
-        bsmodule = __import__(dist.bootstrap_module)
-        for submod in dist.bootstrap_module.split(".")[1:]:
-            bsmodule = getattr(bsmodule,submod)
-        code_source.append(inspect.getsource(bsmodule))
-        code_source.append("raise RuntimeError('didnt chainload')")
-    else:
-        code_source.append("bootstrap()")
+    code_source.append(dist.get_bootstrap_code())
+    code_source.append("bootstrap()")
     code_source = "\n".join(code_source)
     maincode = imp.get_magic() + struct.pack("<i",0)
     maincode += marshal.dumps(compile(code_source,INITNAME+".py","exec"))
@@ -116,7 +106,7 @@ def freeze(dist):
             if nm.startswith("fcntl"):
                 dist.copy_to_bootstrap_env(nm)
     for nm in os.listdir(dist.freeze_dir):
-        if is_core_dependency(nm):
+        if is_core_dependency(nm) and not nm.endswith(".zip"):
             dist.copy_to_bootstrap_env(nm)
     #  Copy the loader program for each script into the bootstrap env, and
     #  append the bootstrapping code to it as a zipfile.

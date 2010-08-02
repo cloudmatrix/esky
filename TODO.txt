@@ -3,8 +3,6 @@
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * py2exe: support DLLs as well as executables (maybe?)
  * respect various distutils settings e.g. verbose, dry_run
- * tests for customisable bootstrap process
- * hooks for code signing etc in the build process
  * think about hooks for upgrade events
 
  py2app:

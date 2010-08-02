@@ -1,4 +1,9 @@
 
+v0.8.5:
+
+    * bdist_esky:  accept wide variety of objects for bootstrap_code option.
+      Lists are concatenated, source is obtained using inspect.getsource().
+
 v0.8.4:
 
     * changed to a decorator-based syntax for declaring lazy imports, it's

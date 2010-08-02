@@ -118,23 +118,14 @@ def freeze(dist):
     code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
     code_source.append(_EXTRA_BOOTSTRAP_CODE)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    if dist.bootstrap_code is not None:
-        code_source.append(dist.bootstrap_code)
-        code_source.append("raise RuntimeError('didnt chainload')")
-    elif dist.bootstrap_module is not None:
-        bsmodule = __import__(dist.bootstrap_module)
-        for submod in dist.bootstrap_module.split(".")[1:]:
-            bsmodule = getattr(bsmodule,submod)
-        code_source.append(inspect.getsource(bsmodule))
-        code_source.append("raise RuntimeError('didnt chainload')")
-    else:
-        code_source.append("bootstrap()")
+    code_source.append(dist.get_bootstrap_code())
+    code_source.append("bootstrap()")
     code_source = "\n".join(code_source)
     with open(dist.bootstrap_dir+"/Contents/Resources/__boot__.py","wt") as f:
         f.write("".join(code_source))
+    #  Clear site.py in the bootstrap dir, it doesn't do anything useful.
     with open(dist.bootstrap_dir+"/Contents/Resources/site.py","wt") as f:
         f.write("")
-    # TODO: copy icons and other required resources
     #  Copy the loader program for each script into the bootstrap env.
     copy_to_bootstrap_env("Contents/MacOS/python")
     for exe in dist.get_executables():

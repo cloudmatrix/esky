@@ -22,6 +22,7 @@ import sys
 import shutil
 import zipfile
 import tempfile
+import inspect
 from glob import glob
 
 import distutils.command
@@ -152,6 +153,8 @@ class bdist_esky(Command):
 
         bootstrap_code:  a custom code string to use for esky bootstrapping;
                          this precludes the use of the bootstrap_module option.
+                         If a non-string object is given, its source is taken
+                         using inspect.getsource().
 
         dont_run_startup_hooks:  don't force all executables to call
                                  esky.run_startup_hooks() on startup.
@@ -306,8 +309,38 @@ class bdist_esky(Command):
             create_zipfile(self.bootstrap_dir,zfname,compress=True)
         shutil.rmtree(self.bootstrap_dir)
 
+    def _obj2code(self,obj):
+        """Convert an object to some python source code.
+
+        Iterables are flattened, None is elided, strings are included verbatim,
+        and anything else is passed to inspect.getsource().
+        """
+        if obj is None:
+            return ""
+        if isinstance(obj,basestring):
+            return obj
+        try:
+            return "\n\n\n".join(self._obj2code(i) for i in obj)
+        except TypeError:
+            return inspect.getsource(obj)
+
+    def get_bootstrap_code(self):
+        """Get any extra code to be executed by the bootstrapping exe.
+
+        This method interprets the bootstrap-code and bootstrap-module settings
+        to construct any extra bootstrapping code that must be executed by
+        the frozen bootstrap executable.  It is returned as a string.
+        """
+        bscode = self.bootstrap_code
+        if bscode is None:
+            if self.bootstrap_module is not None:
+                bscode = __import__(dist.bootstrap_module)
+                for submod in dist.bootstrap_module.split(".")[1:]:
+                    bscode = getattr(bscode,submod)
+        return self._obj2code(bscode)
+
     def get_executables(self,rewrite=True):
-        """Yield an Executable instance for each script to be frozen.
+        """Yield a normalised Executable instance for each script to be frozen.
 
         If "rewrite" is True (the default) then the user-provided scripts
         will be rewritten to include the esky startup code.  If the freezer
