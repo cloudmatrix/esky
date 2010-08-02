@@ -94,18 +94,16 @@ class Executable(unicode):
 
     def __init__(self,script,name=None,icon=None,gui_only=None,
                       include_in_bootstrap_env=True,**kwds):
+        unicode.__init__(self)
         if isinstance(script,Executable):
             script = script.script
             if name is None:
                 name = script.name
             if gui_only is None:
                 gui_only = script.gui_only
-        if isinstance(script,basestring):
-            unicode.__init__(self,script)
-        else:
+        if not isinstance(script,basestring):
             if name is None:
                 raise TypeError("Must specify name if script is not a file")
-            unicode.__init__(self,__file__)
         self.script = script
         self.include_in_bootstrap_env = include_in_bootstrap_env
         self.icon = icon
@@ -380,10 +378,10 @@ class bdist_esky(Command):
                     name = exe.name
                     if sys.platform == "win32" and name.endswith(".exe"):
                         name = name[:-4]
-                    if "." in exe.script:
-                        ext = "." + exe.script.split(".")[-1]
+                    if exe.endswith(".pyw"):
+                        ext = ".pyw"
                     else:
-                        ext = ""
+                        ext = ".py"
                     script = os.path.join(self.tempdir,"scripts",name+ext)
                     #  Get the code for the target script.
                     #  If it's a single string then interpret it as a filename,
