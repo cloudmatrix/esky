@@ -87,18 +87,25 @@ class Executable(unicode):
     """
 
     def __new__(cls,script,**kwds):
-        if not isinstance(script,basestring):
-            script = __file__
-        return unicode.__new__(cls,script)
+        if isinstance(script,basestring):
+            return unicode.__new__(cls,script)
+        else:
+            return unicode.__new__(cls,__file__)
 
     def __init__(self,script,name=None,icon=None,gui_only=None,
                       include_in_bootstrap_env=True,**kwds):
-        if not isinstance(script,basestring):
+        if isinstance(script,Executable):
+            script = script.script
+            if name is None:
+                name = script.name
+            if gui_only is None:
+                gui_only = script.gui_only
+        if isinstance(script,basestring):
+            unicode.__init__(self,script)
+        else:
             if name is None:
                 raise TypeError("Must specify name if script is not a file")
-            unicode.__init__(__file__)
-        else:
-            unicode.__init__(script)
+            unicode.__init__(self,__file__)
         self.script = script
         self.include_in_bootstrap_env = include_in_bootstrap_env
         self.icon = icon
@@ -347,7 +354,8 @@ class bdist_esky(Command):
                 bscode = __import__(dist.bootstrap_module)
                 for submod in dist.bootstrap_module.split(".")[1:]:
                     bscode = getattr(bscode,submod)
-        return self._obj2code(bscode)
+        bscode = self._obj2code(bscode)
+        return bscode
 
     def get_executables(self,normalise=True):
         """Yield a normalised Executable instance for each script to be frozen.
@@ -385,6 +393,9 @@ class bdist_esky(Command):
                             code = f.read()
                     else:
                         code = self._obj2code(exe.script)
+                    #  Check that the code actually compiles - sometimes it
+                    #  can be hard to get a good message out of the freezer.
+                    compile(code,"","exec")
                     #  Augment the given code with special esky-related logic.
                     with open(script,"wt") as fOut:
                         lines = (ln+"\n" for ln in code.split("\n"))
