@@ -1,4 +1,5 @@
 
+ * sudo_osx: let the auth dialog get keyboard focus.
  * get realpath of sys.executable (may have to do this by hand)
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * py2exe: support DLLs as well as executables (maybe?)
