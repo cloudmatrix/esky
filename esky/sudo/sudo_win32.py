@@ -34,7 +34,7 @@ kernel32 = ctypes.windll.kernel32
 shell32 = ctypes.windll.shell32
 advapi32 = ctypes.windll.advapi32
 
-GENERIC_READ = 0x80000000
+GENERIC_READ = -0x80000000
 GENERIC_WRITE = 0x40000000
 GENERIC_RDWR = GENERIC_READ | GENERIC_WRITE
 OPEN_EXISTING = 3

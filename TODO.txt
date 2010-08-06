@@ -1,13 +1,13 @@
 
+ * sudo_osx: let the auth dialog get keyboard focus.
  * get realpath of sys.executable (may have to do this by hand, hard in RPython)
- * when compiling the bootstrap exes, copy resources (e.g. icons) from the frozsen exes
+ * when compiling the bootstrap exes, copy resources (e.g. icons) from
+   the frozsen exes
  * cache executables compiled by compile_to_bootstrap_exe, so we don't
    have to repeat the process in the common case where they're all the same.
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * py2exe: support DLLs as well as executables (maybe?)
  * respect various distutils settings e.g. verbose, dry_run
- * tests for customisable bootstrap process
- * hooks for code signing etc in the build process
  * think about hooks for upgrade events
 
  py2app:

@@ -299,7 +299,7 @@ def get_exe_locations(target_dir):
                                              sys.executable[len(appdir)+1:]))
     #  This is the default scheme: the same path as the exe in the appdir.
     locs.append(target_dir + sys.executable[len(appdir):])
-    #  If sys.executable was a backup file, try using orig filename.
+    #  If sys.executable was a backup file, try using original filename.
     orig_exe = get_original_filename(sys.executable)
     if orig_exe is not None:
         locs.append(target_dir + orig_exe[len(appdir):])

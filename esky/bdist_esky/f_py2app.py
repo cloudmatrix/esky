@@ -87,23 +87,14 @@ def freeze(dist):
         lib.write(src,arcnm)
     lib.close()
     #  Create the bootstraping code, using custom code if specified.
-    code_source = [inspect.getsource(esky.bootstrap)]
+    code_source = ["__esky_name__ = '%s'" % (dist.distribution.get_name(),)]
+    code_source.append(inspect.getsource(esky.bootstrap))
     if not dist.compile_bootstrap_exes:
         code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
         code_source.append(_EXTRA_BOOTSTRAP_CODE)
-    code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    if dist.bootstrap_code is not None:
-        code_source.append(dist.bootstrap_code)
-        code_source.append("raise RuntimeError('didnt chainload')")
-    elif dist.bootstrap_module is not None:
-        bsmodule = __import__(dist.bootstrap_module)
-        for submod in dist.bootstrap_module.split(".")[1:]:
-            bsmodule = getattr(bsmodule,submod)
-        code_source.append(inspect.getsource(bsmodule))
-        code_source.append("raise RuntimeError('didnt chainload')")
-    else:
-        code_source.append("if not __esky_compile_with_pypy__:")
-        code_source.append("    bootstrap()")
+    code_source.append(dist.get_bootstrap_code())
+    code_source.append("if not __esky_compile_with_pypy__:")
+    code_source.append("    bootstrap()")
     code_source = "\n".join(code_source)
     if dist.compile_bootstrap_exes:
         for exe in dist.get_executables(rewrite=False):
@@ -140,13 +131,13 @@ def freeze(dist):
         #  Copy the bootstrapping code into the __boot__.py file.
         bsdir = dist.boostrap_dir
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
-            f.write("".join(code_source))
-        #  Clear the site.py file, we don't need any of that.
+            f.write(code_source)
+        #  Clear site.py in the bootstrap dir, it doesn't do anything useful.
         with open(bsdir+"/Contents/Resources/site.py","wt") as f:
             f.write("")
         #  Copy the loader program for each script into the bootstrap env.
         copy_to_bootstrap_env("Contents/MacOS/python")
-        for exe in dist.get_executables():
+        for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
             exepath = copy_to_bootstrap_env("Contents/MacOS/"+exe.name)

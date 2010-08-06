@@ -137,7 +137,7 @@ from __future__ import absolute_import
 
 __ver_major__ = 0
 __ver_minor__ = 8
-__ver_patch__ = 3
+__ver_patch__ = 4
 __ver_sub__ = ""
 __ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
@@ -154,83 +154,71 @@ from esky.util import split_app_version, join_app_version,\
                       is_version_dir, is_uninstalled_version_dir,\
                       parse_version, get_best_version, appdir_from_executable,\
                       copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR,\
-                      files_differ, LazyImport
+                      files_differ, lazy_import
 
 #  Since all frozen apps are required to import this module and call the
 #  run_startup_hooks() function, we use a simple lazy import mechanism to 
 #  make the initial import of this module as fast as possible.
 
-class LazyImport(LazyImport):
-    _esky_lazy_namespace = globals()
+@lazy_import
+def os():
+    import os
+    return os
 
-class os(LazyImport):
-    def _esky_lazy_import():
-        import os
-        return os
+@lazy_import
+def shutil():
+    import shutil
+    return shutil
 
-class shutil(LazyImport):
-    def _esky_lazy_import():
-        import shutil
-        return shutil
+@lazy_import
+def socket():
+    import socket
+    return socket
 
-class socket(LazyImport):
-    def _esky_lazy_import():
-        import socket
-        return socket
+@lazy_import
+def time():
+    import time
+    return time
 
-class time(LazyImport):
-    def _esky_lazy_import():
-        import time
-        return time
+@lazy_import
+def subprocess():
+    import subprocess
+    return subprocess
 
-class subprocess(LazyImport):
-    def _esky_lazy_import():
-        import subprocess
-        return subprocess
+@lazy_import
+def atexit():
+    import atexit
+    return atexit
 
-class atexit(LazyImport):
-    def _esky_lazy_import():
-        import atexit
-        return atexit
+@lazy_import
+def base64():
+    import base64
+    return base64
 
-class base64(LazyImport):
-    def _esky_lazy_import():
-        import base64
-        return base64
+@lazy_import
+def pickle():
+    try:
+        import cPickle as pickle
+    except ImportError:
+        import pickle
+    return pickle
 
-class pickle(LazyImport):
-    def _esky_lazy_import():
-        try:
-            import cPickle as pickle
-        except ImportError:
-            import pickle
-        return pickle
+@lazy_import
+def threading():
+    try:
+        import threading
+    except ImportError:
+        threading = None
+    return threading
 
-class threading(LazyImport):
-    def _esky_lazy_import():
-        try:
-            import threading
-        except ImportError:
-            threading = None
-        return threading
-
-class esky(LazyImport):
-    def _esky_lazy_import():
-        import esky
-        return esky
-    class finder(LazyImport):
-        def _esky_lazy_import():
-            import esky.finder
-            return esky.finder
-    class fstransact(LazyImport):
-        def _esky_lazy_import():
-            import esky.fstransact
-            return esky.fstransact
+@lazy_import
+def esky():
+    import esky
+    import esky.finder
+    import esky.fstransact
     if sys.platform == "win32":
-        class winres(LazyImport):
-            def _esky_lazy_import():
-                import esky.winres
-                return esky.winres
+        import esky.winres
+    return esky
 
 
 class Esky(object):

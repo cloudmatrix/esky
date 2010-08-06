@@ -1,4 +1,17 @@
 
+v0.8.5:
+
+    * bdist_esky:  accept wider variety of objects for bootstrap_code option
+      and Executable.script attribute. Lists are concatenated, source is
+      obtained using inspect.getsource().
+    * Made bdist_esky.Executable a subclass of unicode rather than str.
+
+v0.8.4:
+
+    * changed to a decorator-based syntax for declaring lazy imports, it's
+      cleaner and simpler.
+
+
 v0.8.3:
 
     * implemented lazy imports, to reduce the startup time burden on frozen
@@ -7,6 +20,7 @@ v0.8.3:
     * esky.slaveproc:  don't kill the slave process if something goes wrong
       with the monitoring process.
     * py2exe:  make sure bootstrapped code runs as __main__
+
 
 v0.8.2:
 
@@ -25,6 +39,7 @@ v0.8.1:
             for the helper process in esky.sudo.
     * py2exe: don't bundle files by default, as this can cause issues with
               some libraries (specifically win32ui from my experiments).
+
 
 v0.8.0:
 
@@ -54,6 +69,7 @@ v0.7.4:
     * esky.finder:  allow downloaded zipfiles to have a containing folder
       around the appdir content, to allow friendlier zipfile behaviour.
 
+
 v0.7.3:
 
     * Esky.cleanup_at_exit:  don't fail if there are no installed versions,
@@ -64,6 +80,7 @@ v0.7.3:
     * updated tutorial to talk about generating patches.
     * have all executables lock the version dir at startup, even if they're
       not launched through the bootstrap env.
+
 
 v0.7.2:
 
@@ -79,12 +96,14 @@ v0.7.2:
     * DefaultVersionFinder:  when a downloaded file fails because it is
       corrupted, remove it from disk as well as from the version graph.
 
+
 v0.7.1:
 
     * restored compatability with Python 3.
     * fixed automatic detection of gui-only scripts based on filename.
     * set variable "__esky_name__" in the bootstrapping code, and use it to
       potentially speed up application startup.
+
 
 v0.7.0:
 
@@ -120,6 +139,7 @@ v0.7.0:
           bootstrap code.
         * more robust support for the various bundle_files options.
 
+
 v0.6.0:
 
     * Added Esky.get_root() method, which can escalate to root privileges by
@@ -130,6 +150,7 @@ v0.6.0:
         * Esky.auto_update() will escalate automatically if it encounters
           a permission error.
 
+
 v0.5.3:
 
     * DefaultVersionFinder: make search for update links case-insensitive.
@@ -138,6 +159,7 @@ v0.5.3:
     * better cleanup of "*.old.*" files from the bootstrap env.
     * use fcntl.flock() for version locking; it's slightly less portable but
       has much better semantics for what we want.
+
 
 v0.5.2:
 
