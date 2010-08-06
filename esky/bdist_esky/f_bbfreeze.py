@@ -90,7 +90,7 @@ def freeze(dist):
     code_source.append("    bootstrap()")
     code_source = "\n".join(code_source)
     if dist.compile_bootstrap_exes:
-        for exe in dist.get_executables(rewrite=False):
+        for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
             dist.compile_to_bootstrap_exe(exe,code_source)
@@ -129,7 +129,7 @@ def freeze(dist):
         #  Copy the loader program for each script.
         #  We explicitly strip the loader binaries, in case they were made
         #  by linking to the library.zip.
-        for exe in dist.get_executables(rewrite=False):
+        for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
             exepath = dist.copy_to_bootstrap_env(exe.name)
