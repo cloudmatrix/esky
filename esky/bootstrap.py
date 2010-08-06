@@ -586,13 +586,16 @@ def unlock_version_dir(vdir):
     os_close(_locked_version_dirs[vdir].pop())
 
 if __esky_compile_with_pypy__:
+    #  We can use the actual os.path module, since it's going to be
+    #  compiled to a standalone exe.
     import os.path
     def main():
         bootstrap()
     def target(driver,args):
         """Target function for compiling a standalone bootstraper with PyPy."""
         def entry_point(argv):
-             sys.executable = pathjoin(os.getcwd(),argv[0])
+             #  Todo: resolve symlinks etc
+             sys.executable = os.path.abspath(os.path.join(os.getcwd(),argv[0]))
              sys.argv = argv
              try:
                  main()
