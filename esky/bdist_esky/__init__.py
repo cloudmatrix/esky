@@ -640,7 +640,7 @@ class bdist_esky(Command):
         try:
             outfile = self._compiled_exes[source_hash]
         except KeyError:
-            infile = os.path.join(cdir,inname)
+            infile = os.path.join(cdir,"bootstrap.py")
             outfile = os.path.join(cdir,outname)
             with open(infile,"wt") as f:
                 f.write(source)
