@@ -94,6 +94,8 @@ def freeze(dist):
         includes.append(inc)
     for exc in options.pop("excludes",()):
         excludes.append(exc)
+    if "pypy" not in includes and "pypy" not in excludes:
+        excludes.append("pypy")
     #  py2exe expects some arguments on the main distribution object.
     #  We handle data_files ourselves, so fake it out for py2exe.
     dist.distribution.console = []

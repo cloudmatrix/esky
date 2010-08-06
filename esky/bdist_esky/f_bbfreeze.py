@@ -38,6 +38,8 @@ def freeze(dist):
         includes.append(inc)
     for exc in options.pop("excludes",()):
         excludes.append(exc)
+    if "pypy" not in includes and "pypy" not in excludes:
+        excludes.append("pypy")
     #  Freeze up the given scripts
     f = bbfreeze.Freezer(dist.freeze_dir,includes=includes,excludes=excludes)
     for (nm,val) in options.iteritems():

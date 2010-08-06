@@ -38,6 +38,8 @@ def freeze(dist):
         includes.append(inc)
     for exc in options.pop("excludes",()):
         excludes.append(exc)
+    if "pypy" not in includes and "pypy" not in excludes:
+        excludes.append("pypy")
     options["includes"] = includes
     options["excludes"] = excludes
     # py2app can't simultaneously freeze multiple scripts.

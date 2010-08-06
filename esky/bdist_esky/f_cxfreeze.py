@@ -42,6 +42,8 @@ def freeze(dist):
         excludes.append(exc)
     if "esky" not in includes and "esky" not in excludes:
         includes.append("esky")
+    if "pypy" not in includes and "pypy" not in excludes:
+        excludes.append("pypy")
     #  cx_Freeze doesn't seem to respect __path__ properly; hack it so
     #  that the required distutils modules are always found correctly.
     def load_distutils(finder,module):
