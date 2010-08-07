@@ -154,21 +154,38 @@ def freeze(dist):
     pass
     #  Create the bootstraping code, using custom code if specified.
     #  It gets stored as a marshalled list of code objects directly in the exe.
-    code_source = [inspect.getsource(esky.bootstrap)]
-    if not dist.compile_bootstrap_exes:
-        code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
-        code_source.append(_CUSTOM_WIN32_CHAINLOADER)
-    code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    code_source.append(dist.get_bootstrap_code())
-    code_source.append("if not __esky_compile_with_pypy__:")
-    code_source.append("    bootstrap()")
-    code_source = "\n".join(code_source)
+    code_source = ["__esky_name__ = '%s'" % (dist.distribution.get_name(),)]
+    code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
+        if sys.platform == "win32":
+            #  The pypy-compiled bootstrap exe will try to load a python env
+            #  into its own process and run this "take2" code to bootstrap.
+            take2_code = code_source[1:]
+            take2_code.append(_CUSTOM_WIN32_CHAINLOADER)
+            take2_code.append(dist.get_bootstrap_code())
+            take2_code = compile("\n".join(take2_code),"<string>","exec")
+            take2_code = marshal.dumps(take2_code)
+            clscript = "__esky_bootstrap_pypy__ = True; import marshal; "
+            clscript += "exec marshal.loads(%r); " % (take2_code,)
+            clscript = clscript.replace("%","%%")
+            clscript += "chainload(\"%s\")"
+            #  Here's the actual source for the compiled bootstrap exe.
+            from esky.bdist_esky import pypy_libpython
+            code_source.append(inspect.getsource(pypy_libpython))
+            code_source.append("_PYPY_CHAINLOADER_SCRIPT = %r" % (clscript,))
+            code_source.append(_CUSTOM_PYPY_CHAINLOADER)
+        code_source.append(dist.get_bootstrap_code())
+        code_source = "\n".join(code_source)
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
             dist.compile_to_bootstrap_exe(exe,code_source)
     else:
+        code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
+        code_source.append(_CUSTOM_WIN32_CHAINLOADER)
+        code_source.append(dist.get_bootstrap_code())
+        code_source.append("bootstrap()")
+        code_source = "\n".join(code_source)
         code = marshal.dumps([compile(code_source,"__main__.py","exec")])
         coderes = struct.pack("iiii",
                          0x78563412, # magic value used for integrity checking,
@@ -243,13 +260,20 @@ sys.modules["esky.bootstrap"] = __fake()
 #
 _CUSTOM_WIN32_CHAINLOADER = """
 _orig_chainload = _chainload
+try:
+    __esky_bootstrap_pypy__
+except NameError:
+    __esky_bootstrap_pypy__ = False
 def _chainload(target_dir):
   # careful to escape percent-sign, this gets interpolated below
   marker_file = pathjoin(ESKY_CONTROL_DIR,"f-py2exe-%%d%%d.txt")%%sys.version_info[:2]
   pydll = "python%%s%%s.dll" %% sys.version_info[:2]
   mydir = dirname(sys.executable)
   if not exists(pathjoin(target_dir,marker_file)):
-      _orig_chainload(target_dir)
+      return _orig_chainload(target_dir)
+  if __esky_bootstrap_pypy__:
+      if not exists(pathjoin(target_dir,pydll)):
+          return _orig_chainload(target_dir)
   else:
       for nm in listdir(target_dir):
           if nm == pydll:
@@ -264,81 +288,131 @@ def _chainload(target_dir):
                   _orig_chainload(target_dir)
               else:
                   break
-      sys.bootstrap_executable = sys.executable
-      sys.executable = pathjoin(target_dir,basename(sys.executable))
-      sys.argv[0] = sys.executable
-      for i in xrange(len(sys.path)):
-          sys.path[i] = sys.path[i].replace(mydir,target_dir)
-      libfile = pathjoin(target_dir,"library.zip")
-      if exists(libfile) and libfile not in sys.path:
-          sys.path.append(libfile)
+  sys.bootstrap_executable = sys.executable
+  sys.executable = pathjoin(target_dir,basename(sys.executable))
+  sys.argv[0] = sys.executable
+  for i in xrange(len(sys.path)):
+      sys.path[i] = sys.path[i].replace(mydir,target_dir)
+  libfile = pathjoin(target_dir,"library.zip")
+  if exists(libfile) and libfile not in sys.path:
+      sys.path.append(libfile)
+  try:
+      import zipextimporter; zipextimporter.install()
+  except ImportError:
+      pass
+  try:
+      import nt
+      import ctypes
+      import struct
+      import marshal
+      import msvcrt
+  except ImportError:
+      _orig_chainload(target_dir)
+  # the source for esky.winres.load_resource gets inserted below:
+  from ctypes import c_char, POINTER
+  k32 = ctypes.windll.kernel32
+  LOAD_LIBRARY_AS_DATAFILE = 0x00000002
+  _DEFAULT_RESLANG = 1033
+  %s
+  # now we magically have the load_resource function :-)
+  try:
+      data = load_resource(sys.executable,u"PYTHONSCRIPT",1,0)
+  except EnvironmentError:
+      #  This will trigger if sys.executable doesn't exist.
+      #  Falling back to the original chainloader will account for
+      #  the unlikely case where sys.executable is a backup file.
+      _orig_chainload(target_dir)
+  else:
+      sys.modules.pop("esky",None)
+      sys.modules.pop("esky.bootstrap",None)
+      headsz = struct.calcsize("iiii")
+      (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",data[:headsz])
+      assert magic == 0x78563412
+      # Set up the environment requested by "optimized" and "unbuffered"
       try:
-          import zipextimporter; zipextimporter.install()
-      except ImportError:
+          opt_var = ctypes.c_int.in_dll(ctypes.pythonapi,"Py_OptimizeFlag")
+          opt_var.value = optmz
+      except ValueError:
           pass
-      try:
-          import nt
-          import ctypes
-          import struct
-          import marshal
-          import msvcrt
-      except ImportError:
-          _orig_chainload(target_dir)
-      # the source for esky.winres.load_resource gets inserted below:
-      from ctypes import c_char, POINTER
-      k32 = ctypes.windll.kernel32
-      LOAD_LIBRARY_AS_DATAFILE = 0x00000002
-      _DEFAULT_RESLANG = 1033
-      %s
-      # now we magically have the load_resource function :-)
-      try:
-          data = load_resource(sys.executable,u"PYTHONSCRIPT",1,0)
-      except EnvironmentError:
-          #  This will trigger if sys.executable doesn't exist.
-          #  Falling back to the original chainloader will account for
-          #  the unlikely case where sys.executable is a backup file.
-          _orig_chainload(target_dir)
-      else:
-          del sys.modules["esky"]
-          del sys.modules["esky.bootstrap"]
-          headsz = struct.calcsize("iiii")
-          (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",data[:headsz])
-          assert magic == 0x78563412
-          # Set up the environment requested by "optimized" and "unbuffered"
-          try:
-              opt_var = ctypes.c_int.in_dll(ctypes.pythonapi,"Py_OptimizeFlag")
-              opt_var.value = optmz
-          except ValueError:
-              pass
-          if unbfrd:
-              msvcrt.setmode(0,nt.O_BINARY)
-              msvcrt.setmode(1,nt.O_BINARY)
-              ctypes.pythonapi.PyFile_AsFile.argtypes = (ctypes.py_object,)
-              if hasattr(ctypes.cdll.msvcrt,"setvbuf"):
-                  def setunbuf(f):
-                      fp = ctypes.pythonapi.PyFile_AsFile(f)
-                      ctypes.cdll.msvcrt.setvbuf(fp,None,4,512)
-              else:
-                  def setunbuf(fd,mode):
-                      fp = ctypes.pythonapi.PyFile_AsFile(f)
-                      ctypes.cdll.msvcrt.setbuf(fp,None)
-              setunbuf(sys.stdin)
-              setunbuf(sys.stdout)
-              setunbuf(sys.stderr)
-          # skip over the archive name to find start of code
-          codestart = headsz
-          while data[codestart] != "\\0":
-              codestart += 1
+      if unbfrd:
+          msvcrt.setmode(0,nt.O_BINARY)
+          msvcrt.setmode(1,nt.O_BINARY)
+          ctypes.pythonapi.PyFile_AsFile.argtypes = (ctypes.py_object,)
+          if hasattr(ctypes.cdll.msvcrt,"setvbuf"):
+              def setunbuf(f):
+                  fp = ctypes.pythonapi.PyFile_AsFile(f)
+                  ctypes.cdll.msvcrt.setvbuf(fp,None,4,512)
+          else:
+              def setunbuf(fd,mode):
+                  fp = ctypes.pythonapi.PyFile_AsFile(f)
+                  ctypes.cdll.msvcrt.setbuf(fp,None)
+          setunbuf(sys.stdin)
+          setunbuf(sys.stdout)
+          setunbuf(sys.stderr)
+      # skip over the archive name to find start of code
+      codestart = headsz
+      while data[codestart] != "\\0":
           codestart += 1
-          codelist = marshal.loads(data[codestart:codestart+codesz])
-          # Execute all code in the context of __main__ module.
-          # Remove our own cruft from it before doing so.
-          d_locals = d_globals = sys.modules["__main__"].__dict__
-          d_locals.clear()
-          d_locals["__name__"] = "__main__"
-          for code in codelist:
-              exec code in d_globals, d_locals
-          raise SystemExit(0)
-""" % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*6),)
+      codestart += 1
+      codelist = marshal.loads(data[codestart:codestart+codesz])
+      # Execute all code in the context of __main__ module.
+      # Remove our own cruft from it before doing so.
+      d_locals = d_globals = sys.modules["__main__"].__dict__
+      d_locals.clear()
+      d_locals["__name__"] = "__main__"
+      for code in codelist:
+          exec code in d_globals, d_locals
+      raise SystemExit(0)
+""" % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*4),)
+
+
+#  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
+#  exe doesn't have a python runtime, it needs to chainload the one from the
+#  target version dir before trying to bootstrap in-process.
+_CUSTOM_PYPY_CHAINLOADER = """
+
+_orig_chainload = _chainload
+def _chainload(target_dir):
+  mydir = dirname(sys.executable)
+  pydll = "python%s%s.dll" % sys.version_info[:2]
+  if not exists(pathjoin(target_dir,pydll)):
+      _orig_chainload(target_dir)
+  else:
+      py = libpython(pydll)
+
+      #Py_NoSiteFlag = 1;
+      #Py_FrozenFlag = 1;
+      #Py_IgnoreEnvironmentFlag = 1;
+
+      py.SetPythonHome("")
+      py.Initialize()
+      # TODO: can't get this through pypy's type annotator.
+      # going to fudge it in python instead :-)
+      #py.Sys_SetArgv(list(sys.argv))
+      syspath = dirname(py.GetProgramFullPath());
+      syspath = syspath + "\\library.zip;" + syspath
+      py.Sys_SetPath(syspath);
+      #  Escape any double-quotes in sys.argv, so we can easily
+      #  include it in a python-level string.
+      new_argvs = []
+      for arg in sys.argv:
+          new_argvs.append('"' + arg.replace('"','\\"') + '"')
+      new_argv = "[" + ",".join(new_argvs) + "]"
+      py.Run_SimpleString("import sys; sys.argv = %s" % (new_argv,))
+      py.Run_SimpleString("import sys; sys.frozen = 'bbfreeze'" % (new_argv,))
+      globals = py.Dict_New()
+      py.Dict_SetItemString(globals,"__builtins__",py.Eval_GetBuiltins())
+      esc_target_dir_chars = []
+      for c in target_dir:
+          if c == "\\\\":
+              esc_target_dir_chars.append("\\\\")
+          esc_target_dir_chars.append(c)
+      esc_target_dir = "".join(esc_target_dir_chars)
+      script = _PYPY_CHAINLOADER_SCRIPT % (esc_target_dir,)
+      py.Run_String(script,py.file_input,globals)
+      py.Finalize()
+      sys.exit(0)
+
+"""
 
 

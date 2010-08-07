@@ -71,32 +71,43 @@ def freeze(dist):
         lib.write(src,arcnm)
     lib.close()
     #  Create the bootstrap code, using custom code if specified.
+    #  For win32 we include a special chainloader that can suck the selected
+    #  version into the running process rather than spawn a new proc.
     code_source = ["__name__ = '__main__'"]
-    code_source.append(inspect.getsource(esky.bootstrap))
-    if sys.platform == "win32":
-        if dist.compile_bootstrap_exes:
-            chainload = [code_source[0]]
-            docstart = chainload[0].find('"""')
-            docend = chainload[0].find('"""',docstart+1)
-            chainload[0] = chainload[0][docend+3:].replace("\\","\\\\")
-            chainload[0] = chainload[0].replace('"','\\"')
-            chainload.append(_CUSTOM_WIN32_CHAINLOADER)
-            chainload.append("chainload(target_dir)")
-            chainload = "\n".join(chainload)
-            code_source.append(_CUSTOM_WIN32_CHAINLOADER_PYPY % (chainload,))
-        else:
-            code_source.append(_CUSTOM_WIN32_CHAINLOADER)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    code_source.append(dist.get_bootstrap_code())
-    code_source.append("if not __esky_compile_with_pypy__:")
-    code_source.append("    bootstrap()")
-    code_source = "\n".join(code_source)
+    code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
+        if sys.platform == "win32":
+            #  The pypy-compiled bootstrap exe will try to load a python env
+            #  into its own process and run this "take2" code to bootstrap.
+            take2_code = code_source[1:]
+            take2_code.append(_CUSTOM_WIN32_CHAINLOADER)
+            take2_code.append(dist.get_bootstrap_code())
+            take2_code = compile("\n".join(take2_code),"<string>","exec")
+            take2_code = marshal.dumps(take2_code)
+            clscript = "import marshal; "
+            clscript += "exec marshal.loads(%r); " % (take2_code,)
+            clscript = clscript.replace("%","%%")
+            clscript += "chainload(\"%s\")"
+            #  Here's the actual source for the compiled bootstrap exe.
+            from esky.bdist_esky import pypy_libpython
+            code_source.append(inspect.getsource(pypy_libpython))
+            code_source.append("_PYPY_CHAINLOADER_SCRIPT = %r" % (clscript,))
+            code_source.append(_CUSTOM_PYPY_CHAINLOADER)
+        code_source.append(dist.get_bootstrap_code())
+        code_source = "\n".join(code_source)
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
             dist.compile_to_bootstrap_exe(exe,code_source)
     else:
+        if sys.platform == "win32":
+            code_source.append(_CUSTOM_WIN32_CHAINLOADER)
+        code_source.append(dist.get_bootstrap_code())
+        code_source.append("bootstrap()")
+        code_source = "\n".join(code_source)
+        #  For non-compiled bootstrap exe, store the bootstrapping code
+        #  into the library.zip as __main__.
         maincode = imp.get_magic() + struct.pack("<i",0)
         maincode += marshal.dumps(compile(code_source,"__main__.py","exec"))
         #  Create code for a fake esky.bootstrap module
@@ -175,129 +186,15 @@ def _chainload(target_dir):
           sys.exit(0)
 """
 
-
-_CUSTOM_WIN32_CHAINLOADER_PYPY = """
-
-Py_file_input = 257
-
-from pypy.rlib import libffi
-from pypy.rpython.lltypesystem import rffi, lltype
-
-_CUSTOM_WIN32_CHAINLOADER = \"\"\"
-%s
-\"\"\"
-
-class libpython:
-
-    def __init__(self,library_path):
-        self.lib = libffi.CDLL(library_path)
-
-    def Initialize(self):
-        impl = self.lib.getpointer("Py_Initialize",[],libffi.ffi_type_void)
-        impl.call(lltype.Void)
-
-    def Finalize(self):
-        impl = self.lib.getpointer("Py_Finalize",[],libffi.ffi_type_void)
-        impl.call(lltype.Void)
-
-    def Err_Occurred(self):
-        impl = self.lib.getpointer("PyErr_Occurred",[],libffi.ffi_type_pointer)
-        return impl.call(rffi.VOIDP)
-
-    def Err_PrintEx(self,set_sys_last_vars=1):
-        impl = self.lib.getpointer("PyErr_PrintEx",[libffi.ffi_type_sint],libffi.ffi_type_void)
-        impl.push_arg(set_sys_last_vars)
-        return impl.call(lltype.Void)
-
-    def _error(self):
-        err = self.Err_Occurred()
-        if err:
-            self.Err_PrintEx()
-            raise RuntimeError("an error occurred")
-
-    def Run_SimpleString(self,string):
-        impl = self.lib.getpointer("PyRun_SimpleString",[libffi.ffi_type_pointer],libffi.ffi_type_sint)
-        buf = rffi.str2charp(string)
-        impl.push_arg(buf)
-        res = impl.call(rffi.INT)
-        rffi.free_charp(buf)
-        if res < 0:
-            self._error()
-
-    def Run_String(self,string,start,globals=None,locals=None):
-        if globals is None:
-            globals = 0
-        if locals is None:
-            locals = 0
-        impl = self.lib.getpointer("PyRun_String",[libffi.ffi_type_pointer,libffi.ffi_type_sint,libffi.ffi_type_pointer,libffi.ffi_type_pointer],libffi.ffi_type_pointer)
-        buf = rffi.str2charp(string)
-        impl.push_arg(buf)
-        impl.push_arg(start)
-        impl.push_arg(globals)
-        impl.push_arg(locals)
-        res = impl.call(rffi.VOIDP)
-        rffi.free_charp(buf)
-        if not res:
-            self._error()
-        return res
-
-    def GetProgramFullPath(self):
-        impl = self.lib.getpointer("Py_GetProgramFullPath",[],libffi.ffi_type_pointer)
-        return rffi.charp2str(impl.call(rffi.CCHARP))
-
-    def SetPythonHome(self,path):
-        impl = self.lib.getpointer("Py_SetPythonHome",[libffi.ffi_type_pointer],libffi.ffi_type_void)
-        buf = rffi.str2charp(path)
-        impl.push_arg(buf)
-        impl.call(lltype.Void)
-        rffi.free_charp(buf)
-
-    # TODO: this seems to cause type errors during building
-    def Sys_SetArgv(self,argv):
-        impl = self.lib.getpointer("PySys_SetArgv",[libffi.ffi_type_sint,libffi.ffi_type_pointer],libffi.ffi_type_void)
-        impl.push_arg(len(argv))
-        buf = rffi.liststr2charpp(argv)
-        impl.push_arg(rffi.cast(rffi.VOIDP,buf))
-        impl.call(lltype.Void)
-        rffi.free_charpp(buf)
-
-    def Sys_SetPath(self,path):
-        impl = self.lib.getpointer("PySys_SetPath",[libffi.ffi_type_pointer],libffi.ffi_type_void)
-        buf = rffi.str2charp(path)
-        impl.push_arg(buf)
-        impl.call(lltype.Void)
-        rffi.free_charp(buf)
-
-    def Eval_GetBuiltins(self):
-        impl = self.lib.getpointer("PyEval_GetBuiltins",[],libffi.ffi_type_pointer)
-        d = impl.call(rffi.VOIDP)
-        if not d:
-            self._error()
-        return d
-
-    def Dict_New(self):
-        impl = self.lib.getpointer("PyDict_New",[],libffi.ffi_type_pointer)
-        d = impl.call(rffi.VOIDP)
-        if not d:
-            self._error()
-        return d
-
-    def Dict_SetItemString(self,d,key,value):
-        impl = self.lib.getpointer("PyDict_SetItemString",[libffi.ffi_type_pointer,libffi.ffi_type_pointer,libffi.ffi_type_pointer],libffi.ffi_type_sint)
-        impl.push_arg(d)
-        buf = rffi.str2charp(key)
-        impl.push_arg(buf)
-        impl.push_arg(value)
-        d = impl.call(rffi.INT)
-        rffi.free_charp(buf)
-        if d < 0:
-            self._error()
-
+#  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
+#  exe doesn't have a python runtime, it needs to chainload the one from the
+#  target version dir before trying to bootstrap in-process.
+_CUSTOM_PYPY_CHAINLOADER = """
 
 _orig_chainload = _chainload
 def _chainload(target_dir):
   mydir = dirname(sys.executable)
-  pydll = "python%%s%%s.dll" %% sys.version_info[:2]
+  pydll = "python%s%s.dll" % sys.version_info[:2]
   if not exists(pathjoin(target_dir,pydll)):
       _orig_chainload(target_dir)
   else:
@@ -315,12 +212,14 @@ def _chainload(target_dir):
       syspath = dirname(py.GetProgramFullPath());
       syspath = syspath + "\\library.zip;" + syspath
       py.Sys_SetPath(syspath);
+      #  Escape any double-quotes in sys.argv, so we can easily
+      #  include it in a python-level string.
       new_argvs = []
       for arg in sys.argv:
           new_argvs.append('"' + arg.replace('"','\\"') + '"')
       new_argv = "[" + ",".join(new_argvs) + "]"
-      py.Run_SimpleString("import sys; sys.argv = %%s" %% (new_argv,))
-      py.Run_SimpleString("import sys; sys.frozen = 'bbfreeze'" %% (new_argv,))
+      py.Run_SimpleString("import sys; sys.argv = %s" % (new_argv,))
+      py.Run_SimpleString("import sys; sys.frozen = 'bbfreeze'" % (new_argv,))
       globals = py.Dict_New()
       py.Dict_SetItemString(globals,"__builtins__",py.Eval_GetBuiltins())
       esc_target_dir_chars = []
@@ -329,8 +228,8 @@ def _chainload(target_dir):
               esc_target_dir_chars.append("\\\\")
           esc_target_dir_chars.append(c)
       esc_target_dir = "".join(esc_target_dir_chars)
-      script = "target_dir = '%%s'\\n\\n%%s" %% (esc_target_dir,_CUSTOM_WIN32_CHAINLOADER,)
-      py.Run_String(script,Py_file_input,globals)
+      script = _PYPY_CHAINLOADER_SCRIPT % (esc_target_dir,)
+      py.Run_String(script,py.file_input,globals)
       py.Finalize()
       sys.exit(0)
 

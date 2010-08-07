@@ -46,7 +46,7 @@ _exit_code = [0]
 #  platform-specific modules and fudge the rest.
 if "posix" in sys.builtin_module_names:
     import fcntl
-    from posix import listdir, stat, unlink, rename, execv
+    from posix import listdir, stat, unlink, rename, execv, getcwd, environ
     from posix import open as os_open
     from posix import close as os_close
     SEP = "/"
@@ -55,7 +55,8 @@ if "posix" in sys.builtin_module_names:
 elif "nt" in sys.builtin_module_names:
     fcntl = None
     import nt
-    from nt import listdir, stat, unlink, rename, spawnv, P_WAIT
+    from nt import listdir, stat, unlink, rename, spawnv
+    from nt import getcwd, P_WAIT, environ
     from nt import open as os_open
     from nt import close as os_close
     SEP = "\\"
@@ -73,11 +74,10 @@ elif "nt" in sys.builtin_module_names:
         #  Create an O_TEMPORARY file and pass its name to the slave process.
         #  When this master process dies, the file will be deleted and the
         #  slave process will know to terminate.
-        tdir = nt.environ.get("TEMP",None)
+        tdir = environ.get("TEMP",None)
         if tdir:
-            tfile = None
             try:
-                nt.mkdir(pathjoin(tdir,"esky-slave-procs"))
+                nt.mkdir(pathjoin(tdir,"esky-slave-procs"),0600)
             except EnvironmentError:
                 pass
             if exists(pathjoin(tdir,"esky-slave-procs")):
@@ -86,14 +86,12 @@ elif "nt" in sys.builtin_module_names:
                     tfilenm = "slave-%d.%d.txt" % (nt.getpid(),i,)
                     tfilenm = pathjoin(tdir,"esky-slave-procs",tfilenm)
                     try:
-                        tfile = nt.open(tfilenm,flags)
+                        os_open(tfilenm,flags,0600)
+                        args.insert(1,tfilenm)
+                        args.insert(1,"--esky-slave-proc")
                         break
                     except EnvironmentError:
-                        raise
                         pass
-        if tdir and tfile:
-            args.insert(1,tfilenm)
-            args.insert(1,"--esky-slave-proc")
         res = spawnv(P_WAIT,filename,args)
         _exit_code[0] = res
         raise SystemExit(res)
@@ -109,12 +107,16 @@ else:
     raise RuntimeError("unsupported platform: " + sys.platform)
 
 
-__esky_name__ = ""
+try:
+    __esky_name__
+except NameError:
+    __esky_name__ = ""
 
 try:
     __esky_compile_with_pypy__
 except NameError:
     __esky_compile_with_pypy__ = False
+
 
 if __esky_compile_with_pypy__:
     # RPython doesn't have access to the "sys" module, so we fake it out.
@@ -132,28 +134,40 @@ if __esky_compile_with_pypy__:
             return None,None,None
     sys = sys()
     #  RPython doesn't provide the sorted() builtin, and actually makes sorting
-    #  quite complicated in general.
-    from pypy.rlib.listsort import TimSort
-    class ListSort(TimSort):
-        def lt(self,a,b):
+    #  quite complicated in general.  I can't convince the type annotator to be
+    #  happy about using their "listsort" module, so I'm doing my own using a
+    #  simple insertion sort.  We're only sorting short lists and they always
+    #  contain (list(str),str), so this should do for now.
+    def _list_gt(l1,l2):
+        i = 0
+        while i < len(l1) and i < len(l2):
+            if l1[i] > l2[i]:
+               return True
+            if l1[i] < l2[i]:
+               return False
+            i += 1
+        if len(l1) > len(l2):
             return True
-            i = 0
-            while i < len(a) and i < len(b):
-                if a[i] < b[i]:
-                    return True
-                if a[i] > b[i]:
-                    return False
-                i += 1
-            if len(a) < len(b):
-                return True
-            return False
+        return False
     def sorted(lst,reverse=False):
-        lst = [item for item in lst]
-        ListSort(lst).sort()
-        # TODO: sort seems to be descending by default?
-        if not reverse:
-            lst.reverse()
-        return lst
+        slst = []
+        if reverse:
+            for item in lst:
+                for j in xrange(len(slst)):
+                    if not _list_gt(slst[j][0],item[0]):
+                        slst.insert(j,item)
+                        break 
+                else:
+                    slst.append(item)
+        else:
+            for item in lst:
+                for j in xrange(len(slst)):
+                    if _list_gt(slst[j][0],item[0]):
+                        slst.insert(j,item)
+                        break 
+                else:
+                    slst.append(item)
+        return slst
     # RPython doesn't provide the "zfill" or "isalnum" methods on strings.
     def zfill(str,n):
         while len(str) < n:
@@ -190,6 +204,20 @@ def pathjoin(*args):
         else:
             path = path + SEP + arg
     return path
+
+def abspath(path):
+    """Absolute-ize and normalise the given path."""
+    path = pathjoin(getcwd(),path)
+    components_in = path.split(SEP)
+    components = [components_in[0]]
+    for comp in components_in[1:]:
+        if not comp or comp == ".":
+            pass
+        elif comp == "..":
+            components.pop()
+        else:
+            components.append(comp)
+    return SEP.join(components)
 
 def basename(p):
     """Local re-implementation of os.path.basename."""
@@ -586,23 +614,21 @@ def unlock_version_dir(vdir):
     os_close(_locked_version_dirs[vdir].pop())
 
 if __esky_compile_with_pypy__:
-    #  We can use the actual os.path module, since it's going to be
-    #  compiled to a standalone exe.
-    import os.path
     def main():
         bootstrap()
     def target(driver,args):
         """Target function for compiling a standalone bootstraper with PyPy."""
         def entry_point(argv):
              #  Todo: resolve symlinks etc
-             sys.executable = os.path.abspath(os.path.join(os.getcwd(),argv[0]))
+             sys.executable = abspath(pathjoin(getcwd(),argv[0]))
              sys.argv = argv
              try:
                  main()
              except SystemExit, e:
                  return _exit_code[0]
              except Exception, e:
-                 print e
+                 # TODO: remove this
+                 print "BOOTSTRAP ERROR", e
                  return 1
              return 0
         return entry_point, None

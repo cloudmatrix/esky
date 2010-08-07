@@ -176,9 +176,10 @@ class TestEsky(unittest.TestCase):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
     if pypy is not None:
         def test_esky_cxfreeze_pypy(self):
-            self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze",
-                                                "compile_bootstrap_exes":1}})
-
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+              self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze",
+                                                 "compile_bootstrap_exes":1}})
+ 
 
   def _run_eskytester(self,options):
     """Build and run the eskytester app using the given distutils options.

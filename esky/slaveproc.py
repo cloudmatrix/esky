@@ -161,11 +161,18 @@ if sys.platform == "win32":
                              FILE_FLAG_BACKUP_SEMANTICS,
                              None
                  )
+
+        #  Since this loop may still be running at interpreter close, we
+        #  take local references to our imported functions to avoid
+        #  garbage-collection-related errors at shutdown.
+        byref = ctypes.byref
+        pathexists = os.path.exists
+
         try:
-            while os.path.exists(fpath):
-                RDCW(handle,ctypes.byref(result),len(result),
+            while pathexists(fpath):
+                RDCW(handle,byref(result),len(result),
                      True,FILE_NOTIFY_CHANGE_FILE_NAME,
-                     ctypes.byref(nbytes),None,None)
+                     byref(nbytes),None,None)
         finally:
             CloseHandle(handle)
         return True

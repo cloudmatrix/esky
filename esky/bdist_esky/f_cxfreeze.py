@@ -88,21 +88,42 @@ def freeze(dist):
             raise RuntimeError(err)
     #  Create the bootstrap code, using custom code if specified.
     code_source = ["__name__ = '__main__'"]
-    code_source.append(inspect.getsource(esky.bootstrap))
-    if sys.platform == "win32":
-        if not dist.compile_bootstrap_exes:
-            code_source.append(_CUSTOM_WIN32_CHAINLOADER)
     code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
-    code_source.append(dist.get_bootstrap_code())
-    code_source.append("if not __esky_compile_with_pypy__:")
-    code_source.append("    bootstrap()")
-    code_source = "\n".join(code_source)
+    code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
+        if sys.platform == "win32":
+            #  Unfortunately this doesn't work, because the cxfreeze exe
+            #  contains frozen modules that are inaccessible to a bootstrapped
+            #  interpreter.  Disabled until I figure out a workaround. :-(
+            pass
+            #  The pypy-compiled bootstrap exe will try to load a python env
+            #  into its own process and run this "take2" code to bootstrap.
+            #take2_code = code_source[1:]
+            #take2_code.append(_CUSTOM_WIN32_CHAINLOADER)
+            #take2_code.append(dist.get_bootstrap_code())
+            #take2_code = compile("\n".join(take2_code),"<string>","exec")
+            #take2_code = marshal.dumps(take2_code)
+            #clscript = "import marshal; "
+            #clscript += "exec marshal.loads(%r); " % (take2_code,)
+            #clscript = clscript.replace("%","%%")
+            #clscript += "chainload(\"%s\")"
+            #  Here's the actual source for the compiled bootstrap exe.
+            #from esky.bdist_esky import pypy_libpython
+            #code_source.append(inspect.getsource(pypy_libpython))
+            #code_source.append("_PYPY_CHAINLOADER_SCRIPT = %r" % (clscript,))
+            #code_source.append(_CUSTOM_PYPY_CHAINLOADER)
+        code_source.append(dist.get_bootstrap_code())
+        code_source = "\n".join(code_source)
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
             dist.compile_to_bootstrap_exe(exe,code_source)
     else:
+        if sys.platform == "win32":
+            code_source.append(_CUSTOM_WIN32_CHAINLOADER)
+        code_source.append(dist.get_bootstrap_code())
+        code_source.append("bootstrap()")
+        code_source = "\n".join(code_source)
         maincode = imp.get_magic() + struct.pack("<i",0)
         maincode += marshal.dumps(compile(code_source,INITNAME+".py","exec"))
         #  Create code for a fake esky.bootstrap module
@@ -152,7 +173,9 @@ if sys.version_info[0] < 3:
     EXEC_STATEMENT = "exec code in globals()"
 else:
     EXEC_STATEMENT = "exec(code,globals())"
+
 _CUSTOM_WIN32_CHAINLOADER = """
+
 _orig_chainload = _chainload
 def _chainload(target_dir):
   mydir = dirname(sys.executable)
@@ -178,10 +201,14 @@ def _chainload(target_dir):
               #  Adjust various cxfreeze global vars
               global DIR_NAME, FILE_NAME, EXCLUSIVE_ZIP_FILE_NAME
               global SHARED_ZIP_FILE_NAME, INITSCRIPT_ZIP_FILE_NAME
-              DIR_NAME = DIR_NAME.replace(mydir,target_dir)
-              FILE_NAME = FILE_NAME.replace(mydir,target_dir)
-              EXCLUSIVE_ZIP_FILE_NAME = EXCLUSIVE_ZIP_FILE_NAME.replace(mydir,target_dir)
-              SHARED_ZIP_FILE_NAME = SHARED_ZIP_FILE_NAME.replace(mydir,target_dir)
+              # TODO: are these derivations correct?
+              FILE_NAME = sys.executable
+              DIR_NAME = dirname(sys.executable)
+              if FILE_NAME.endswith(".exe"):
+                  EXCLUSIVE_ZIP_FILE_NAME = pathjoin(DIR_NAME,basename(FILE_NAME)[:-4]+".zip")
+              else:
+                  EXCLUSIVE_ZIP_FILE_NAME = pathjoin(DIR_NAME,basename(FILE_NAME)+".zip")
+              SHARED_ZIP_FILE_NAME = pathjoin(DIR_NAME,"library.zip")
               INITSCRIPT_ZIP_FILE_NAME = init_path
               try:
                   %s
@@ -197,5 +224,63 @@ def _chainload(target_dir):
       else:
           _orig_chainload(target_dir)
 """ % (INITNAME,EXEC_STATEMENT)
+
+
+#  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
+#  exe doesn't have a python runtime, it needs to chainload the one from the
+#  target version dir before trying to bootstrap in-process.
+_CUSTOM_PYPY_CHAINLOADER = """
+
+_orig_chainload = _chainload
+def _chainload(target_dir):
+  mydir = dirname(sys.executable)
+  pydll = "python%s%s.dll" % sys.version_info[:2]
+  if not exists(pathjoin(target_dir,pydll)):
+      _orig_chainload(target_dir)
+  else:
+      py = libpython(pydll)
+
+      #Py_NoSiteFlag = 1;
+      #Py_FrozenFlag = 1;
+      #Py_IgnoreEnvironmentFlag = 1;
+
+      py.SetPythonHome("")
+      py.Initialize()
+      # TODO: can't get this through pypy's type annotator.
+      # going to fudge it in python instead :-)
+      #py.Sys_SetArgv(list(sys.argv))
+      syspath = py.GetProgramFullPath() + ";"
+      sysfilenm = basename(py.GetProgramFullPath())
+      i = 0
+      while i < len(sysfilenm) and sysfilenm[i:] != ".exe":
+          i += 1
+      sysfilenm = sysfilenm[:i]
+      sysdir = dirname(py.GetProgramFullPath())
+      syspath += sysdir + "\\%s.zip;" % (sysfilenm,)
+      syspath += sysdir + "\\library.zip;"
+      syspath += sysdir
+      py.Sys_SetPath(syspath);
+      #  Escape any double-quotes in sys.argv, so we can easily
+      #  include it in a python-level string.
+      new_argvs = []
+      for arg in sys.argv:
+          new_argvs.append('"' + arg.replace('"','\\"') + '"')
+      new_argv = "[" + ",".join(new_argvs) + "]"
+      py.Run_SimpleString("import sys; sys.argv = %s" % (new_argv,))
+      py.Run_SimpleString("import sys; sys.frozen = 'cxfreeze'" % (new_argv,))
+      globals = py.Dict_New()
+      py.Dict_SetItemString(globals,"__builtins__",py.Eval_GetBuiltins())
+      esc_target_dir_chars = []
+      for c in target_dir:
+          if c == "\\\\":
+              esc_target_dir_chars.append("\\\\")
+          esc_target_dir_chars.append(c)
+      esc_target_dir = "".join(esc_target_dir_chars)
+      script = _PYPY_CHAINLOADER_SCRIPT % (esc_target_dir,)
+      py.Run_String(script,py.file_input,globals)
+      py.Finalize()
+      sys.exit(0)
+
+"""
 
 
