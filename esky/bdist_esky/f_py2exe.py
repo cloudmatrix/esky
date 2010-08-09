@@ -134,7 +134,7 @@ def freeze(dist):
         if not os.path.isdir(dstdir):
             dist.mkpath(dstdir)
         dist.copy_file(src,dst)
-    #  Place a marker fileso we know how it was frozen
+    #  Place a marker file so we know how it was frozen
     os.mkdir(os.path.join(dist.freeze_dir,ESKY_CONTROL_DIR))
     marker_file = os.path.join(ESKY_CONTROL_DIR,"f-py2exe-%d%d.txt")%sys.version_info[:2]
     open(os.path.join(dist.freeze_dir,marker_file),"w").close()
@@ -180,6 +180,10 @@ def freeze(dist):
             if not exe.include_in_bootstrap_env:
                 continue
             dist.compile_to_bootstrap_exe(exe,code_source)
+        #  We may also need the bundled MSVCRT libs
+        for nm in os.listdir(dist.freeze_dir):
+            if is_core_dependency(nm) and nm.startswith("Microsoft"):
+                dist.copy_to_bootstrap_env(nm)
     else:
         code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
         code_source.append(_CUSTOM_WIN32_CHAINLOADER)
@@ -274,6 +278,10 @@ def _chainload(target_dir):
   if __esky_bootstrap_pypy__:
       if not exists(pathjoin(target_dir,pydll)):
           return _orig_chainload(target_dir)
+      try:
+          environ["PATH"] = environ["PATH"] + ";" + target_dir
+      except KeyError:
+          environ["PATH"] = target_dir
   else:
       for nm in listdir(target_dir):
           if nm == pydll:
@@ -378,7 +386,7 @@ def _chainload(target_dir):
   if not exists(pathjoin(target_dir,pydll)):
       _orig_chainload(target_dir)
   else:
-      py = libpython(pydll)
+      py = libpython(pathjoin(target_dir,pydll))
 
       #Py_NoSiteFlag = 1;
       #Py_FrozenFlag = 1;
