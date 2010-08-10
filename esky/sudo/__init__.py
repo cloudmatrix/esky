@@ -6,7 +6,7 @@
 
 This module provides the infrastructure for spawning a stand-alone "helper app"
 to install updates with root privileges.  The class "SudoProxy" provides a
-proxy to the methods of an object via a root-preivileged helper process.
+proxy to the methods of an object via a root-privileged helper process.
 
 Example:
 
@@ -96,7 +96,12 @@ class SudoProxy(object):
     """Object method proxy with root privileges."""
 
     def __init__(self,target):
-        self.name = target.name
+        #  Reflect the 'name' attribute if it has one, but don't worry
+        #  if not.  This helps SudoProxy be re-used on other clases.
+        try:
+            self.name = target.name
+        except AttributeError:
+            pass
         self.target = target
         self.closed = False
         self.pipe = None

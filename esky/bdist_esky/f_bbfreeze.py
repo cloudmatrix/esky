@@ -194,15 +194,16 @@ _CUSTOM_PYPY_CHAINLOADER = """
 _orig_chainload = _chainload
 def _chainload(target_dir):
   mydir = dirname(sys.executable)
-  pydll = "python%s%s.dll" % sys.version_info[:2]
-  if not exists(pathjoin(target_dir,pydll)):
+  pydll = pathjoin(target_dir,"python%s%s.dll" % sys.version_info[:2])
+  if not exists(pydll):
       _orig_chainload(target_dir)
   else:
       py = libpython(pydll)
 
-      #Py_NoSiteFlag = 1;
-      #Py_FrozenFlag = 1;
-      #Py_IgnoreEnvironmentFlag = 1;
+
+      py.Set_NoSiteFlag(1)
+      py.Set_FrozenFlag(1)
+      py.Set_IgnoreEnvironmentFlag(1)
 
       py.SetPythonHome("")
       py.Initialize()

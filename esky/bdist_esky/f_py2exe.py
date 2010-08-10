@@ -382,32 +382,32 @@ _CUSTOM_PYPY_CHAINLOADER = """
 _orig_chainload = _chainload
 def _chainload(target_dir):
   mydir = dirname(sys.executable)
-  pydll = "python%s%s.dll" % sys.version_info[:2]
-  if not exists(pathjoin(target_dir,pydll)):
+  pydll = pathjoin(target_dir,"python%s%s.dll" % sys.version_info[:2])
+  if not exists(pydll):
       _orig_chainload(target_dir)
   else:
-      py = libpython(pathjoin(target_dir,pydll))
+      py = libpython(pydll)
 
-      #Py_NoSiteFlag = 1;
-      #Py_FrozenFlag = 1;
-      #Py_IgnoreEnvironmentFlag = 1;
+      py.Set_NoSiteFlag(1)
+      py.Set_FrozenFlag(1)
+      py.Set_IgnoreEnvironmentFlag(1)
 
       py.SetPythonHome("")
       py.Initialize()
-      # TODO: can't get this through pypy's type annotator.
-      # going to fudge it in python instead :-)
-      #py.Sys_SetArgv(list(sys.argv))
       syspath = dirname(py.GetProgramFullPath());
       syspath = syspath + "\\library.zip;" + syspath
       py.Sys_SetPath(syspath);
+      # TODO: can't get this through pypy's type annotator.
+      # going to fudge it in python instead :-)
+      #py.Sys_SetArgv(list(sys.argv))
       #  Escape any double-quotes in sys.argv, so we can easily
       #  include it in a python-level string.
-      new_argvs = []
-      for arg in sys.argv:
-          new_argvs.append('"' + arg.replace('"','\\"') + '"')
-      new_argv = "[" + ",".join(new_argvs) + "]"
-      py.Run_SimpleString("import sys; sys.argv = %s" % (new_argv,))
-      py.Run_SimpleString("import sys; sys.frozen = 'bbfreeze'" % (new_argv,))
+      #new_argvs = []
+      #for arg in sys.argv:
+      #    new_argvs.append('"' + arg.replace('"','\\"') + '"')
+      #new_argv = "[" + ",".join(new_argvs) + "]"
+      #py.Run_SimpleString("import sys; sys.argv = %s" % (new_argv,))
+      #py.Run_SimpleString("import sys; sys.frozen = 'py2exe'" % (new_argv,))
       globals = py.Dict_New()
       py.Dict_SetItemString(globals,"__builtins__",py.Eval_GetBuiltins())
       esc_target_dir_chars = []

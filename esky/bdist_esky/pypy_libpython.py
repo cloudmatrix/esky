@@ -13,14 +13,42 @@ pypy-compiled bootstrap exes to bootstrap a version dir in-process.
 from pypy.rlib import libffi
 from pypy.rpython.lltypesystem import rffi, lltype
 
-class libpython:
+
+class libpython(object):
 
     file_input = 257
 
 
     def __init__(self,library_path):
         self.lib = libffi.CDLL(library_path)
+        self._libc = libffi.CDLL(libffi.get_libc_name())
 
+
+    def Set_NoSiteFlag(self,value):
+        addr = self.lib.getaddressindll("Py_NoSiteFlag")
+        memset = self._libc.getpointer("memset",[libffi.ffi_type_pointer,libffi.ffi_type_uint,libffi.ffi_type_uint],libffi.ffi_type_void)
+        memset.push_arg(addr)
+        memset.push_arg(value)
+        memset.push_arg(1)
+        memset.call(lltype.Void)
+
+
+    def Set_FrozenFlag(self,value):
+        addr = self.lib.getaddressindll("Py_FrozenFlag")
+        memset = self._libc.getpointer("memset",[libffi.ffi_type_pointer,libffi.ffi_type_uint,libffi.ffi_type_uint],libffi.ffi_type_void)
+        memset.push_arg(addr)
+        memset.push_arg(value)
+        memset.push_arg(1)
+        memset.call(lltype.Void)
+
+
+    def Set_IgnoreEnvironmentFlag(self,value):
+        addr = self.lib.getaddressindll("Py_IgnoreEnvironmentFlag")
+        memset = self._libc.getpointer("memset",[libffi.ffi_type_pointer,libffi.ffi_type_uint,libffi.ffi_type_uint],libffi.ffi_type_void)
+        memset.push_arg(addr)
+        memset.push_arg(value)
+        memset.push_arg(1)
+        memset.call(lltype.Void)
 
     def Initialize(self):
         impl = self.lib.getpointer("Py_Initialize",[],libffi.ffi_type_void)

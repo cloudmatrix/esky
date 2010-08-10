@@ -33,6 +33,7 @@ use during the bootstrap process:
 
 """
 
+
 import sys
 import errno
 
@@ -48,6 +49,7 @@ if "posix" in sys.builtin_module_names:
     import fcntl
     from posix import listdir, stat, unlink, rename, execv, getcwd, environ
     from posix import open as os_open
+    from posix import read as os_read
     from posix import close as os_close
     SEP = "/"
     def isabs(path):
@@ -58,6 +60,7 @@ elif "nt" in sys.builtin_module_names:
     from nt import listdir, stat, unlink, rename, spawnv
     from nt import getcwd, P_WAIT, environ
     from nt import open as os_open
+    from nt import read as os_read
     from nt import close as os_close
     SEP = "\\"
     def isabs(path):
@@ -127,12 +130,15 @@ if __esky_compile_with_pypy__:
         executable = _sys.executable
         argv = _sys.argv
         version_info = _sys.version_info
+        modules = {}
+        builtin_module_names = _sys.builtin_module_names
         def exit(self,code):
             _exit_code[0] = code
             raise SystemExit(code)
         def exc_info(self):
             return None,None,None
     sys = sys()
+    sys.modules["sys"] = sys
     #  RPython doesn't provide the sorted() builtin, and actually makes sorting
     #  quite complicated in general.  I can't convince the type annotator to be
     #  happy about using their "listsort" module, so I'm doing my own using a
