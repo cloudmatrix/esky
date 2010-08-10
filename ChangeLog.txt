@@ -6,8 +6,8 @@ v0.8.5:
     * FSTransaction:  accept an optional "root" parameter, and enforce all
       operations to be inside this root.
     * bdist_esky:  accept wider variety of objects for bootstrap_code option
-      and Executable.script attribute. Lists are concatenated, source is
-      obtained using inspect.getsource().
+      and Executable.script attribute. Lists are concatenated, files are read,
+      strings are raw code, and all else is passed to inspect.getsource().
     * Made bdist_esky.Executable a subclass of unicode rather than str.
 
 v0.8.4:
