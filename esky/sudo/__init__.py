@@ -96,7 +96,12 @@ class SudoProxy(object):
     """Object method proxy with root privileges."""
 
     def __init__(self,target):
-        self.name = target.name
+        #  Reflect the 'name' attribute if it has one, but don't worry
+        #  if not.  This helps SudoProxy be re-used on other clases.
+        try:
+            self.name = target.name
+        except AttributeError:
+            pass
         self.target = target
         self.closed = False
         self.pipe = None
