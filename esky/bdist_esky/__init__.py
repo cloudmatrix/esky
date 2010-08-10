@@ -349,8 +349,8 @@ class bdist_esky(Command):
         bscode = self.bootstrap_code
         if bscode is None:
             if self.bootstrap_module is not None:
-                bscode = __import__(dist.bootstrap_module)
-                for submod in dist.bootstrap_module.split(".")[1:]:
+                bscode = __import__(self.bootstrap_module)
+                for submod in self.bootstrap_module.split(".")[1:]:
                     bscode = getattr(bscode,submod)
         bscode = self._obj2code(bscode)
         return bscode
