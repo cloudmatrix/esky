@@ -1,6 +1,10 @@
 
 v0.8.5:
 
+    * FSTransaction:  better error handling, and better detection of cases
+      where native transactions will fail (e.g. on a FAT32 USB device).
+    * FSTransaction:  accept an optional "root" parameter, and enforce all
+      operations to be inside this root.
     * bdist_esky:  accept wider variety of objects for bootstrap_code option
       and Executable.script attribute. Lists are concatenated, source is
       obtained using inspect.getsource().

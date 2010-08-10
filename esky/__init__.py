@@ -809,7 +809,7 @@ class Esky(object):
         try:
             if not os.path.exists(target):
                 os.rename(source,target)
-            trn = esky.fstransact.FSTransaction()
+            trn = esky.fstransact.FSTransaction(self.appdir)
             try:
                 self._unpack_bootstrap_env(version,trn)
             except Exception:
@@ -878,7 +878,7 @@ class Esky(object):
             #  Clean up the bootstrapping environment in a transaction.
             #  This might fail on windows if the version is locked.
             try:
-                trn = esky.fstransact.FSTransaction()
+                trn = esky.fstransact.FSTransaction(self.appdir)
                 try:
                     self._cleanup_bootstrap_env(version,trn)
                 except Exception:
