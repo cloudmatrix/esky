@@ -633,8 +633,6 @@ if __esky_compile_with_pypy__:
              except SystemExit, e:
                  return _exit_code[0]
              except Exception, e:
-                 # TODO: remove this
-                 print "BOOTSTRAP ERROR", e
                  return 1
              return 0
         return entry_point, None

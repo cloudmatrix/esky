@@ -38,14 +38,15 @@ if sys.platform == "win32":
     from xml.dom import minidom
 
 try:
-    import pypy.translator.goal.translate
+    from esky.bdist_esky import pypyc
 except ImportError:
-    pypy = None
+    pypyc = None
     COMPILED_BOOTSTRAP_CACHE = None
 else:
     COMPILED_BOOTSTRAP_CACHE = os.path.dirname(__file__)
     if not os.path.isdir(COMPILED_BOOTSTRAP_CACHE):
         COMPILED_BOOTSTRAP_CACHE = None
+
 
 
 #  setuptools likes to be imported before anything else that
@@ -254,7 +255,7 @@ class bdist_esky(Command):
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
-        if self.compile_bootstrap_exes and pypy is None:
+        if self.compile_bootstrap_exes and pypyc is None:
             err = "compiling bootstrap exes requires pypy installed."
             raise RuntimeError(err)
         if self.freezer_module is None:
@@ -626,13 +627,14 @@ class bdist_esky(Command):
         if not os.path.exists(cdir):
             os.mkdir(cdir)
         source_hash = hashlib.md5(source).hexdigest()
-        outname = "bootstrap_%s" % (source_hash,)
+        outname = "bootstrap_%s.%s" % (source_hash,get_platform())
+        if exe.gui_only:
+            outname += ".gui"
         if sys.platform == "win32":
             outname += ".exe"
         #  First try to use a precompiled version.
         if COMPILED_BOOTSTRAP_CACHE is not None:
-            cachedname = outname + "." + get_platform()
-            outfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,cachedname)
+            outfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,outname)
             if os.path.exists(outfile):
                 self.copy_to_bootstrap_env(outfile,exe.name)
                 return
@@ -644,20 +646,13 @@ class bdist_esky(Command):
             outfile = os.path.join(cdir,outname)
             with open(infile,"wt") as f:
                 f.write(source)
-            orig_argv = sys.argv[:]
-            try:
-                sys.argv[0] = sys.executable
-                sys.argv[1:] = ["--output",outfile,"--batch"]
-                sys.argv.append(infile)
-                pypy.translator.goal.translate.main()
-            finally:
-               sys.argv = orig_argv
+            opts = dict(gui_only=exe.gui_only)
+            pypyc.compile_rpython(infile,outfile,**opts)
             self._compiled_exes[source_hash] = outfile
         self.copy_to_bootstrap_env(outfile,exe.name)
         #  Try to save the compiled exe for future use.
         if COMPILED_BOOTSTRAP_CACHE is not None:
-            cachedname = outname + "." + get_platform()
-            cachedfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,cachedname)
+            cachedfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,outname)
             try:
                 shutil.copy2(outfile,cachedfile)
             except EnvironmentError:
