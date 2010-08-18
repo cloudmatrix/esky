@@ -137,7 +137,7 @@ from __future__ import absolute_import
 
 __ver_major__ = 0
 __ver_minor__ = 8
-__ver_patch__ = 4
+__ver_patch__ = 5
 __ver_sub__ = ""
 __ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
@@ -809,7 +809,7 @@ class Esky(object):
         try:
             if not os.path.exists(target):
                 os.rename(source,target)
-            trn = esky.fstransact.FSTransaction()
+            trn = esky.fstransact.FSTransaction(self.appdir)
             try:
                 self._unpack_bootstrap_env(version,trn)
             except Exception:
@@ -878,7 +878,7 @@ class Esky(object):
             #  Clean up the bootstrapping environment in a transaction.
             #  This might fail on windows if the version is locked.
             try:
-                trn = esky.fstransact.FSTransaction()
+                trn = esky.fstransact.FSTransaction(self.appdir)
                 try:
                     self._cleanup_bootstrap_env(version,trn)
                 except Exception:

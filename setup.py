@@ -51,7 +51,7 @@ CLASSIFIERS = [
 
 
 PACKAGES = ["esky","esky.bdist_esky","esky.tests","esky.tests.eskytester",
-            "esky.sudo"]
+            "esky.sudo","esky.fstransact"]
 EXT_MODULES = []
 PKG_DATA = {"esky.tests.eskytester":["pkgdata.txt","datafile.txt"],
             "esky.tests":["patch-test-files/*.patch"]}

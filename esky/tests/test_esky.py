@@ -424,6 +424,16 @@ class TestFSTransact(unittest.TestCase):
         with open(self.path(path),"rb") as f:
             self.assertEquals(f.read().decode(),contents)
 
+    def test_no_move_outside_root(self):
+        self.setContents("file1","hello world")
+        trn = FSTransaction(self.testdir)
+        trn.move(self.path("file1"),"file2")
+        trn.commit()
+        self.assertContents("file2","hello world")
+        trn = FSTransaction(self.testdir)
+        self.assertRaises(ValueError,trn.move,self.path("file2"),"../file1")
+        trn.abort()
+
     def test_move_file(self):
         self.setContents("file1","hello world")
         trn = FSTransaction()
