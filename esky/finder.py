@@ -103,10 +103,8 @@ class DefaultVersionFinder(VersionFinder):
     downloaded and extracted on request.
 
     Zipfiles suitable for use with this class can be produced using the
-    "bdist_esky" distutils command.
-
-    This class will eventually grow support for applying differential updates,
-    but I haven't implemented it yet...
+    "bdist_esky" distutils command.  It also supports simple differential
+    updates as produced by the "bdist_esky_patch" command.
     """
 
     def __init__(self,download_url):
