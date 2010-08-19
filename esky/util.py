@@ -200,6 +200,7 @@ def common_prefix(iterables):
         prefix = prefix[:count]
     return prefix
 
+
 def appdir_from_executable(exepath):
     """Find the top-level application directory, given sys.executable."""
     vdir = _bs_appdir_from_executable(exepath)
