@@ -135,14 +135,16 @@ def bootstrap():
     chain-loads that version of the application.
     """
     appdir = appdir_from_executable(sys.executable)
+    #vsdir = pathjoin(appdir,"versions")
+    vsdir = appdir
     best_version = None
     if __esky_name__ is not None:
-        best_version = get_best_version(appdir,appname=__esky_name__)
+        best_version = get_best_version(vsdir,appname=__esky_name__)
     if best_version is None:
-        best_version = get_best_version(appdir)
+        best_version = get_best_version(vsdir)
     if best_version is None:
         raise RuntimeError("no usable frozen versions were found")
-    return chainload(pathjoin(appdir,best_version))
+    return chainload(pathjoin(vsdir,best_version))
 
 
 def chainload(target_dir):

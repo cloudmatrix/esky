@@ -260,6 +260,7 @@ class Esky(object):
         if os.path.isfile(appdir_or_exe):
             self.appdir = appdir_from_executable(appdir_or_exe)
             vdir = appdir_or_exe[len(self.appdir):].split(os.sep)[1]
+            #vdir = appdir_or_exe[len(self.appdir):].split(os.sep)[2]
             details = split_app_version(vdir)
             self.name,self.active_version,self.platform = details
         else:
@@ -283,7 +284,7 @@ class Esky(object):
 
     def _get_versions_dir(self):
         """Get the directory path containing individual version dirs."""
-        #return os.path.join(self.appdir,"updates")
+        #return os.path.join(self.appdir,"versions")
         return self.appdir
 
     def get_abspath(self,relpath):
@@ -505,31 +506,32 @@ class Esky(object):
         if self.active_version and self.active_version != best_version:
             yield lambda: False
             manifest.add(self.active_version)
-        for nm in os.listdir(appdir):
-            if nm not in manifest:
-                fullnm = os.path.join(appdir,nm)
-                if is_version_dir(fullnm):
-                    #  It's an installed-but-obsolete version.  Properly
-                    #  uninstall it so it will clean up the bootstrap env.
-                    (_,v,_) = split_app_version(nm)
-                    try:
-                        yield (self.uninstall_version, (v,))
-                    except VersionLockedError:
-                        yield lambda: False
+        for tdir in (appdir,vsdir):
+            for nm in os.listdir(tdir):
+                if nm not in manifest:
+                    fullnm = os.path.join(tdir,nm)
+                    if is_version_dir(fullnm):
+                        #  It's an installed-but-obsolete version.  Properly
+                        #  uninstall it so it will clean up the bootstrap env.
+                        (_,v,_) = split_app_version(nm)
+                        try:
+                            yield (self.uninstall_version, (v,))
+                        except VersionLockedError:
+                            yield lambda: False
+                        else:
+                            yield (self._try_remove, (tdir,nm,manifest,))
+                    elif is_uninstalled_version_dir(fullnm):
+                        #  It's a partially-removed version; finish removing it.
+                        yield (self._try_remove, (tdir,nm,manifest,))
+                    elif ".old." in nm or nm.endswith(".old"):
+                        #  It's a temporary backup file; remove it.
+                        yield (self._try_remove, (tdir,nm,manifest,))
                     else:
-                        yield (self._try_remove, (appdir,nm,manifest,))
-                elif is_uninstalled_version_dir(fullnm):
-                    #  It's a partially-removed version; finish removing it.
-                    yield (self._try_remove, (appdir,nm,manifest,))
-                elif ".old." in nm or nm.endswith(".old"):
-                    #  It's a temporary backup file; remove it.
-                    yield (self._try_remove, (appdir,nm,manifest,))
-                else:
-                    #  It's an unaccounted-for entry in the bootstrap env.
-                    #  Can't prove it's safe to remove, so leave it.
-                    pass
+                        #  It's an unaccounted-for entry in the bootstrap env.
+                        #  Can't prove it's safe to remove, so leave it.
+                        pass
         #  If there are pending overwrites, try to do them.
-        ovrdir = os.path.join(appdir,best_version,ESKY_CONTROL_DIR,"overwrite")
+        ovrdir = os.path.join(vsdir,best_version,ESKY_CONTROL_DIR,"overwrite")
         if os.path.exists(ovrdir):
             try:
                 for (dirnm,_,filenms) in os.walk(ovrdir,topdown=False):

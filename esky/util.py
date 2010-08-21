@@ -205,6 +205,7 @@ def appdir_from_executable(exepath):
     """Find the top-level application directory, given sys.executable."""
     vdir = _bs_appdir_from_executable(exepath)
     appdir = os.path.dirname(vdir)
+    #appdir = os.path.dirname(os.path.dirname(vdir))
     if os.path.exists(os.path.join(appdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
         appdir = os.path.dirname(appdir)
     return appdir
