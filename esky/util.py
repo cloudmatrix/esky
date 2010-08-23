@@ -46,7 +46,6 @@ def lazy_import(func):
     return _LazyImport(func.func_name,func,namespace)
 
 
-
 class _LazyImport(object):
     """Class representing a lazy import."""
 

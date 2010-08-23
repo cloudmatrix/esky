@@ -303,6 +303,7 @@ def chainload(target_dir):
             if not exists(pathjoin(target_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
                 # TODO: remove compatability hook
                 if not exists(pathjoin(target_dir,"esky-bootstrap.txt")):
+                    raise ValueError(sys)
                     execv(sys.executable,list(sys.argv))
                     return
         raise

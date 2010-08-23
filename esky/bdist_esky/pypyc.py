@@ -34,7 +34,7 @@ def compile_rpython(infile,outfile,gui_only=False,static_msvcrt=False):
 #
 if sys.platform == "win32":
   import pypy.translator.platform.windows
-  class CustomWin32Platform(pypy.translator.platform.windows):
+  class CustomWin32Platform(pypy.translator.platform.windows.MsvcPlatform):
       """Custom PyPy platform object with fancy windows features.
 
       This platform knows how to do two things that native PyPy cannot -
@@ -51,9 +51,10 @@ if sys.platform == "win32":
               with open(str(cfile),"r+b") as f:
                   f.seek(0,os.SEEK_END)
                   f.write(WINMAIN_STUB)
-          super(CustomWin32Platform,self)._compile_c_file(cc,cfile,compile_args)
+          return super(CustomWin32Platform,self)._compile_c_file(cc,cfile,compile_args)
 
       def _link(self,cc,ofiles,link_args,standalone,exe_name):
+          print "LINK", ofiles
           #  Link against windows subsystem if gui-only is specified.
           if self.gui_only:
               link_args.append("/subsystem:windows")
@@ -61,11 +62,13 @@ if sys.platform == "win32":
           if not self.static_msvcrt:
               if "/MT" in self.cflags:
                   self.cflags.remove("/MT")
-              self.cflags.append("/MD")
+              if "/MD" not in self.cflags:
+                  self.cflags.append("/MD")
           else:
               if "/MD" in self.cflags:
                   self.cflags.remove("/MD")
-              self.cflags.append("/MT")
+              if "/MT" not in self.cflags:
+                  self.cflags.append("/MT")
               #  Static linking means no manifest is generated.
               #  Create a fake one so PyPy doesn't get confused.
               if self.version >= 80:
@@ -74,9 +77,15 @@ if sys.platform == "win32":
                   manifest += '.manifest'
                   with open(manifest,"w") as mf:
                       mf.write(DUMMY_MANIFEST)
-          return super(CustomWin32Platform,self)._link(cc,ofiles,link_args,
-                                                       standalone,exe_name)
-      pypy.translator.platform.host_factory = CustomWin32Platform
+          return super(CustomWin32Platform,self)._link(cc,ofiles,link_args,standalone,exe_name)
+
+      def _finish_linking(self,ofiles,*args,**kwds):
+          print "FINISH LINKING", ofiles
+          return super(CustomWin32Platform,self)._finish_linking(ofiles,*args,**kwds)
+
+  pypy.translator.platform.platform = CustomWin32Platform()
+  pypy.translator.platform.host = pypy.translator.platform.platform
+  pypy.translator.platform.host_factory = lambda *a: pypy.translator.platform.platform
 
 
 

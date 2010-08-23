@@ -202,6 +202,7 @@ def freeze(dist):
         #  bootstrap env small and minimise the chance of something going wrong.
         pydll = u"python%d%d.dll" % sys.version_info[:2]
         frozen_pydll = os.path.join(dist.freeze_dir,pydll)
+        pydll_bytes = None
         if os.path.exists(frozen_pydll):
             for nm in os.listdir(dist.freeze_dir):
                 if nm == pydll:
@@ -236,10 +237,10 @@ def freeze(dist):
                 continue
             exepath = dist.copy_to_bootstrap_env(exe.name)
             #  Insert the bootstrap code into the exe as a resource.
-            #  This appears to have the happy side-effect of stripping any extra
-            #  data from the end of the exe, which is exactly what we want when
-            #  zipfile=None is specified; otherwise each bootstrap EXE would
-            #  also contain the whole bundled zipfile.
+            #  This appears to have the happy side-effect of stripping any
+            #  extra data from the end of the exe, which is exactly what we
+            #  want when zipfile=None is specified; otherwise each bootstrap
+            #  exe would also contain the whole bundled zipfile.
             winres.add_resource(exepath,coderes,u"PYTHONSCRIPT",1,0)
             #  Inline the pythonXY.dll as a resource in the exe.
             if pydll_bytes is not None:
