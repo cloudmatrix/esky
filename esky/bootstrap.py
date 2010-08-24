@@ -198,6 +198,14 @@ def get_exe_locations(target_dir):
         yield target_dir + orig_executable[len(appdir):]
 
 
+def verify(target_file):
+    """Verify the integrity of the given target file.
+
+    By default this is a no-op; override it to provide e.g. signature checks.
+    """
+    pass
+
+
 def _chainload(target_dir):
     """Default implementation of the chainload() function.
 
@@ -206,6 +214,7 @@ def _chainload(target_dir):
     """
     exc_type,exc_value,traceback = None,None,None
     for target_exe in get_exe_locations(target_dir):
+        verify(target_exe)
         try:
             execv(target_exe,[target_exe] + sys.argv[1:])
         except EnvironmentError:

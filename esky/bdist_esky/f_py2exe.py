@@ -259,9 +259,11 @@ def _chainload(target_dir):
                   break
       sys.bootstrap_executable = sys.executable
       sys.executable = pathjoin(target_dir,basename(sys.executable))
+      verify(sys.executable)
       sys.argv[0] = sys.executable
       for i in xrange(len(sys.path)):
           sys.path[i] = sys.path[i].replace(mydir,target_dir)
+      sys.prefix = sys.prefix.replace(mydir,target_dir)
       libfile = pathjoin(target_dir,"library.zip")
       if exists(libfile) and libfile not in sys.path:
           sys.path.append(libfile)
@@ -325,9 +327,7 @@ def _chainload(target_dir):
           codestart += 1
           codelist = marshal.loads(data[codestart:codestart+codesz])
           # Execute all code in the context of __main__ module.
-          # Remove our own cruft from it before doing so.
           d_locals = d_globals = sys.modules["__main__"].__dict__
-          d_locals.clear()
           d_locals["__name__"] = "__main__"
           for code in codelist:
               exec code in d_globals, d_locals

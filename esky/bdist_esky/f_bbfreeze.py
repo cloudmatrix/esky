@@ -131,11 +131,13 @@ def _chainload(target_dir):
   else:
       sys.bootstrap_executable = sys.executable
       sys.executable = pathjoin(target_dir,basename(sys.executable))
+      verify(sys.executable)
       sys.argv[0] = sys.executable
       for i in xrange(len(sys.path)):
           sys.path[i] = sys.path[i].replace(mydir,target_dir)
       import zipimport
       try:
+          verify(sys.path[0])
           importer = zipimport.zipimporter(sys.path[0])
           code = importer.get_code("__main__")
       except ImportError:
