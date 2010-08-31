@@ -103,10 +103,8 @@ class DefaultVersionFinder(VersionFinder):
     downloaded and extracted on request.
 
     Zipfiles suitable for use with this class can be produced using the
-    "bdist_esky" distutils command.
-
-    This class will eventually grow support for applying differential updates,
-    but I haven't implemented it yet...
+    "bdist_esky" distutils command.  It also supports simple differential
+    updates as produced by the "bdist_esky_patch" command.
     """
 
     def __init__(self,download_url):
@@ -290,14 +288,17 @@ class DefaultVersionFinder(VersionFinder):
                         raise
             # Move anything that's not the version dir into esky/bootstrap
             vdir = join_app_version(app.name,version,app.platform)
-            bspath = os.path.join(uppath,vdir,ESKY_CONTROL_DIR,"bootstrap")
+            #vsdir = os.path.join(uppath,"versions")
+            vsdir = uppath
+            bspath = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR,"bootstrap")
             if not os.path.isdir(bspath):
                 os.makedirs(bspath)
             for nm in os.listdir(uppath):
                 if nm != vdir:
+                #if nm != "versions":
                     os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
             # Check that it has an esky-files/bootstrap-manifest.txt file
-            bsfile = os.path.join(uppath,vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
+            bsfile = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
             if not os.path.exists(bsfile):
                 self.version_graph.remove_all_links(path[0][1])
                 err = "patch didn't create bootstrap-manifest.txt"
@@ -306,7 +307,7 @@ class DefaultVersionFinder(VersionFinder):
             rdpath = self._ready_name(app,version)
             if os.path.exists(rdpath):
                 shutil.rmtree(rdpath)
-            os.rename(os.path.join(uppath,vdir),rdpath)
+            os.rename(os.path.join(vsdir,vdir),rdpath)
             for (filenm,_) in path:
                 os.unlink(filenm)
         finally:
@@ -316,6 +317,9 @@ class DefaultVersionFinder(VersionFinder):
         best_vdir = join_app_version(app.name,app.version,app.platform)
         source = os.path.join(app.appdir,best_vdir)
         shutil.copytree(source,os.path.join(uppath,best_vdir))
+        #source = os.path.join(app.appdir,"versions",best_vdir)
+        #os.mkdir(os.path.join(uppath,"versions"))
+        #shutil.copytree(source,os.path.join(uppath,"versions",best_vdir))
         with open(os.path.join(source,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"r") as manifest:
             for nm in manifest:
                 nm = nm.strip()

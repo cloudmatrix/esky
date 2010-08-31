@@ -92,12 +92,12 @@ assert app.find_update() == "0.3"
 
 assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
-assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
-assert os.path.isfile(os.path.join(app.appdir,"eskytester-0.2."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
+assert os.path.isfile(os.path.join(app._get_versions_dir(),"eskytester-0.1."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
+assert os.path.isfile(os.path.join(app._get_versions_dir(),"eskytester-0.2."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
 
 
 #  Check that we can't uninstall a version that's in use.
-assert esky.util.is_locked_version_dir(os.path.join(app.appdir,"eskytester-0.1."+esky.util.get_platform()))
+assert esky.util.is_locked_version_dir(os.path.join(app._get_versions_dir(),"eskytester-0.1."+esky.util.get_platform()))
 try:
     app.uninstall_version("0.1")
 except esky.VersionLockedError:

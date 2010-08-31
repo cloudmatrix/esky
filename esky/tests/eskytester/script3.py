@@ -26,7 +26,7 @@ if os.environ.get("ESKY_NEEDSROOT",""):
     app.get_root()
 
 app.cleanup()
-assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
+assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
 assert os.path.isfile(eskytester.script_path(app,"script3"))
 

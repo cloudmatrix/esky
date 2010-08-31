@@ -1,4 +1,10 @@
 
+v????
+
+    * Add "verify()" function to the bootstrap env, which is called to verify
+      files before they are chainloaded.  The default implementation is empty,
+      but it could be overridden to perform e.g. signature checking.
+
 v0.8.5:
 
     * FSTransaction:  better error handling, and better detection of cases

@@ -320,6 +320,8 @@ class bdist_esky(Command):
         platform = get_platform()
         self.bootstrap_dir = os.path.join(self.dist_dir,
                                           "%s.%s"%(fullname,platform,))
+        #self.freeze_dir = os.path.join(self.bootstrap_dir,"versions",
+        #                               "%s.%s"%(fullname,platform,))
         self.freeze_dir = os.path.join(self.bootstrap_dir,
                                        "%s.%s"%(fullname,platform,))
         if os.path.exists(self.bootstrap_dir):

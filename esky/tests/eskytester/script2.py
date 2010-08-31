@@ -55,8 +55,8 @@ if sys.platform == "win32" and sys.hexversion >= 0x20600000:
     else:
         assert False, "MSVCRT not bundled in app dir"
 
-v1dir = os.path.join(app.appdir,"eskytester-0.1."+platform)
-v3dir = os.path.join(app.appdir,"eskytester-0.3."+platform)
+v1dir = os.path.join(app._get_versions_dir(),"eskytester-0.1."+platform)
+v3dir = os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform)
 if len(sys.argv) == 1:
     # This is the first time we've run this script.
     assert os.path.isdir(v1dir)
@@ -67,7 +67,7 @@ if len(sys.argv) == 1:
     assert not os.path.isdir(v1dir)
     assert not os.path.isdir(v3dir)
     #  Check that the bootstrap env is intact
-    with open(os.path.join(app.appdir,"eskytester-0.2."+platform,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"rt") as mf:
+    with open(os.path.join(app._get_versions_dir(),"eskytester-0.2."+platform,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"rt") as mf:
         for nm in mf:
             nm = nm.strip()
             assert os.path.exists(os.path.join(app.appdir,nm))
@@ -109,8 +109,8 @@ else:
     assert os.path.isfile(eskytester.script_path(app,"script2"))
     assert not os.path.isfile(eskytester.script_path(app,"script1"))
     assert os.path.isfile(eskytester.script_path(app,"script3"))
-    assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.2."+platform))
-    assert os.path.isdir(os.path.join(app.appdir,"eskytester-0.3."+platform))
+    assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.2."+platform))
+    assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform))
 
 
 if sys.platform == "darwin":
