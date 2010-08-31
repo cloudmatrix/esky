@@ -42,7 +42,7 @@ if sys.platform == "win32":
 #  On windows, test that we were chainloaded without an execv
 if sys.platform == "win32":
     if "ESKY_NO_CUSTOM_CHAINLOAD" not in os.environ:
-        assert hasattr(sys,"bootstrap_executable")
+        assert hasattr(sys,"bootstrap_executable"), "didn't chainload in-proc"
 
 if sys.platform == "darwin":
     open("../../../../../../tests-completed","w").close()

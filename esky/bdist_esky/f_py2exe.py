@@ -21,7 +21,6 @@ import shutil
 import inspect
 import zipfile
 import ctypes
-from glob import glob
 
 
 from py2exe.build_exe import py2exe
@@ -120,6 +119,10 @@ def freeze(dist):
     cmd = custom_py2exe(dist.distribution)
     cmd.includes = includes
     cmd.excludes = excludes
+    if "bundle_files" in options:
+        if options["bundle_files"] < 3 and dist.compile_bootstrap_exes:
+             err = "can't compile bootstrap exes when bundle_files < 3"
+             raise RuntimeError(err)
     for (nm,val) in options.iteritems():
         setattr(cmd,nm,val)
     cmd.dist_dir = dist.freeze_dir
@@ -179,7 +182,9 @@ def freeze(dist):
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            dist.compile_to_bootstrap_exe(exe,code_source)
+            fexe = os.path.join(dist.freeze_dir,exe.name)
+            bsexe = dist.compile_to_bootstrap_exe(exe,code_source)
+            winres.copy_safe_resources(fexe,bsexe)
         #  We may also need the bundled MSVCRT libs
         for nm in os.listdir(dist.freeze_dir):
             if is_core_dependency(nm) and nm.startswith("Microsoft"):
@@ -303,6 +308,7 @@ def _chainload(target_dir):
       import marshal
       import msvcrt
   except ImportError:
+      raise
       _orig_chainload(target_dir)
   # the source for esky.winres.load_resource gets inserted below:
   from ctypes import c_char, POINTER

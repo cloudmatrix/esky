@@ -280,11 +280,11 @@ class Esky(object):
 
     def _get_update_dir(self):
         """Get the directory path in which self.version_finder can work."""
-        return os.path.join(self.appdir,"updates")
+        return os.path.join(self.appdir,"appdata","updates")
 
     def _get_versions_dir(self):
         """Get the directory path containing individual version dirs."""
-        #return os.path.join(self.appdir,"versions")
+        #return os.path.join(self.appdir,"appdata")
         return self.appdir
 
     def get_abspath(self,relpath):
@@ -877,15 +877,9 @@ class Esky(object):
         target = os.path.join(vsdir,target_name)
         #  Guard against malicious input (might be called with root privs)
         assert os.path.dirname(target) == vsdir
-        # TODO: remove compatability hooks
         lockfile = os.path.join(target,ESKY_CONTROL_DIR,"lockfile.txt")
-        if not os.path.exists(lockfile):
-            lockfile = os.path.join(target,"esky-lockfile.txt")
         bsfile = os.path.join(target,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         bsfile_old = os.path.join(target,ESKY_CONTROL_DIR,"bootstrap-manifest-old.txt")
-        if not os.path.exists(bsfile):
-            bsfile = os.path.join(target,"esky-bootstrap.txt")
-            bsfile_old = os.path.join(target,"esky-bootstrap-old.txt")
         self.lock()
         try:
             if not os.path.exists(target):
@@ -966,9 +960,6 @@ class Esky(object):
         vsdir = self._get_versions_dir()
         mpath = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR)
         mpath = os.path.join(mpath,"bootstrap-manifest.txt")
-        # TODO: remove compatability hooks
-        if not os.path.exists(mpath):
-            mpath = os.path.join(vsdir,vdir,"esky-bootstrap.txt")
         manifest = set()
         try:
             with open(mpath,"rt") as mf:

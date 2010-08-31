@@ -95,7 +95,7 @@ def freeze(dist):
         code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
         code_source.append(_EXTRA_BOOTSTRAP_CODE)
     code_source.append(dist.get_bootstrap_code())
-    code_source.append("if not __esky_compile_with_pypy__:")
+    code_source.append("if not __rpython__:")
     code_source.append("    bootstrap()")
     code_source = "\n".join(code_source)
     if dist.compile_bootstrap_exes:
@@ -111,8 +111,6 @@ def freeze(dist):
                 dst = src
             src = os.path.join(appnm,src)
             dist.copy_to_bootstrap_env(src,dst)
-        copy_to_bootstrap_env("Contents/Info.plist")
-        copy_to_bootstrap_env("Contents/PkgInfo")
         copy_to_bootstrap_env("Contents/Frameworks/Python.framework")
         copy_to_bootstrap_env("Contents/Resources/include")
         copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
@@ -124,12 +122,6 @@ def freeze(dist):
         copy_to_bootstrap_env("Contents/Resources/__error__.sh")
         copy_to_bootstrap_env("Contents/Resources/__boot__.py")
         copy_to_bootstrap_env("Contents/Resources/site.py")
-        #  Copy any other mentioned files (icons etc) into the bootstrap env
-        with open(os.path.join(app_dir,"Contents","Info.plist"),"rt") as f:
-            infotxt = f .read()
-        for nm in os.listdir(os.path.join(app_dir,"Contents","Resources")):
-            if nm in infotxt:
-                copy_to_bootstrap_env("Contents/Resources/"+nm)
         #  Copy the bootstrapping code into the __boot__.py file.
         bsdir = dist.boostrap_dir
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
@@ -143,6 +135,15 @@ def freeze(dist):
             if not exe.include_in_bootstrap_env:
                 continue
             exepath = copy_to_bootstrap_env("Contents/MacOS/"+exe.name)
+    #  Copy non-python resources (e.g. icons etc) into the bootstrap dir
+    copy_to_bootstrap_env("Contents/Info.plist")
+    copy_to_bootstrap_env("Contents/PkgInfo")
+    with open(os.path.join(app_dir,"Contents","Info.plist"),"rt") as f:
+        infotxt = f .read()
+    for nm in os.listdir(os.path.join(app_dir,"Contents","Resources")):
+        if nm in infotxt:
+            copy_to_bootstrap_env("Contents/Resources/"+nm)
+
 
 
 def zipit(dist,bsdir,zfname):

@@ -288,14 +288,14 @@ class DefaultVersionFinder(VersionFinder):
                         raise
             # Move anything that's not the version dir into esky/bootstrap
             vdir = join_app_version(app.name,version,app.platform)
-            #vsdir = os.path.join(uppath,"versions")
+            #vsdir = os.path.join(uppath,"appdata")
             vsdir = uppath
             bspath = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR,"bootstrap")
             if not os.path.isdir(bspath):
                 os.makedirs(bspath)
             for nm in os.listdir(uppath):
                 if nm != vdir:
-                #if nm != "versions":
+                #if nm != "appdata":
                     os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
             # Check that it has an esky-files/bootstrap-manifest.txt file
             bsfile = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
@@ -317,9 +317,9 @@ class DefaultVersionFinder(VersionFinder):
         best_vdir = join_app_version(app.name,app.version,app.platform)
         source = os.path.join(app.appdir,best_vdir)
         shutil.copytree(source,os.path.join(uppath,best_vdir))
-        #source = os.path.join(app.appdir,"versions",best_vdir)
-        #os.mkdir(os.path.join(uppath,"versions"))
-        #shutil.copytree(source,os.path.join(uppath,"versions",best_vdir))
+        #source = os.path.join(app.appdir,"appdata",best_vdir)
+        #os.mkdir(os.path.join(uppath,"appdata"))
+        #shutil.copytree(source,os.path.join(uppath,"appdata",best_vdir))
         with open(os.path.join(source,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"r") as manifest:
             for nm in manifest:
                 nm = nm.strip()

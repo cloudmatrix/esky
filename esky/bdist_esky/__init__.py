@@ -320,7 +320,7 @@ class bdist_esky(Command):
         platform = get_platform()
         self.bootstrap_dir = os.path.join(self.dist_dir,
                                           "%s.%s"%(fullname,platform,))
-        #self.freeze_dir = os.path.join(self.bootstrap_dir,"versions",
+        #self.freeze_dir = os.path.join(self.bootstrap_dir,"appdata",
         #                               "%s.%s"%(fullname,platform,))
         self.freeze_dir = os.path.join(self.bootstrap_dir,
                                        "%s.%s"%(fullname,platform,))
@@ -337,10 +337,6 @@ class bdist_esky(Command):
             lockfile = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt")
             with open(lockfile,"w") as lf:
                 lf.write("this file is used by esky to lock the version dir\n")
-            # TODO: remove compatability hook
-            shutil.copyfile(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt"),os.path.join(self.freeze_dir,"esky-lockfile.txt"))
-        # TODO: remove compatability hook
-        shutil.copyfile(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),os.path.join(self.freeze_dir,"esky-bootstrap.txt"))
 
     def _run_create_zipfile(self):
         """Zip up the final distribution."""
@@ -629,7 +625,7 @@ class bdist_esky(Command):
         Executable object.  If the source has been previously compiled then a
         cached version of the exe may be used.
         """
-        source = "__esky_compile_with_pypy__ = True\n" + source
+        source = "__rpython__ = True\n" + source
         cdir = os.path.join(self.tempdir,"compile")
         if not os.path.exists(cdir):
             os.mkdir(cdir)

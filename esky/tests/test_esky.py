@@ -113,23 +113,12 @@ class TestEsky(unittest.TestCase):
             self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                                 "compile_bootstrap_exes":1}})
         def test_esky_py2exe_pypy_bundle1(self):
-            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
-                                                "compile_bootstrap_exes":1,
-                                                "freezer_options": {
-                                                   "bundle_files":1
-                                                }}})
-        def test_esky_py2exe_pypy_bundle2(self):
-            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
-                                                "compile_bootstrap_exes":1,
-                                                "freezer_options": {
-                                                   "bundle_files":2
-                                                }}})
-        def test_esky_py2exe_pypy_bundle3(self):
-            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
-                                                "compile_bootstrap_exes":1,
-                                                "freezer_options": {
-                                                   "bundle_files":3
-                                                }}})
+            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
+                self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                    "compile_bootstrap_exes":1,
+                                                    "freezer_options": {
+                                                       "bundle_files":1
+                                                    }}})
 
   if py2app is not None:
     def test_esky_py2app(self):
@@ -188,6 +177,10 @@ class TestEsky(unittest.TestCase):
     sequence of tests performed range across "script1.py" to "script3.py".
     """
     olddir = os.path.abspath(os.curdir)
+    #tdir = os.path.join(os.path.dirname(__file__),"DIST")
+    #if os.path.exists(tdir):
+    #    shutil.rmtree(tdir)
+    #os.mkdir(tdir)
     tdir = tempfile.mkdtemp()
     server = None
     try:
@@ -297,7 +290,7 @@ class TestEsky(unittest.TestCase):
     appdir = tempfile.mkdtemp()
     try: 
         vdir = os.path.join(appdir,"testapp-0.1.%s" % (platform,))
-        #vdir = os.path.join(appdir,"versions","testapp-0.1.%s" % (platform,))
+        #vdir = os.path.join(appdir,"appdata","testapp-0.1.%s" % (platform,))
         os.makedirs(vdir)
         os.mkdir(os.path.join(vdir,ESKY_CONTROL_DIR))
         open(os.path.join(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
@@ -343,10 +336,10 @@ class TestEsky(unittest.TestCase):
         os.mkdir(os.path.join(appdir,"testapp-0.1"))
         os.mkdir(os.path.join(appdir,"testapp-0.1",ESKY_CONTROL_DIR))
         open(os.path.join(appdir,"testapp-0.1",ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
-        #os.mkdir(os.path.join(appdir,"versions"))
-        #os.mkdir(os.path.join(appdir,"versions","testapp-0.1"))
-        #os.mkdir(os.path.join(appdir,"versions","testapp-0.1",ESKY_CONTROL_DIR))
-        #open(os.path.join(appdir,"versions","testapp-0.1",ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
+        #os.mkdir(os.path.join(appdir,"appdata"))
+        #os.mkdir(os.path.join(appdir,"appdata","testapp-0.1"))
+        #os.mkdir(os.path.join(appdir,"appdata","testapp-0.1",ESKY_CONTROL_DIR))
+        #open(os.path.join(appdir,"appdata","testapp-0.1",ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
         e2 = esky.Esky(appdir,"http://example.com/downloads/")
         trigger1 = threading.Event(); trigger2 = threading.Event()

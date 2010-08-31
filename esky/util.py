@@ -202,6 +202,7 @@ def common_prefix(iterables):
 
 def appdir_from_executable(exepath):
     """Find the top-level application directory, given sys.executable."""
+    #  The standard layout is <appdir>/appdata/<vdir>/<executable>
     vdir = _bs_appdir_from_executable(exepath)
     appdir = os.path.dirname(vdir)
     #appdir = os.path.dirname(os.path.dirname(vdir))

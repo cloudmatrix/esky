@@ -19,7 +19,9 @@ import shutil
 import inspect
 import zipfile
 import distutils
-from glob import glob
+
+if sys.platform == "win32":
+    from esky import winres
 
 
 import cx_Freeze
@@ -117,7 +119,10 @@ def freeze(dist):
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            dist.compile_to_bootstrap_exe(exe,code_source)
+            bsexe = dist.compile_to_bootstrap_exe(exe,code_source)
+            if sys.platform == "win32":
+                fexe = os.path.join(dist.freeze_dir,exe.name)
+                winres.copy_safe_resources(fexe,bsexe)
     else:
         if sys.platform == "win32":
             code_source.append(_CUSTOM_WIN32_CHAINLOADER)

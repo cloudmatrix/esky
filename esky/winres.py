@@ -201,6 +201,19 @@ def get_app_manifest(filename_or_handle=None):
     return load_resource(filename_or_handle,RT_MANIFEST,1)
 
 
+COMMON_SAFE_RESOURCES = ((RT_VERSION,1),(RT_ICON,1),(RT_ICON,2))
+
+def copy_safe_resources(source,target):
+    """Copy "safe" exe resources from one executable to another."""
+    for (rtype,rid) in COMMON_SAFE_RESOURCES:
+        try:
+            res = load_resource(source,rtype,rid)
+        except WindowsError:
+            pass
+        else:
+            add_resource(target,res,rtype,rid)
+
+
 def is_safe_to_overwrite(source,target):
     """Check whether it is safe to overwrite target exe with source exe.
 
@@ -219,10 +232,8 @@ def is_safe_to_overwrite(source,target):
         return False
     #  Find each safe resource, and confirm that either (1) it's in the same
     #  location in both executables, or (2) it's missing in both executables.
-    #  TODO: do this by enumerating resources
-    safe_res = ((RT_VERSION,1),(RT_ICON,1),(RT_ICON,2))
     locs = []
-    for (rtype,rid) in safe_res:
+    for (rtype,rid) in COMMON_SAFE_RESOURCES:
         try:
             s_loc = find_resource(source,rtype,rid)
         except WindowsError:

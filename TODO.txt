@@ -4,9 +4,6 @@
  * py2exe: test operation of "optimize" and "unbuffered" flags
  * py2exe: support DLLs as well as executables (maybe?)
  * sudo_osx: let the auth dialog get keyboard focus.
- * when compiling the bootstrap exes, copy resources (e.g. icons) from
-   the frozen exes
- * get pypy to compile gui-only exes
 
  py2app:
    * Frameworks/.../Version/Python changes even when using the same

@@ -1,9 +1,28 @@
 
-v????
+v0.9.0
 
+  THIS RELEASE INTRODUCES A NEW ON-DISK FILE LAYOUT - SEE BELOW FOR NOTES
+
+    * Move the version directories, updates directory etc into an "appdata"
+      subdirectory, to avoid user confusion in the top-level directory.
+         * there are compatability hooks for the old file layout, but they
+           will be removed at the end of the 0.9.* series.
+         * therefore, if you have deployed applications using esky 0.8.* or
+           lower, you MUST deploy an update using the 0.9.* series before
+           migrating to any newer versions of esky.
+    * Remove compatability hooks for pre-0.8.0 on-disk layout.
+    * Add ability to compile the bootstrapping exes with the pypy translation
+      toolchain, to reduce distribution size and increase loading speed:
+          * pass the the option "--compile-bootstrap-exes" to bdist_esky to
+            enable the compilation step.
+          * any custom bootstrapping code must be valid RPython; check the
+            variable __rpython__ to determine whether you're being compiled.
+          * obviously this only works if a recent "pypy" package is installed.
     * Add "verify()" function to the bootstrap env, which is called to verify
       files before they are chainloaded.  The default implementation is empty,
       but it could be overridden to perform e.g. signature checking.
+    * py2exe:  never bundle the python dll into the bootstrap executable
+      unless it was bundled into the frozen app.
 
 v0.8.5:
 

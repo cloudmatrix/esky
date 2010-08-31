@@ -116,12 +116,12 @@ except NameError:
     __esky_name__ = ""
 
 try:
-    __esky_compile_with_pypy__
+    __rpython__
 except NameError:
-    __esky_compile_with_pypy__ = False
+    __rpython__ = False
 
 
-if __esky_compile_with_pypy__:
+if __rpython__:
     # RPython doesn't have access to the "sys" module, so we fake it out.
     # The entry_point function will set these value appropriately.
     _sys = sys
@@ -185,7 +185,7 @@ if __esky_compile_with_pypy__:
                 return False
         return True
     # RPython doesn't provide the "fcntl" module.  Fake it.
-    # TODO: implement it using ctypes.
+    # TODO: implement it using externals
     if fcntl:
         class fcntl:
             LOCK_SH = fcntl.LOCK_SH
@@ -239,7 +239,7 @@ def exists(path):
         stat(path)
     except EnvironmentError, e:
         # TODO: how to get the errno under RPython?
-        if not __esky_compile_with_pypy__:
+        if not __rpython__:
             if e.errno not in (errno.ENOENT,errno.ENOTDIR,errno.ESRCH,):
                 raise
         return False
@@ -274,7 +274,7 @@ def bootstrap():
     chain-loads that version of the application.
     """
     appdir = appdir_from_executable(sys.executable)
-    #vsdir = pathjoin(appdir,"versions")
+    #vsdir = pathjoin(appdir,"appdata")
     vsdir = appdir
     best_version = None
     if __esky_name__ is not None:
@@ -302,12 +302,11 @@ def chainload(target_dir):
         #  If the bootstrap file is missing, the version is being uninstalled.
         #  Our only option is to re-execute ourself and find the new version.
         if exists(dirname(target_dir)):
-            if not exists(pathjoin(target_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
-                # TODO: remove compatability hook
-                if not exists(pathjoin(target_dir,"esky-bootstrap.txt")):
-                    raise ValueError(sys)
-                    execv(sys.executable,list(sys.argv))
-                    return
+            bsfile = pathjoin(target_dir,ESKY_CONTROL_DIR)
+            bsfile = pathjoin(bsfile,"bootstrap-manifest.txt")
+            if not exists(bsfile):
+                execv(sys.executable,list(sys.argv))
+                return
         raise
     else:
         #  If all goes well, we can actually launch the target version.
@@ -366,7 +365,7 @@ def _chainload(target_dir):
         except EnvironmentError, exc_value:
             #  Careful, RPython lacks a usable exc_info() function.
             exc_type,_,traceback = sys.exc_info()
-            if not __esky_compile_with_pypy__:
+            if not __rpython__:
                 if exc_value.errno != errno.ENOENT:
                     raise
             else:
@@ -451,9 +450,6 @@ def is_version_dir(vdir):
     """
     if exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
         return True
-    # TODO: remove compatability hook
-    if exists(pathjoin(vdir,"esky-bootstrap.txt")):
-        return True
     return False
 
 
@@ -463,10 +459,8 @@ def is_installed_version_dir(vdir):
     Currently, a completed installation is indicated by the lack of an
     "esky-files/bootstrap" directory.
     """
-    # TODO: remove compatability hook
     if not exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap")):
-        if not exists(pathjoin(vdir,"esky-bootstrap")):
-            return True
+        return True
     return False
 
 
@@ -477,9 +471,6 @@ def is_uninstalled_version_dir(vdir):
     renamed to "bootstrap-manifest-old.txt".
     """
     if exists(pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest-old.txt")):
-        return True
-    # TODO: remove compatability hooks
-    if exists(pathjoin(vdir,"esky-bootstrap-old.txt")):
         return True
     return False
     
@@ -606,9 +597,6 @@ def lock_version_dir(vdir):
         #  On win32, we just hold bootstrap file open for reading.
         #  This will prevent it from being renamed during uninstall.
         lockfile = pathjoin(vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
-        # TODO: remove compatability hooks
-        if not exists(lockfile):
-            lockfile = pathjoin(vdir,"esky-bootstrap.txt")
         _locked_version_dirs.setdefault(vdir,[]).append(os_open(lockfile,0,0))
     else:
         #  On posix platforms we take a shared flock on esky-files/lockfile.txt.
@@ -620,9 +608,6 @@ def lock_version_dir(vdir):
         #  To complicate matters, python sometimes emulated flock with fcntl!
         #  We therefore use a separate lock file to avoid unpleasantness.
         lockfile = pathjoin(vdir,ESKY_CONTROL_DIR,"lockfile.txt")
-        # TODO: remove compatability hooks
-        if not exists(lockfile):
-            lockfile = pathjoin(vdir,"esky-lockfile.txt")
         f = os_open(lockfile,0,0)
         _locked_version_dirs.setdefault(vdir,[]).append(f)
         fcntl.flock(f,fcntl.LOCK_SH)
@@ -631,7 +616,7 @@ def unlock_version_dir(vdir):
     """Unlock the given version dir, allowing it to be uninstalled."""
     os_close(_locked_version_dirs[vdir].pop())
 
-if __esky_compile_with_pypy__:
+if __rpython__:
     def main():
         bootstrap()
     def target(driver,args):
