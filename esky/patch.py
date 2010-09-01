@@ -422,6 +422,13 @@ class Patcher(object):
                 getattr(self,"_do_" + _COMMANDS[cmd])()
         except EOFError:
             self._check_end_patch()
+        finally:
+            if self.infile:
+                self.infile.close()
+                self.infile = None
+            if self.outfile:
+                self.outfile.close()
+                self.outfile = None
 
     def _do_END(self):
         """Execute the END command.
@@ -941,48 +948,47 @@ class Differ(object):
         bsdiff.
         """
         spos = 0
-        tfile = open(target,"rb")
-        if os.path.isfile(source):
-            sfile = open(source,"rb")
-        else:
-            sfile = None
-        try:
-            #  Process the file in diff_window_size blocks.  This
-            #  will produce slightly bigger patches but we avoid
-            #  running out of memory for large files.
-            tdata = tfile.read(self.diff_window_size)
-            if not tdata:
-                #  The file is empty, do a raw insert of zero bytes.
-                self._write_command(PF_INS_RAW)
-                self._write_bytes("".encode("ascii"))
+        with open(target,"rb") as tfile:
+            if os.path.isfile(source):
+                sfile = open(source,"rb")
             else:
-                while tdata:
-                    sdata = ""
-                    if sfile is not None:
-                        sdata = sfile.read(self.diff_window_size)
-                    #  Look for a shared prefix.
-                    i = 0; maxi = min(len(tdata),len(sdata))
-                    while i < maxi and tdata[i] == sdata[i]:
-                        i += 1
-                    #  Copy it in directly, unless it's tiny.
-                    if i > 8:
-                        skipbytes = sfile.tell() - len(sdata) - spos
-                        if skipbytes > 0:
-                            self._write_command(PF_SKIP)
-                            self._write_int(skipbytes)
-                            spos += skipbytes
-                        self._write_command(PF_COPY)
-                        self._write_int(i)
-                        tdata = tdata[i:]; sdata = sdata[i:]
-                        spos += i
-                    #  Write the rest of the block as a diff
-                    if tdata:
-                        spos += self._write_file_patch(sdata,tdata)
-                    tdata = tfile.read(self.diff_window_size)
-        finally:
-            tfile.close()
-            if sfile:
-                sfile.close()
+                sfile = None
+            try:
+                #  Process the file in diff_window_size blocks.  This
+                #  will produce slightly bigger patches but we avoid
+                #  running out of memory for large files.
+                tdata = tfile.read(self.diff_window_size)
+                if not tdata:
+                    #  The file is empty, do a raw insert of zero bytes.
+                    self._write_command(PF_INS_RAW)
+                    self._write_bytes("".encode("ascii"))
+                else:
+                    while tdata:
+                        sdata = ""
+                        if sfile is not None:
+                            sdata = sfile.read(self.diff_window_size)
+                        #  Look for a shared prefix.
+                        i = 0; maxi = min(len(tdata),len(sdata))
+                        while i < maxi and tdata[i] == sdata[i]:
+                            i += 1
+                        #  Copy it in directly, unless it's tiny.
+                        if i > 8:
+                            skipbytes = sfile.tell() - len(sdata) - spos
+                            if skipbytes > 0:
+                                self._write_command(PF_SKIP)
+                                self._write_int(skipbytes)
+                                spos += skipbytes
+                            self._write_command(PF_COPY)
+                            self._write_int(i)
+                            tdata = tdata[i:]; sdata = sdata[i:]
+                            spos += i
+                        #  Write the rest of the block as a diff
+                        if tdata:
+                            spos += self._write_file_patch(sdata,tdata)
+                        tdata = tfile.read(self.diff_window_size)
+            finally:
+                if sfile is not None:
+                    sfile.close()
 
     def _find_similar_sibling(self,source,target,nm):
         """Find a sibling of an entry against which we can calculate a diff.
@@ -1209,6 +1215,7 @@ def main(args):
             scale = 1024 * 1024 * 1024
             opts.diff_window = opts.diff_window[:-1]
         opts.diff_window = int(float(opts.diff_window)*scale)
+    stream = None
     try:
         cmd = args[0]
         if cmd == "diff":
@@ -1274,6 +1281,9 @@ def main(args):
         else:
             raise ValueError("invalid command: " + cmd)
     finally:
+        if stream is not None:
+            if stream not in (sys.stdin,sys.stdout,):
+                stream.close()
         if opts.zipped:
             shutil.rmtree(workdir)
  
