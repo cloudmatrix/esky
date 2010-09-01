@@ -289,10 +289,14 @@ def _chainload(target_dir):
   sys.bootstrap_executable = sys.executable
   sys.executable = pathjoin(target_dir,basename(sys.executable))
   verify(sys.executable)
+  sys.prefix = sys.prefix.replace(mydir,target_dir)
   sys.argv[0] = sys.executable
   for i in xrange(len(sys.path)):
       sys.path[i] = sys.path[i].replace(mydir,target_dir)
-  sys.prefix = sys.prefix.replace(mydir,target_dir)
+  curdir = getcwd()
+  newdir = curdir.replace(mydir,target_dir)
+  if newdir != curdir:
+      nt.chdir(newdir)
   libfile = pathjoin(target_dir,"library.zip")
   if exists(libfile) and libfile not in sys.path:
       sys.path.append(libfile)

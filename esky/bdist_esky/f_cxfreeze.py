@@ -191,9 +191,14 @@ def _chainload(target_dir):
       sys.bootstrap_executable = sys.executable
       sys.executable = pathjoin(target_dir,basename(sys.executable))
       verify(sys.executable)
+      sys.prefix = sys.prefix.replace(mydir,target_dir)
       sys.argv[0] = sys.executable
       for i in range(len(sys.path)):
           sys.path[i] = sys.path[i].replace(mydir,target_dir)
+      curdir = getcwd()
+      newdir = curdir.replace(mydir,target_dir)
+      if newdir != curdir:
+          nt.chdir(newdir)
       import zipimport
       for init_path in sys.path:
           verify(init_path)
