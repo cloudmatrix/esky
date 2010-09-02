@@ -524,7 +524,8 @@ class bdist_esky(Command):
         else:
             return ""
 
-    def get_msvcrt_private_assembly_files(self):
+    @staticmethod
+    def get_msvcrt_private_assembly_files():
         """Get (source,destination) tuples for the MSVCRT DLLs, manifest etc.
 
         This method generates data_files tuples for the MSVCRT DLLs, manifest
@@ -537,11 +538,13 @@ class bdist_esky(Command):
         it explicitly.  Before doing so, carefully check whether you have a
         license to distribute these files.
         """
-        msvcrt_info = self._get_msvcrt_info()
+        cls = bdist_esky
+        msvcrt_info = cls._get_msvcrt_info()
         if msvcrt_info is not None:
             msvcrt_name = msvcrt_info[0]
             #  Find installed manifest file with matching info
-            for manifest_file in self._find_msvcrt_manifest_files(msvcrt_name):
+            for candidate in cls._find_msvcrt_manifest_files(msvcrt_name):
+                manifest_file, msvcrt_dir = candidate
                 try:
                     with open(manifest_file,"rb") as mf:
                         manifest_data = mf.read()
@@ -556,25 +559,14 @@ class bdist_esky(Command):
                 err = "manifest for %s not found" % (msvcrt_info,)
                 raise RuntimeError(err)
             #  Copy the manifest and matching directory into the freeze dir.
-            #  The manifest file might be next to the dir, inside the dir, or
-            #  in a subdir named "Manifests".  Walk around till we find it.
-            msvcrt_dir = ".".join(manifest_file.split(".")[:-1])
-            if not os.path.isdir(msvcrt_dir):
-                msvcrt_basename = os.path.basename(msvcrt_dir)
-                msvcrt_parent = os.path.dirname(os.path.dirname(msvcrt_dir))
-                msvcrt_dir = os.path.join(msvcrt_parent,msvcrt_basename)
-                if not os.path.isdir(msvcrt_dir):
-                    msvcrt_dir = os.path.join(msvcrt_parent,msvcrt_name)
-                    if not os.path.isdir(msvcrt_dir):
-                        err = "manifest for %s not found" % (msvcrt_info,)
-                        raise RuntimeError(err)
             manifest_name = msvcrt_name + ".manifest"
             yield (manifest_file,os.path.join(msvcrt_name,manifest_name))
             for fnm in os.listdir(msvcrt_dir):
                 yield (os.path.join(msvcrt_dir,fnm),
                        os.path.join(msvcrt_name,fnm))
 
-    def _get_msvcrt_info(self):
+    @staticmethod
+    def _get_msvcrt_info():
         """Get info about the MSVCRT in use by this python executable.
 
         This parses the name, version and public key token out of the exe
@@ -593,8 +585,16 @@ class bdist_esky(Command):
                 return (name,version,pubkey)
         return None
         
-    def _find_msvcrt_manifest_files(self,name):
-        """Search the system for candidate MSVCRT manifest files."""
+    
+    @staticmethod
+    def _find_msvcrt_manifest_files(name):
+        """Search the system for candidate MSVCRT manifest files.
+
+        This method yields (manifest_file,msvcrt_dir) tuples giving a candidate
+        manifest file for the given assembly name, and the directory in which
+        the actual assembly data files are found.
+        """
+        cls = bdist_esky
         #  Search for redist files in a Visual Studio install
         progfiles = os.path.expandvars("%PROGRAMFILES%")
         for dnm in os.listdir(progfiles):
@@ -604,18 +604,51 @@ class bdist_esky(Command):
                     for fnm in filenames:
                         if name.lower() in fnm.lower():
                             if fnm.lower().endswith(".manifest"):
-                                yield os.path.join(subdir,fnm)
+                                mf = os.path.join(subdir,fnm)
+                                md = cls._find_msvcrt_dir_for_manifest(name,mf)
+                                if md is not None:
+                                    yield (mf,md)
         #  Search for manifests installed in the WinSxS directory
         winsxs_m = os.path.expandvars("%WINDIR%\\WinSxS\\Manifests")
         for fnm in os.listdir(winsxs_m):
             if name.lower() in fnm.lower():
                 if fnm.lower().endswith(".manifest"):
-                    yield os.path.join(winsxs_m,fnm)
+                    mf = os.path.join(winsxs_m,fnm)
+                    md = cls._find_msvcrt_dir_for_manifest(name,mf)
+                    if md is not None:
+                        yield (mf,md)
         winsxs = os.path.expandvars("%WINDIR%\\WinSxS")
         for fnm in os.listdir(winsxs):
             if name.lower() in fnm.lower():
                 if fnm.lower().endswith(".manifest"):
-                    yield os.path.join(winsxs,fnm)
+                    mf = os.path.join(winsxs,fnm)
+                    md = cls._find_msvcrt_dir_for_manifest(name,mf)
+                    if md is not None:
+                        yield (mf,md)
+
+    @staticmethod
+    def _find_msvcrt_dir_for_manifest(msvcrt_name,manifest_file):
+        """Find the directory containing data files for the given manifest.
+
+        This searches a few common locations for the data files that go with
+        the given manifest file.  If a suitable directory is found then it is
+        returned, otherwise None is returned.
+        """
+        #  The manifest file might be next to the dir, inside the dir, or
+        #  in a subdir named "Manifests".  Walk around till we find it.
+        msvcrt_dir = ".".join(manifest_file.split(".")[:-1])
+        if os.path.isdir(msvcrt_dir):
+            return msvcrt_dir
+        msvcrt_basename = os.path.basename(msvcrt_dir)
+        msvcrt_parent = os.path.dirname(os.path.dirname(msvcrt_dir))
+        msvcrt_dir = os.path.join(msvcrt_parent,msvcrt_basename)
+        if os.path.isdir(msvcrt_dir):
+            return msvcrt_dir
+        msvcrt_dir = os.path.join(msvcrt_parent,msvcrt_name)
+        if os.path.isdir(msvcrt_dir):
+            return msvcrt_dir
+        return None
+
 
     def compile_to_bootstrap_exe(self,exe,source):
         """Compile the given sourcecode into a bootstrapping exe.
