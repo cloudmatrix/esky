@@ -32,7 +32,9 @@ from distutils.util import convert_path
 
 import esky.patch
 from esky.util import get_platform, is_core_dependency, create_zipfile, \
-                      split_app_version, join_app_version, ESKY_CONTROL_DIR
+                      split_app_version, join_app_version, ESKY_CONTROL_DIR, \
+                      ESKY_APPDATA_DIR
+
 if sys.platform == "win32":
     from esky import winres
     from xml.dom import minidom
@@ -239,9 +241,11 @@ class bdist_esky(Command):
                      "function to call just before starting to freeze the app"),
                     ('pre-zip-callback=', None,
                      "function to call just before starting to zip up the app"),
+                    ('enable-appdata-dir=', None,
+                     "enable new 'appdata' directory layout (will go away after the 0.9.X series)"),
                    ]
 
-    boolean_options = ["bundle-msvcrt","dont-run-startup-hooks","compile-bootstrap-exes"]
+    boolean_options = ["bundle-msvcrt","dont-run-startup-hooks","compile-bootstrap-exes","enable-appdata-dir"]
 
     def initialize_options(self):
         self.dist_dir = None
@@ -257,6 +261,7 @@ class bdist_esky(Command):
         self._compiled_exes = {}
         self.pre_freeze_callback = None
         self.pre_zip_callback = None
+        self.enable_appdata_dir = False
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
@@ -320,10 +325,12 @@ class bdist_esky(Command):
         platform = get_platform()
         self.bootstrap_dir = os.path.join(self.dist_dir,
                                           "%s.%s"%(fullname,platform,))
-        #self.freeze_dir = os.path.join(self.bootstrap_dir,"appdata",
-        #                               "%s.%s"%(fullname,platform,))
-        self.freeze_dir = os.path.join(self.bootstrap_dir,
-                                       "%s.%s"%(fullname,platform,))
+        if self.enable_appdata_dir:
+            self.freeze_dir = os.path.join(self.bootstrap_dir,ESKY_APPDATA_DIR,
+                                           "%s.%s"%(fullname,platform,))
+        else:
+            self.freeze_dir = os.path.join(self.bootstrap_dir,
+                                           "%s.%s"%(fullname,platform,))
         if os.path.exists(self.bootstrap_dir):
             shutil.rmtree(self.bootstrap_dir)
         os.makedirs(self.freeze_dir)
@@ -672,8 +679,7 @@ class bdist_esky(Command):
         if COMPILED_BOOTSTRAP_CACHE is not None:
             outfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,outname)
             if os.path.exists(outfile):
-                self.copy_to_bootstrap_env(outfile,exe.name)
-                return
+                return self.copy_to_bootstrap_env(outfile,exe.name)
         #  Otherwise we have to compile it anew.
         try:
             outfile = self._compiled_exes[source_hash]
@@ -685,7 +691,6 @@ class bdist_esky(Command):
             opts = dict(gui_only=exe.gui_only)
             pypyc.compile_rpython(infile,outfile,**opts)
             self._compiled_exes[source_hash] = outfile
-        self.copy_to_bootstrap_env(outfile,exe.name)
         #  Try to save the compiled exe for future use.
         if COMPILED_BOOTSTRAP_CACHE is not None:
             cachedfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,outname)
@@ -693,6 +698,7 @@ class bdist_esky(Command):
                 shutil.copy2(outfile,cachedfile)
             except EnvironmentError:
                 pass
+        return self.copy_to_bootstrap_env(outfile,exe.name)
 
     def copy_to_bootstrap_env(self,src,dst=None):
         """Copy the named file into the bootstrap environment.

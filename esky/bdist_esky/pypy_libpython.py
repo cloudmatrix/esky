@@ -50,6 +50,16 @@ class libpython(object):
         memset.push_arg(1)
         memset.call(lltype.Void)
 
+
+    def Set_OptimizeFlag(self,value):
+        addr = self.lib.getaddressindll("Py_OptimizeFlag")
+        memset = self._libc.getpointer("memset",[libffi.ffi_type_pointer,libffi.ffi_type_uint,libffi.ffi_type_uint],libffi.ffi_type_void)
+        memset.push_arg(addr)
+        memset.push_arg(value)
+        memset.push_arg(1)
+        memset.call(lltype.Void)
+
+
     def Initialize(self):
         impl = self.lib.getpointer("Py_Initialize",[],libffi.ffi_type_void)
         impl.call(lltype.Void)
@@ -163,6 +173,28 @@ class libpython(object):
         rffi.free_charp(buf)
         if d < 0:
             self._error()
+
+
+    def String_FromStringAndSize(self,buf,size):
+        impl = self.lib.getpointer("PyString_FromStringAndSize",[libffi.ffi_type_pointer,libffi.ffi_type_uint],libffi.ffi_type_pointer)
+        if not buf:
+            impl.push_arg(buf)
+        else:
+            impl.push_arg(buf)
+        impl.push_arg(size)
+        s = impl.call(rffi.VOIDP)
+        if not s:
+            self._error()
+        return s
+
+
+    def String_AsString(self,s):
+        impl = self.lib.getpointer("PyString_AsString",[libffi.ffi_type_pointer],libffi.ffi_type_pointer)
+        impl.push_arg(s)
+        buf = impl.call(rffi.VOIDP)
+        if not buf:
+            self._error()
+        return buf
 
 
 

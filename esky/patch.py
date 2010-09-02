@@ -61,6 +61,7 @@ except NameError:
 import os
 import sys
 import bz2
+import time
 import shutil
 import hashlib
 import optparse
@@ -372,7 +373,9 @@ class Patcher(object):
             self.outfile.close()
             self.outfile = None
             if os.path.exists(self.target):
-               os.unlink(self.target)
+                os.unlink(self.target)
+                if sys.platform == "win32":
+                    time.sleep(0.01)
             os.rename(self.new_target,self.target)
             self.new_target = None
 
@@ -570,6 +573,8 @@ class Patcher(object):
                     shutil.rmtree(self.target)
                 else:
                     os.unlink(self.target)
+                if sys.platform == "win32":
+                    time.sleep(0.01)
             os.rename(source_path,self.target)
 
     def _do_PF_COPY(self):
@@ -1061,7 +1066,15 @@ class _tempdir(object):
     def __enter__(self):
         return self.path
     def __exit__(self,*args):
-        shutil.rmtree(self.path)
+        for _ in xrange(5):
+            try:
+                shutil.rmtree(self.path)
+            except EnvironmentError:
+                time.sleep(0.1)
+            else:
+                break
+        else:
+            shutil.rmtree(self.path)
 
 
 if cx_bsdiff is not None:
@@ -1277,6 +1290,7 @@ def main(args):
                     create_zipfile(target,target_temp)
                 if sys.platform == "win32":
                     os.unlink(target_zip)
+                    time.sleep(0.01)
                 os.rename(target_temp,target_zip)
         else:
             raise ValueError("invalid command: " + cmd)

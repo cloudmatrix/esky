@@ -37,7 +37,25 @@ use during the bootstrap process:
 import sys
 import errno
 
-ESKY_CONTROL_DIR = "esky-files"
+try:
+    ESKY_CONTROL_DIR
+except NameError:
+    ESKY_CONTROL_DIR = "esky-files"
+
+try:
+    ESKY_APPDATA_DIR
+except NameError:
+    ESKY_APPDATA_DIR = ""#"appdata"
+
+try:
+    __esky_name__
+except NameError:
+    __esky_name__ = ""
+
+try:
+    __rpython__
+except NameError:
+    __rpython__ = False
 
 #  RPython doesn't handle SystemExit automatically, so we put the exit code
 #  in this global var and catch SystemExit ourselves at the outmost scope.
@@ -108,17 +126,6 @@ elif "nt" in sys.builtin_module_names:
     fcntl = fcntl()
 else:
     raise RuntimeError("unsupported platform: " + sys.platform)
-
-
-try:
-    __esky_name__
-except NameError:
-    __esky_name__ = ""
-
-try:
-    __rpython__
-except NameError:
-    __rpython__ = False
 
 
 if __rpython__:
@@ -208,6 +215,8 @@ def pathjoin(*args):
         if isabs(arg):
             path = arg
         else:
+            while path.endswith(SEP):
+                path = path[:-1]
             path = path + SEP + arg
     return path
 
@@ -274,15 +283,25 @@ def bootstrap():
     chain-loads that version of the application.
     """
     appdir = appdir_from_executable(sys.executable)
-    #vsdir = pathjoin(appdir,"appdata")
-    vsdir = appdir
+    vsdir = pathjoin(appdir,ESKY_APPDATA_DIR)
+    # TODO: remove compatability hook for ESKY_APPDATA_DIR="".
     best_version = None
-    if __esky_name__ is not None:
-        best_version = get_best_version(vsdir,appname=__esky_name__)
-    if best_version is None:
-        best_version = get_best_version(vsdir)
-    if best_version is None:
-        raise RuntimeError("no usable frozen versions were found")
+    try:
+        if __esky_name__:
+            best_version = get_best_version(vsdir,appname=__esky_name__)
+        if best_version is None:
+            best_version = get_best_version(vsdir)
+        if best_version is None:
+            raise RuntimeError("no usable frozen versions were found")
+    except EnvironmentError:
+        if exists(vsdir):
+            raise
+        if __esky_name__:
+            best_version = get_best_version(appdir,appname=__esky_name__)
+        if best_version is None:
+            best_version = get_best_version(appdir)
+        if best_version is None:
+            raise RuntimeError("no usable frozen versions were found")
     return chainload(pathjoin(vsdir,best_version))
 
 
@@ -629,8 +648,6 @@ if __rpython__:
                  main()
              except SystemExit, e:
                  return _exit_code[0]
-             except Exception, e:
-                 return 1
              return 0
         return entry_point, None
 

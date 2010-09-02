@@ -4,9 +4,23 @@ v0.9.0
   THIS RELEASE INTRODUCES A NEW ON-DISK FILE LAYOUT - SEE BELOW FOR NOTES
 
     * Move the version directories, updates directory etc into an "appdata"
-      subdirectory, to avoid user confusion in the top-level directory.
-         * there are compatability hooks for the old file layout, but they
-           will be removed at the end of the 0.9.* series.
+      subdirectory, to avoid user confusion in the top-level directory. The
+      hope is that users will be much less inclined to poke around inside a
+      generic "appdata" directory than inside directories named after the app.
+         * to be clear, the new layout looks like this:
+               myapp.exe
+               appdata/
+                 myapp-X.Y.X.win32/
+                   myapp.exe
+                   esky-files/
+                 updates/
+         * the "bdist_esky" command still generates zipfiles using the old 
+           layout, so they can be unpacked correctly by previous versions of
+           esky.  To get the new layout, pass the "enable-appdata-dir" option.
+           This option will become the default (and will be removed) at the
+           end of the 0.9.* series.
+         * there are compatability hooks that upgrade the old file layout to
+           the new layout. They will be removed at the end of the 0.9.* series.
          * therefore, if you have deployed applications using esky 0.8.* or
            lower, you MUST deploy an update using the 0.9.* series before
            migrating to any newer versions of esky.
@@ -17,12 +31,15 @@ v0.9.0
             enable the compilation step.
           * any custom bootstrapping code must be valid RPython; check the
             variable __rpython__ to determine whether you're being compiled.
-          * obviously this only works if a recent "pypy" package is installed.
-    * Add "verify()" function to the bootstrap env, which is called to verify
+          * obviously this only works if a recent version of the "pypy" package
+            is installed and configured correctly.
+    * Add verify() function to the bootstrap env, which is called to verify
       files before they are chainloaded.  The default implementation is empty,
       but it could be overridden to perform e.g. signature checking.
     * py2exe:  never bundle the python dll into the bootstrap executable
-      unless it was bundled into the frozen app.
+      unless it was bundled into the frozen app, it caused too many issues
+      with unsuspecting third-party libraries.
+
 
 v0.8.5:
 
@@ -34,6 +51,7 @@ v0.8.5:
       and Executable.script attribute. Lists are concatenated, files are read,
       strings are raw code, and all else is passed to inspect.getsource().
     * Made bdist_esky.Executable a subclass of unicode rather than str.
+
 
 v0.8.4:
 

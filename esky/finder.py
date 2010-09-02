@@ -20,12 +20,13 @@ import urllib2
 import zipfile
 import shutil
 import tempfile
+import errno
 from urlparse import urlparse, urljoin
 
 from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
 from esky.util import deep_extract_zipfile, copy_ownership_info, \
-                      ESKY_CONTROL_DIR
+                      ESKY_CONTROL_DIR, ESKY_APPDATA_DIR
 from esky.patch import apply_patch, PatchError
 
 
@@ -39,6 +40,9 @@ class VersionFinder(object):
 
         fetch_version:  make the specified version available locally
                         (e.g. download it from the internet)
+
+        fetch_version_iter:  like fetch_version but yielding progress updates
+                             during its execution
 
         has_version:  check that the specified version is available locally
 
@@ -89,7 +93,7 @@ class VersionFinder(object):
     def has_version(self,app,version):
         """Check whether a specific version of the app is available locally.
 
-        Returns either False, or the paths to the unpacked version directory.
+        Returns either False, or the path to the unpacked version directory.
         """
         raise NotImplementedError
 
@@ -121,7 +125,7 @@ class DefaultVersionFinder(VersionFinder):
                 try:
                     os.mkdir(target)
                 except OSError, e:
-                    if e.errno not in (17,183):
+                    if e.errno not in (errno.EEXIST,183):
                         raise
                 else:
                     copy_ownership_info(app.appdir,target)
@@ -206,7 +210,7 @@ class DefaultVersionFinder(VersionFinder):
                         yield status
             try:
                 self._prepare_version(app,version,local_path)
-            except PatchError:
+            except (PatchError,EskyVersionError):
                 yield {"status":"retrying","size":None}
         yield {"status":"ready","path":name}
 
@@ -250,6 +254,7 @@ class DefaultVersionFinder(VersionFinder):
         uppath = tempfile.mkdtemp(dir=self._workdir(app,"unpack"))
         try:
             if not path:
+                #  There's nothing to prepare, just copy the current version.
                 self._copy_best_version(app,uppath)
             else:
                 if path[0][0].endswith(".patch"):
@@ -275,6 +280,8 @@ class DefaultVersionFinder(VersionFinder):
                             pass
                         raise
                     patches = path[1:]
+                #  Apply each patch in turn.
+                #  The list will be empty if it's a straight zipfile download.
                 for (patchfile,patchurl) in patches:
                     try:
                         with open(patchfile,"rb") as f:
@@ -286,41 +293,70 @@ class DefaultVersionFinder(VersionFinder):
                         except EnvironmentError:
                             pass
                         raise
-            # Move anything that's not the version dir into esky/bootstrap
+            # Find the actual version dir that we're unpacking.
+            # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
             vdir = join_app_version(app.name,version,app.platform)
-            #vsdir = os.path.join(uppath,"appdata")
-            vsdir = uppath
-            bspath = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR,"bootstrap")
+            vdirpath = os.path.join(uppath,ESKY_APPDATA_DIR,vdir)
+            if not os.path.isdir(vdirpath):
+                vdirpath = os.path.join(uppath,vdir)
+                if not os.path.isdir(vdirpath):
+                    self.version_graph.remove_all_links(path[0][1])
+                    err = version + ": version directory does not exist"
+                    raise EskyVersionError(err)
+            # Move anything that's not the version dir into "bootstrap" dir.
+            ctrlpath = os.path.join(vdirpath,ESKY_CONTROL_DIR)
+            bspath = os.path.join(ctrlpath,"bootstrap")
             if not os.path.isdir(bspath):
                 os.makedirs(bspath)
             for nm in os.listdir(uppath):
-                if nm != vdir:
-                #if nm != "appdata":
+                if nm != vdir and nm != ESKY_APPDATA_DIR:
                     os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
             # Check that it has an esky-files/bootstrap-manifest.txt file
-            bsfile = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
+            bsfile = os.path.join(ctrlpath,"bootstrap-manifest.txt")
             if not os.path.exists(bsfile):
                 self.version_graph.remove_all_links(path[0][1])
-                err = "patch didn't create bootstrap-manifest.txt"
-                raise PatchError(err)
-            # Make it available for upgrading
+                err = version + ": version has no bootstrap-manifest.txt"
+                raise EskyVersionError(err)
+            # Make it available for upgrading, replacing anything
+            # that we previously had available.
             rdpath = self._ready_name(app,version)
-            if os.path.exists(rdpath):
-                shutil.rmtree(rdpath)
-            os.rename(os.path.join(vsdir,vdir),rdpath)
+            tmpnm = None
+            try:
+                if os.path.exists(rdpath):
+                    tmpnm = rdpath + ".old"
+                    while os.path.exists(tmpnm):
+                        tmpnm = tmpnm + ".old"
+                    os.rename(rdpath,tmpnm)
+                os.rename(vdirpath,rdpath)
+            finally:
+                if tmpnm is not None:
+                    shutil.rmtree(tmpnm)
+            #  Clean up any downloaded files now that we've used them.
             for (filenm,_) in path:
                 os.unlink(filenm)
         finally:
             shutil.rmtree(uppath)
 
     def _copy_best_version(self,app,uppath):
+        """Copy the best version directory from the given app.
+
+        This copies the best version directory from the given app into the
+        unpacking path.  It's useful for applying patches against an existing
+        version.
+        """
         best_vdir = join_app_version(app.name,app.version,app.platform)
-        source = os.path.join(app.appdir,best_vdir)
-        shutil.copytree(source,os.path.join(uppath,best_vdir))
-        #source = os.path.join(app.appdir,"appdata",best_vdir)
-        #os.mkdir(os.path.join(uppath,"appdata"))
-        #shutil.copytree(source,os.path.join(uppath,"appdata",best_vdir))
-        with open(os.path.join(source,ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"r") as manifest:
+        #  TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
+        source = os.path.join(app.appdir,ESKY_APPDATA_DIR,best_vdir)
+        if not os.path.exists(source):
+            source = os.path.join(app.appdir,best_vdir)
+        try:
+            os.mkdir(os.path.join(uppath,ESKY_APPDATA_DIR))
+        except OSError, e:
+            if e.errno not in (errno.EEXIST,183):
+                raise
+        shutil.copytree(source,os.path.join(uppath,ESKY_APPDATA_DIR,best_vdir))
+        mfstnm = os.path.join(source,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
+        with open(mfstnm,"r") as manifest:
             for nm in manifest:
                 nm = nm.strip()
                 bspath = os.path.join(app.appdir,nm)

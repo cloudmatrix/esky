@@ -154,7 +154,8 @@ from esky.util import split_app_version, join_app_version,\
                       is_version_dir, is_uninstalled_version_dir,\
                       parse_version, get_best_version, appdir_from_executable,\
                       copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR,\
-                      files_differ, lazy_import
+                      files_differ, lazy_import, ESKY_APPDATA_DIR, \
+                      get_all_versions
 
 #  Since all frozen apps are required to import this module and call the
 #  run_startup_hooks() function, we use a simple lazy import mechanism to 
@@ -259,8 +260,8 @@ class Esky(object):
         """
         if os.path.isfile(appdir_or_exe):
             self.appdir = appdir_from_executable(appdir_or_exe)
-            vdir = appdir_or_exe[len(self.appdir):].split(os.sep)[1]
-            #vdir = appdir_or_exe[len(self.appdir):].split(os.sep)[2]
+            vsdir = self._get_versions_dir()
+            vdir = appdir_or_exe[len(vsdir):].split(os.sep)[1]
             details = split_app_version(vdir)
             self.name,self.active_version,self.platform = details
         else:
@@ -280,12 +281,27 @@ class Esky(object):
 
     def _get_update_dir(self):
         """Get the directory path in which self.version_finder can work."""
-        return os.path.join(self.appdir,"appdata","updates")
+        # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
+        try:
+            if os.listdir(os.path.join(self.appdir,ESKY_APPDATA_DIR)):
+                return os.path.join(self.appdir,ESKY_APPDATA_DIR,"updates")
+        except EnvironmentError:
+            return os.path.join(self.appdir,"updates")
+        else:
+            return os.path.join(self.appdir,"updates")
 
     def _get_versions_dir(self):
         """Get the directory path containing individual version dirs."""
-        #return os.path.join(self.appdir,"appdata")
-        return self.appdir
+        if not ESKY_APPDATA_DIR:
+            return self.appdir
+        # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
+        try:
+            if os.listdir(os.path.join(self.appdir,ESKY_APPDATA_DIR)):
+                return os.path.join(self.appdir,ESKY_APPDATA_DIR)
+        except EnvironmentError:
+            return self.appdir
+        else:
+            return self.appdir
 
     def get_abspath(self,relpath):
         """Get the absolute path of a file within the current version."""
@@ -293,7 +309,10 @@ class Esky(object):
             v = join_app_version(self.name,self.active_version,self.platform)
         else:
             v = join_app_version(self.name,self.version,self.platform)
-        return os.path.join(self._get_versions_dir(),v,relpath)
+        # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
+        if os.path.exists(os.path.join(self._get_versions_dir(),v)):
+            return os.path.join(self._get_versions_dir(),v,relpath)
+        return os.path.join(self.appdir,v,relpath)
 
     def reinitialize(self):
         """Reinitialize internal state by poking around in the app directory.
@@ -496,6 +515,20 @@ class Esky(object):
             (_,v,_) = split_app_version(new_version)
             yield (self.install_version,(v,))
             best_version = new_version
+        # TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
+        if ESKY_APPDATA_DIR:
+            appdata_dir = os.path.join(self.appdir,ESKY_APPDATA_DIR)
+            if not os.path.exists(appdata_dir):
+                yield (os.makedirs, (appdata_dir,))
+            if not os.listdir(appdata_dir):
+                #  Careful to move all versions in order from newest to
+                #  oldest, so if we're interrupted we can safely launch
+                #  the best version from the new appdata directory.
+                for nm in get_all_versions(self.appdir) + ["updates"]:
+                    if os.path.exists(os.path.join(self.appdir,nm)):
+                        yield (os.rename, (os.path.join(self.appdir,nm),
+                                           os.path.join(vsdir,nm),))
+                vsdir = self._get_versions_dir()
         #  Now we can safely remove all the old versions.
         #  We except the currently-executing version, and silently
         #  ignore any locked versions.
@@ -506,6 +539,7 @@ class Esky(object):
         if self.active_version and self.active_version != best_version:
             yield lambda: False
             manifest.add(self.active_version)
+        # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
         for tdir in (appdir,vsdir):
             for nm in os.listdir(tdir):
                 if nm not in manifest:
@@ -527,9 +561,15 @@ class Esky(object):
                         #  It's a temporary backup file; remove it.
                         yield (self._try_remove, (tdir,nm,manifest,))
                     else:
-                        #  It's an unaccounted-for entry in the bootstrap env.
-                        #  Can't prove it's safe to remove, so leave it.
-                        pass
+                        for (_,_,filenms) in os.walk(fullnm):
+                            if filenms:
+                                #  It contains unaccounted-for files in the
+                                #  bootstrap env. Can't prove it's safe to
+                                #  remove, so leave it alone.
+                                break
+                        else:
+                            #  It's an empty directory structure, remove it.
+                            yield (self._try_remove, (tdir,nm,manifest,))
         #  If there are pending overwrites, try to do them.
         ovrdir = os.path.join(vsdir,best_version,ESKY_CONTROL_DIR,"overwrite")
         if os.path.exists(ovrdir):

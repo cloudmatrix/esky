@@ -127,7 +127,8 @@ from esky.bootstrap import get_best_version, get_all_versions,\
                            is_uninstalled_version_dir,\
                            split_app_version, join_app_version, parse_version,\
                            get_original_filename, lock_version_dir,\
-                           unlock_version_dir, fcntl, ESKY_CONTROL_DIR
+                           unlock_version_dir, fcntl, ESKY_CONTROL_DIR,\
+                           ESKY_APPDATA_DIR
 
 
 def files_differ(file1,file2,start=0,stop=None):
@@ -202,11 +203,16 @@ def common_prefix(iterables):
 
 def appdir_from_executable(exepath):
     """Find the top-level application directory, given sys.executable."""
-    #  The standard layout is <appdir>/appdata/<vdir>/<executable>
+    #  The standard layout is <appdir>/ESKY_APPDATA_DIR/<vdir>/<exepath>.
+    #  Stripping of <exepath> is done by _bs_appdir_from_executable.
     vdir = _bs_appdir_from_executable(exepath)
     appdir = os.path.dirname(vdir)
-    #appdir = os.path.dirname(os.path.dirname(vdir))
-    if os.path.exists(os.path.join(appdir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")):
+    # TODO: remove compatability hook for ESKY_APPDATA_DIR=""
+    if ESKY_APPDATA_DIR and os.path.basename(appdir) == ESKY_APPDATA_DIR:
+        appdir = os.path.dirname(appdir)
+    #  On OSX we sometimes need to strip an additional directory since the
+    #  app can be contained in an <appname>.app directory.
+    if is_version_dir(appdir):
         appdir = os.path.dirname(appdir)
     return appdir
 
@@ -262,6 +268,7 @@ def zipfile_common_prefix_dir(source):
         return prefix.rsplit("/",1)[0] + "/"
     else:
         return ""
+
 
 def deep_extract_zipfile(source,target,name_filter=None):
     """Extract the deep contents of a zipfile into a target directory.
