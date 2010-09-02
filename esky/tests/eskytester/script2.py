@@ -6,11 +6,13 @@ from __future__ import with_statement
 import os
 import sys
 import stat
+import subprocess
 import esky
 import esky.util
 import esky.tests
 
 ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
+ESKY_APPDATA_DIR = esky.util.ESKY_APPDATA_DIR
  
 
 platform = esky.util.get_platform()
@@ -55,8 +57,12 @@ if sys.platform == "win32" and sys.hexversion >= 0x20600000:
     else:
         assert False, "MSVCRT not bundled in app dir"
 
-v1dir = os.path.join(app._get_versions_dir(),"eskytester-0.1."+platform)
+if ESKY_APPDATA_DIR:
+    v1dir = os.path.join(os.path.dirname(app._get_versions_dir()),"eskytester-0.1."+platform)
+else:
+    v1dir = os.path.join(app._get_versions_dir(),"eskytester-0.1."+platform)
 v3dir = os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform)
+
 if len(sys.argv) == 1:
     # This is the first time we've run this script.
     assert os.path.isdir(v1dir)
@@ -98,7 +104,7 @@ if len(sys.argv) == 1:
         os.unlink(os.path.join(v3dir,ESKY_CONTROL_DIR,"bootstrap","script2"+dotexe))
     #  Re-launch the script.
     #  We should still be at version 0.2 after this.
-    os.execv(script2,[script2,"rerun"])
+    subprocess.check_call([script2,"rerun"])
 else:
     # This is the second time we've run this script.
     #  Recover from the broken upgrade
@@ -113,9 +119,5 @@ else:
     assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform))
 
 
-if sys.platform == "darwin":
-    open("../../../../../../tests-completed","w").close()
-else:
-    open("tests-completed","w").close()
 
 

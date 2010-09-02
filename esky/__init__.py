@@ -95,16 +95,17 @@ When properly installed, the on-disk layout of an app managed by esky looks
 like this:
 
     prog.exe                     - esky bootstrapping executable
-    appname-X.Y.platform/        - specific version of the application
-      prog.exe                   - executable(s) as produced by freezer module
-      library.zip                - pure-python frozen modules
-      pythonXY.dll               - python DLL
-      esky-files/                - esky control files
-        bootstrap/               - files not yet moved into bootstrapping env
-        bootstrap-manifest.txt   - list of files expected in bootstrap env
-        lockfile.txt             - lockfile to block removal of in-use versions
-      ...other deps...
-    updates/                     - work area for fetching/unpacking updates
+    appdata/                     - container for all the esky magic
+      appname-X.Y.platform/      - specific version of the application
+        prog.exe                 - executable(s) as produced by freezer module
+        library.zip              - pure-python frozen modules
+        pythonXY.dll             - python DLL
+        esky-files/              - esky control files
+          bootstrap/             - files not yet moved into bootstrapping env
+          bootstrap-manifest.txt - list of files expected in bootstrap env
+          lockfile.txt           - lockfile to block removal of in-use versions
+        ...other deps...
+      updates/                   - work area for fetching/unpacking updates
 
 This is also the layout of the zipfiles produced by bdist_esky.  The 
 "appname-X.Y" directory is simply a frozen app directory with some extra
@@ -136,8 +137,8 @@ from __future__ import with_statement
 from __future__ import absolute_import
 
 __ver_major__ = 0
-__ver_minor__ = 8
-__ver_patch__ = 5
+__ver_minor__ = 9
+__ver_patch__ = 0
 __ver_sub__ = ""
 __ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
@@ -155,7 +156,8 @@ from esky.util import split_app_version, join_app_version,\
                       parse_version, get_best_version, appdir_from_executable,\
                       copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR,\
                       files_differ, lazy_import, ESKY_APPDATA_DIR, \
-                      get_all_versions
+                      get_all_versions, is_locked_version_dir, \
+                      is_installed_version_dir
 
 #  Since all frozen apps are required to import this module and call the
 #  run_startup_hooks() function, we use a simple lazy import mechanism to 
@@ -281,14 +283,7 @@ class Esky(object):
 
     def _get_update_dir(self):
         """Get the directory path in which self.version_finder can work."""
-        # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
-        try:
-            if os.listdir(os.path.join(self.appdir,ESKY_APPDATA_DIR)):
-                return os.path.join(self.appdir,ESKY_APPDATA_DIR,"updates")
-        except EnvironmentError:
-            return os.path.join(self.appdir,"updates")
-        else:
-            return os.path.join(self.appdir,"updates")
+        return os.path.join(self._get_versions_dir(),"updates")
 
     def _get_versions_dir(self):
         """Get the directory path containing individual version dirs."""
@@ -296,12 +291,13 @@ class Esky(object):
             return self.appdir
         # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
         try:
-            if os.listdir(os.path.join(self.appdir,ESKY_APPDATA_DIR)):
-                return os.path.join(self.appdir,ESKY_APPDATA_DIR)
+            for nm in os.listdir(os.path.join(self.appdir,ESKY_APPDATA_DIR)):
+                fullnm = os.path.join(self.appdir,ESKY_APPDATA_DIR,nm)
+                if is_version_dir(fullnm) and is_installed_version_dir(fullnm):
+                    return os.path.join(self.appdir,ESKY_APPDATA_DIR)
         except EnvironmentError:
-            return self.appdir
-        else:
-            return self.appdir
+            pass
+        return self.appdir
 
     def get_abspath(self,relpath):
         """Get the absolute path of a file within the current version."""
@@ -515,20 +511,15 @@ class Esky(object):
             (_,v,_) = split_app_version(new_version)
             yield (self.install_version,(v,))
             best_version = new_version
-        # TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
-        if ESKY_APPDATA_DIR:
-            appdata_dir = os.path.join(self.appdir,ESKY_APPDATA_DIR)
-            if not os.path.exists(appdata_dir):
-                yield (os.makedirs, (appdata_dir,))
-            if not os.listdir(appdata_dir):
-                #  Careful to move all versions in order from newest to
-                #  oldest, so if we're interrupted we can safely launch
-                #  the best version from the new appdata directory.
-                for nm in get_all_versions(self.appdir) + ["updates"]:
-                    if os.path.exists(os.path.join(self.appdir,nm)):
-                        yield (os.rename, (os.path.join(self.appdir,nm),
-                                           os.path.join(vsdir,nm),))
-                vsdir = self._get_versions_dir()
+        #  TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
+        if vsdir == appdir and ESKY_APPDATA_DIR:
+            appdatadir = os.path.join(appdir,ESKY_APPDATA_DIR)
+            if os.path.isdir(appdatadir) and os.listdir(appdatadir):
+                new_version = get_best_version(appdatadir,include_partial_installs=True)
+                if best_version != new_version:
+                    (_,v,_) = split_app_version(new_version)
+                    yield (self.install_version,(v,))
+                    best_version = new_version
         #  Now we can safely remove all the old versions.
         #  We except the currently-executing version, and silently
         #  ignore any locked versions.
@@ -544,7 +535,11 @@ class Esky(object):
             for nm in os.listdir(tdir):
                 if nm not in manifest:
                     fullnm = os.path.join(tdir,nm)
-                    if is_version_dir(fullnm):
+                    if not os.path.isdir(fullnm):
+                        #  It's an unaccounted-for file in the bootstrap env.
+                        #  Leave it alone.
+                        pass
+                    elif is_version_dir(fullnm):
                         #  It's an installed-but-obsolete version.  Properly
                         #  uninstall it so it will clean up the bootstrap env.
                         (_,v,_) = split_app_version(nm)
@@ -857,13 +852,26 @@ class Esky(object):
         if not os.path.exists(target):
             self.fetch_version(version)
             source = self.version_finder.has_version(self,version)
+        #  TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
+        #  This is our chance to migrate to the new appdata dir layout,
+        #  by installing into it.
+        if vsdir == self.appdir and ESKY_APPDATA_DIR:
+            vsdir = os.path.join(self.appdir,ESKY_APPDATA_DIR)
+            try:
+                os.mkdir(vsdir)
+            except EnvironmentError, e:
+                if e.errno not in (errno.EEXIST,):
+                    raise
+            else:
+                copy_ownership_info(self.appdir,vsdir)
+            target = os.path.join(vsdir,os.path.basename(target))
         self.lock()
         try:
             if not os.path.exists(target):
                 os.rename(source,target)
             trn = esky.fstransact.FSTransaction(self.appdir)
             try:
-                self._unpack_bootstrap_env(version,trn)
+                self._unpack_bootstrap_env(target,trn)
             except Exception:
                 trn.abort()
                 raise
@@ -872,12 +880,9 @@ class Esky(object):
         finally:
             self.unlock()
 
-    def _unpack_bootstrap_env(self,version,trn):
+    def _unpack_bootstrap_env(self,target,trn):
         """Unpack the bootstrap env from the given target directory."""
-        vsdir = self._get_versions_dir()
-        vdir = join_app_version(self.name,version,self.platform)
-        target = os.path.join(vsdir,vdir)
-        assert os.path.dirname(target) == vsdir
+        vdir = os.path.basename(target)
         #  Move new bootrapping environment into main app dir.
         #  Be sure to move dependencies before executables.
         bootstrap = os.path.join(target,ESKY_CONTROL_DIR,"bootstrap")
@@ -917,6 +922,12 @@ class Esky(object):
         target = os.path.join(vsdir,target_name)
         #  Guard against malicious input (might be called with root privs)
         assert os.path.dirname(target) == vsdir
+        #  TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
+        if ESKY_APPDATA_DIR and not os.path.exists(target):
+            if vsdir == self.appdir:
+                target = os.path.join(self.appdir,ESKY_APPDATA_DIR,target_name)
+            else:
+                target = os.path.join(self.appdir,target_name)
         lockfile = os.path.join(target,ESKY_CONTROL_DIR,"lockfile.txt")
         bsfile = os.path.join(target,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         bsfile_old = os.path.join(target,ESKY_CONTROL_DIR,"bootstrap-manifest-old.txt")
@@ -1000,6 +1011,13 @@ class Esky(object):
         vsdir = self._get_versions_dir()
         mpath = os.path.join(vsdir,vdir,ESKY_CONTROL_DIR)
         mpath = os.path.join(mpath,"bootstrap-manifest.txt")
+        #  TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
+        if not os.path.exists(mpath):
+            if vsdir == self.appdir:
+                mpath = os.path.join(self.appdir,ESKY_APPDATA_DIR,vdir,ESKY_CONTROL_DIR)
+            else:
+                mpath = os.path.join(self.appdir,vdir,ESKY_CONTROL_DIR)
+            mpath = os.path.join(mpath,"bootstrap-manifest.txt")
         manifest = set()
         try:
             with open(mpath,"rt") as mf:

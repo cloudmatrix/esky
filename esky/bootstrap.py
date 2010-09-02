@@ -45,7 +45,7 @@ except NameError:
 try:
     ESKY_APPDATA_DIR
 except NameError:
-    ESKY_APPDATA_DIR = ""#"appdata"
+    ESKY_APPDATA_DIR = "appdata"
 
 try:
     __esky_name__
@@ -292,14 +292,18 @@ def bootstrap():
         if best_version is None:
             best_version = get_best_version(vsdir)
         if best_version is None:
-            raise RuntimeError("no usable frozen versions were found")
+            if exists(vsdir):
+                raise RuntimeError("no usable frozen versions were found")
+            else:
+                raise EnvironmentError
     except EnvironmentError:
         if exists(vsdir):
             raise
+        vsdir = appdir
         if __esky_name__:
-            best_version = get_best_version(appdir,appname=__esky_name__)
+            best_version = get_best_version(vsdir,appname=__esky_name__)
         if best_version is None:
-            best_version = get_best_version(appdir)
+            best_version = get_best_version(vsdir)
         if best_version is None:
             raise RuntimeError("no usable frozen versions were found")
     return chainload(pathjoin(vsdir,best_version))

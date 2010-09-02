@@ -27,6 +27,7 @@ if os.environ.get("ESKY_NEEDSROOT",""):
 
 app.cleanup()
 assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform))
+assert not os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
 assert os.path.isfile(eskytester.script_path(app,"script3"))
 
@@ -43,10 +44,5 @@ if sys.platform == "win32":
 if sys.platform == "win32":
     if "ESKY_NO_CUSTOM_CHAINLOAD" not in os.environ:
         assert hasattr(sys,"bootstrap_executable"), "didn't chainload in-proc"
-
-if sys.platform == "darwin":
-    open("../../../../../../tests-completed","w").close()
-else:
-    open("tests-completed","w").close()
 
 

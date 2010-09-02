@@ -93,16 +93,17 @@ When properly installed, the on-disk layout of an app managed by esky looks
 like this:
 
     prog.exe                     - esky bootstrapping executable
-    appname-X.Y.platform/        - specific version of the application
-      prog.exe                   - executable(s) as produced by freezer module
-      library.zip                - pure-python frozen modules
-      pythonXY.dll               - python DLL
-      esky-files/                - esky control files
-        bootstrap/               - files not yet moved into bootstrapping env
-        bootstrap-manifest.txt   - list of files expected in bootstrap env
-        lockfile.txt             - lockfile to block removal of in-use versions
-      ...other deps...
-    updates/                     - work area for fetching/unpacking updates
+    appdata/                     - container for all the esky magic
+      appname-X.Y.platform/      - specific version of the application
+        prog.exe                 - executable(s) as produced by freezer module
+        library.zip              - pure-python frozen modules
+        pythonXY.dll             - python DLL
+        esky-files/              - esky control files
+          bootstrap/             - files not yet moved into bootstrapping env
+          bootstrap-manifest.txt - list of files expected in bootstrap env
+          lockfile.txt           - lockfile to block removal of in-use versions
+        ...other deps...
+      updates/                   - work area for fetching/unpacking updates
 
 This is also the layout of the zipfiles produced by bdist_esky.  The 
 "appname-X.Y" directory is simply a frozen app directory with some extra

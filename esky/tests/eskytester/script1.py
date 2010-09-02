@@ -12,6 +12,7 @@ import esky.tests
 import esky.util
 
 ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
+ESKY_APPDATA_DIR = esky.util.ESKY_APPDATA_DIR
 
 #  Test that the frozen app is actually working
 import eskytester
@@ -92,21 +93,22 @@ assert app.find_update() == "0.3"
 
 assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
-assert os.path.isfile(os.path.join(app._get_versions_dir(),"eskytester-0.1."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
+if ESKY_APPDATA_DIR:
+    assert os.path.isfile(os.path.join(os.path.dirname(app._get_versions_dir()),"eskytester-0.1."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
+else:
+    assert os.path.isfile(os.path.join(app._get_versions_dir(),"eskytester-0.1."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
 assert os.path.isfile(os.path.join(app._get_versions_dir(),"eskytester-0.2."+esky.util.get_platform(),ESKY_CONTROL_DIR,"bootstrap-manifest.txt"))
 
 
 #  Check that we can't uninstall a version that's in use.
-assert esky.util.is_locked_version_dir(os.path.join(app._get_versions_dir(),"eskytester-0.1."+esky.util.get_platform()))
+if ESKY_APPDATA_DIR:
+    assert esky.util.is_locked_version_dir(os.path.join(os.path.dirname(app._get_versions_dir()),"eskytester-0.1."+esky.util.get_platform()))
+else:
+    assert esky.util.is_locked_version_dir(os.path.join(app._get_versions_dir(),"eskytester-0.1."+esky.util.get_platform()))
 try:
     app.uninstall_version("0.1")
 except esky.VersionLockedError:
     pass
 else:
     assert False, "in-use version was not locked"
-
-if sys.platform == "darwin":
-    open("../../../../../../tests-completed","w").close()
-else:
-    open("tests-completed","w").close()
 

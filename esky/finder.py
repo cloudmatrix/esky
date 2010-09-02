@@ -210,7 +210,7 @@ class DefaultVersionFinder(VersionFinder):
                         yield status
             try:
                 self._prepare_version(app,version,local_path)
-            except (PatchError,EskyVersionError):
+            except (PatchError,EskyVersionError,EnvironmentError):
                 yield {"status":"retrying","size":None}
         yield {"status":"ready","path":name}
 
@@ -280,19 +280,34 @@ class DefaultVersionFinder(VersionFinder):
                             pass
                         raise
                     patches = path[1:]
-                #  Apply each patch in turn.
-                #  The list will be empty if it's a straight zipfile download.
-                for (patchfile,patchurl) in patches:
-                    try:
-                        with open(patchfile,"rb") as f:
-                            apply_patch(uppath,f)
-                    except PatchError:
-                        self.version_graph.remove_all_links(patchurl)
+                # TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
+                # If a patch fails to apply because we've put an appdata dir
+                # where it doesn't expect one, try again with old layout. 
+                for _ in xrange(2):
+                    #  Apply any patches in turn.
+                    for (patchfile,patchurl) in patches:
                         try:
-                            os.unlink(patchfile)
-                        except EnvironmentError:
-                            pass
-                        raise
+                            try:
+                                with open(patchfile,"rb") as f:
+                                    apply_patch(uppath,f)
+                            except EnvironmentError, e:
+                                if e.errno not in (errno.ENOENT,):
+                                    raise
+                                if not path[0][0].endswith(".patch"):
+                                    raise
+                                shutil.rmtree(uppath)
+                                os.mkdir(uppath)
+                                self._copy_best_version(app,uppath,False)
+                                break
+                        except (PatchError,EnvironmentError):
+                            self.version_graph.remove_all_links(patchurl)
+                            try:
+                                os.unlink(patchfile)
+                            except EnvironmentError:
+                                pass
+                            raise
+                    else:
+                        break
             # Find the actual version dir that we're unpacking.
             # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
             vdir = join_app_version(app.name,version,app.platform)
@@ -337,7 +352,7 @@ class DefaultVersionFinder(VersionFinder):
         finally:
             shutil.rmtree(uppath)
 
-    def _copy_best_version(self,app,uppath):
+    def _copy_best_version(self,app,uppath,force_appdata_dir=True):
         """Copy the best version directory from the given app.
 
         This copies the best version directory from the given app into the
@@ -349,12 +364,16 @@ class DefaultVersionFinder(VersionFinder):
         source = os.path.join(app.appdir,ESKY_APPDATA_DIR,best_vdir)
         if not os.path.exists(source):
             source = os.path.join(app.appdir,best_vdir)
+        if not force_appdata_dir:
+            dest = uppath
+        else:
+            dest = os.path.join(uppath,ESKY_APPDATA_DIR)
         try:
-            os.mkdir(os.path.join(uppath,ESKY_APPDATA_DIR))
+            os.mkdir(dest)
         except OSError, e:
             if e.errno not in (errno.EEXIST,183):
                 raise
-        shutil.copytree(source,os.path.join(uppath,ESKY_APPDATA_DIR,best_vdir))
+        shutil.copytree(source,os.path.join(dest,best_vdir))
         mfstnm = os.path.join(source,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         with open(mfstnm,"r") as manifest:
             for nm in manifest:

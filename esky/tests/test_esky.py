@@ -187,10 +187,18 @@ class TestEsky(unittest.TestCase):
     sequence of tests performed range across "script1.py" to "script3.py".
     """
     olddir = os.path.abspath(os.curdir)
-    #tdir = os.path.join(os.path.dirname(__file__),"DIST")
-    #if os.path.exists(tdir):
-    #    shutil.rmtree(tdir)
-    #os.mkdir(tdir)
+    tdir = os.path.join(os.path.dirname(__file__),"DIST")
+#    if os.path.exists(tdir):
+#        for i in xrange(10):
+#            try:
+#                shutil.rmtree(tdir)
+#            except EnvironmentError:
+#                time.sleep(0.5)
+#            else:
+#                break
+#        else:
+#            shutil.rmtree(tdir)
+#    os.mkdir(tdir)
     tdir = tempfile.mkdtemp()
     server = None
     try:
@@ -204,9 +212,6 @@ class TestEsky(unittest.TestCase):
         esky_root = dirname(dirname(dirname(__file__)))
         os.chdir(tdir)
         shutil.copytree(os.path.join(esky_root,"esky","tests","eskytester"),"eskytester")
-        #  Clean up after previous test runs.
-        if os.path.isdir(deploydir):
-            shutil.rmtree(deploydir)
         dir_util._path_created.clear()
         #  Build three increasing versions of the test package.
         #  Version 0.2 will include a bundled MSVCRT on win32.
@@ -261,36 +266,27 @@ class TestEsky(unittest.TestCase):
                 cmd2 = os.path.join(deploydir,"script2")
                 cmd3 = os.path.join(deploydir,"script3")
         print "spawning eskytester script1", options["bdist_esky"]["freezer_module"]
-        p = subprocess.Popen(cmd1)#,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        #(stdout,_) = p.communicate()
-        #sys.stdout.write(stdout.decode())
-        p.wait()
-        assert p.returncode == 0
-        assert os.path.exists("tests-completed")
-        os.unlink("tests-completed")
+        os.unlink(os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,)))
+        p = subprocess.Popen(cmd1)
+        assert p.wait() == 0
         print "spawning eskytester script2"
-        p = subprocess.Popen(cmd2,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        (stdout,_) = p.communicate()
-        sys.stdout.write(stdout.decode())
-        assert p.returncode == 0
-        assert os.path.exists("tests-completed")
-        os.unlink("tests-completed")
+        os.unlink(os.path.join(tdir,"dist","eskytester-0.2.%s.zip"%(platform,)))
+        p = subprocess.Popen(cmd2)
+        assert p.wait() == 0
         print "spawning eskytester script3"
-        p = subprocess.Popen(cmd3,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        (stdout,_) = p.communicate()
-        sys.stdout.write(stdout.decode())
-        assert p.returncode == 0
-        assert os.path.exists("tests-completed")
-        os.unlink("tests-completed")
+        p = subprocess.Popen(cmd3)
+        assert p.wait() == 0
     finally:
         os.chdir(olddir)
         for i in xrange(10):
             try:
                 shutil.rmtree(tdir)
             except EnvironmentError:
-                time.sleep(2)
+                time.sleep(0.5)
             else:
                 break
+        #else:
+        #    shutil.rmtree(tdir)
         if server:
             server.shutdown()
  

@@ -54,7 +54,6 @@ if sys.platform == "win32":
           return super(CustomWin32Platform,self)._compile_c_file(cc,cfile,compile_args)
 
       def _link(self,cc,ofiles,link_args,standalone,exe_name):
-          print "LINK", ofiles
           #  Link against windows subsystem if gui-only is specified.
           if self.gui_only:
               link_args.append("/subsystem:windows")
@@ -80,7 +79,6 @@ if sys.platform == "win32":
           return super(CustomWin32Platform,self)._link(cc,ofiles,link_args,standalone,exe_name)
 
       def _finish_linking(self,ofiles,*args,**kwds):
-          print "FINISH LINKING", ofiles
           return super(CustomWin32Platform,self)._finish_linking(ofiles,*args,**kwds)
 
   pypy.translator.platform.platform = CustomWin32Platform()
