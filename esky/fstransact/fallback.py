@@ -124,7 +124,8 @@ class FSTransaction(object):
                 self.pending.append(("_copy",source,target))
 
     def _copy(self,source,target):
-        if sys.platform == "win32" and os.path.exists(target):
+        is_win32 = (sys.platform == "win32")
+        if is_win32 and os.path.exists(target) and target != source:
             target_old = get_backup_filename(target)
             os.rename(target,target_old)
             try:
