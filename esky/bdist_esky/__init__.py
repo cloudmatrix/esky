@@ -33,7 +33,7 @@ from distutils.util import convert_path
 import esky.patch
 from esky.util import get_platform, is_core_dependency, create_zipfile, \
                       split_app_version, join_app_version, ESKY_CONTROL_DIR, \
-                      ESKY_APPDATA_DIR
+                      ESKY_APPDATA_DIR, really_rmtree
 
 if sys.platform == "win32":
     from esky import winres
@@ -308,7 +308,7 @@ class bdist_esky(Command):
         try:
             self._run()
         finally:
-            shutil.rmtree(self.tempdir)
+            really_rmtree(self.tempdir)
 
     def _run(self):
         self._run_initialise_dirs()
@@ -332,7 +332,7 @@ class bdist_esky(Command):
             self.freeze_dir = os.path.join(self.bootstrap_dir,
                                            "%s.%s"%(fullname,platform,))
         if os.path.exists(self.bootstrap_dir):
-            shutil.rmtree(self.bootstrap_dir)
+            really_rmtree(self.bootstrap_dir)
         os.makedirs(self.freeze_dir)
 
     def _run_freeze_scripts(self):
@@ -355,7 +355,7 @@ class bdist_esky(Command):
             self.freezer_module.zipit(self,self.bootstrap_dir,zfname)
         else:
             create_zipfile(self.bootstrap_dir,zfname,compress=True)
-        shutil.rmtree(self.bootstrap_dir)
+        really_rmtree(self.bootstrap_dir)
 
     def _obj2code(self,obj):
         """Convert an object to some python source code.

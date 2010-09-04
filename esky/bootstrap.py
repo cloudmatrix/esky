@@ -95,7 +95,10 @@ elif "nt" in sys.builtin_module_names:
         #  Create an O_TEMPORARY file and pass its name to the slave process.
         #  When this master process dies, the file will be deleted and the
         #  slave process will know to terminate.
-        tdir = environ.get("TEMP",None)
+        try:
+            tdir = environ["TEMP"]
+        except:
+            tdir = None
         if tdir:
             try:
                 nt.mkdir(pathjoin(tdir,"esky-slave-procs"),0600)
@@ -129,6 +132,10 @@ else:
 
 
 if __rpython__:
+    # RPython provides ll hooks for the actual os.environ object, not the
+    # one we pulled out of "nt" or "posix".
+    from os import environ
+
     # RPython doesn't have access to the "sys" module, so we fake it out.
     # The entry_point function will set these value appropriately.
     _sys = sys
@@ -146,6 +153,7 @@ if __rpython__:
             return None,None,None
     sys = sys()
     sys.modules["sys"] = sys
+
     #  RPython doesn't provide the sorted() builtin, and actually makes sorting
     #  quite complicated in general.  I can't convince the type annotator to be
     #  happy about using their "listsort" module, so I'm doing my own using a
@@ -645,13 +653,14 @@ if __rpython__:
     def target(driver,args):
         """Target function for compiling a standalone bootstraper with PyPy."""
         def entry_point(argv):
+             exit_code = 0
              #  Todo: resolve symlinks etc
              sys.executable = abspath(pathjoin(getcwd(),argv[0]))
              sys.argv = argv
              try:
                  main()
              except SystemExit, e:
-                 return _exit_code[0]
-             return 0
+                 exit_code = _exit_code[0]
+             return exit_code
         return entry_point, None
 

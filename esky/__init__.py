@@ -527,8 +527,9 @@ class Esky(object):
         manifest.add("updates")
         manifest.add("locked")
         manifest.add(best_version)
-        if self.active_version and self.active_version != best_version:
-            yield lambda: False
+        if self.active_version:
+            if self.active_version != split_app_version(best_version)[1]:
+                yield lambda: False
             manifest.add(self.active_version)
         # TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
         for tdir in (appdir,vsdir):
@@ -748,7 +749,7 @@ class Esky(object):
                     cleaned = self.cleanup()
         finally:
             #  Drop root privileges as soon as possible.
-            if not cleaned:
+            if not cleaned and self.needs_cleanup():
                 self.cleanup_at_exit()
             if got_root:
                 self.drop_root()
@@ -1042,16 +1043,25 @@ def run_startup_hooks():
     # Lock the version dir while we're executing, so other instances don't
     # delete files out from under us.
     if getattr(sys,"frozen",False):
-        # TODO: how to handle versions stored in a subdir?
         appdir = appdir_from_executable(sys.executable)
-        vdir = sys.executable[len(appdir):].split(os.sep)[1]
-        vdir = os.path.join(appdir,vdir)
-        if is_version_dir(vdir):
-            lock_version_dir(vdir)
+        # TODO: remove ESKY_APPDATA_DIR="" compatability hooks
+        if ESKY_APPDATA_DIR:
+            vdir = os.sep.join(sys.executable[len(appdir):].split(os.sep)[1:3])
+            vdir = os.path.join(appdir,vdir)
+            if not is_version_dir(vdir):
+                vdir = sys.executable[len(appdir):].split(os.sep)[1]
+                vdir = os.path.join(appdir,vdir)
+        else:
+            vdir = sys.executable[len(appdir):].split(os.sep)[1]
+            vdir = os.path.join(appdir,vdir)
+            if not is_version_dir(vdir):
+                vdir = os.sep.join(sys.executable[len(appdir):].split(os.sep)[1:3])
+                vdir = os.path.join(appdir,vdir)
+        lock_version_dir(vdir)
     # Run the "spawn-cleanup" hook if given.
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-cleanup":
         app = pickle.loads(base64.b64decode(sys.argv[2]))
-        time.sleep(10)        
+        time.sleep(1)        
         app.cleanup()
         sys.exit(0)
     # Let esky.slaveproc run its hooks.

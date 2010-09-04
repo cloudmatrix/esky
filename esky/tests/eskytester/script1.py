@@ -112,3 +112,4 @@ except esky.VersionLockedError:
 else:
     assert False, "in-use version was not locked"
 
+open(os.path.join(app.appdir,"tests-completed"),"w").close()
