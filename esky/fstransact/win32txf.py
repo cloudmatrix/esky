@@ -73,7 +73,8 @@ class FSTransaction(object):
             except WindowsError, e:
                 if e.winerror == ERROR_TRANSACTIONAL_OPEN_NOT_ALLOWED:
                     raise
-            self.abort()
+            finally:
+                self.abort()
             self.trnid = CreateTransaction(None,0,0,0,0,None,"")
         
     def _check_path(self,path):
@@ -112,7 +113,7 @@ class FSTransaction(object):
     def _move(self,source,target):
         source = source.encode(sys.getfilesystemencoding())
         target = target.encode(sys.getfilesystemencoding())
-        if os.path.exists(target):
+        if os.path.exists(target) and target != source:
             target_old = get_backup_filename(target)
             MoveFileTransacted(target,target_old,None,None,1,self.trnid)
             MoveFileTransacted(source,target,None,None,1,self.trnid)
@@ -159,7 +160,7 @@ class FSTransaction(object):
     def _copy(self,source,target):
         source = source.encode(sys.getfilesystemencoding())
         target = target.encode(sys.getfilesystemencoding())
-        if os.path.exists(target):
+        if os.path.exists(target) and target != source:
             target_old = get_backup_filename(target)
             MoveFileTransacted(target,target_old,None,None,1,self.trnid)
             self._do_copy(source,target)
@@ -169,7 +170,7 @@ class FSTransaction(object):
                 pass
         else:
             target_old = None
-            if os.path.isdir(target):
+            if os.path.isdir(target) and target != source:
                 target_old = get_backup_filename(target)
                 MoveFileTransacted(target,target_old,None,None,1,self.trnid)
             self._do_copy(source,target)
