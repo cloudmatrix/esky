@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 import esky
 import esky.util
 import esky.tests
@@ -25,7 +26,12 @@ assert app.find_update() is None
 if os.environ.get("ESKY_NEEDSROOT",""):
     app.get_root()
 
-app.cleanup()
+try:
+    app.cleanup()
+except esky.EskyLockedError:
+    print "LOCKED, SLEEPING"
+    time.sleep(10)
+    app.cleanup()
 assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform))
 assert not os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
@@ -46,3 +52,4 @@ if sys.platform == "win32":
         assert hasattr(sys,"bootstrap_executable"), "didn't chainload in-proc"
 
 
+open(os.path.join(app.appdir,"tests-completed"),"w").close()

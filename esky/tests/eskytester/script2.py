@@ -11,6 +11,7 @@ import esky
 import esky.util
 import esky.tests
 
+
 ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
 ESKY_APPDATA_DIR = esky.util.ESKY_APPDATA_DIR
  
@@ -119,6 +120,6 @@ else:
     assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.2."+platform))
     assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform))
 
-
+    open(os.path.join(app.appdir,"tests-completed"),"w").close()
 
 

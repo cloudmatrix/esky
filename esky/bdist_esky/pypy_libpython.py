@@ -75,16 +75,15 @@ class libpython(object):
         return impl.call(rffi.VOIDP)
 
 
-    def Err_PrintEx(self,set_sys_last_vars=1):
-        impl = self.lib.getpointer("PyErr_PrintEx",[libffi.ffi_type_sint],libffi.ffi_type_void)
-        impl.push_arg(set_sys_last_vars)
-        return impl.call(lltype.Void)
+    def Err_Print(self):
+        impl = self.lib.getpointer("PyErr_Print",[],libffi.ffi_type_void)
+        impl.call(lltype.Void)
 
 
     def _error(self):
         err = self.Err_Occurred()
         if err:
-            self.Err_PrintEx()
+            self.Err_Print()
             raise RuntimeError("an error occurred")
 
 
@@ -155,6 +154,63 @@ class libpython(object):
         return d
 
 
+    def Import_ImportModule(self,name):
+        impl = self.lib.getpointer("PyImport_ImportModule",[libffi.ffi_type_pointer],libffi.ffi_type_pointer)
+        buf = rffi.str2charp(name)
+        impl.push_arg(buf)
+        mod = impl.call(rffi.VOIDP)
+        rffi.free_charp(buf)
+        if not mod:
+            self._error()
+        return mod
+
+
+    def Object_GetAttr(self,obj,attr):
+        impl = self.lib.getpointer("PyObject_GetAttr",[libffi.ffi_type_pointer,libffi.ffi_type_pointer],libffi.ffi_type_pointer)
+        impl.push_arg(obj)
+        impl.push_arg(attr)
+        a = impl.call(rffi.VOIDP)
+        if not a:
+            self._error()
+        return a
+
+
+    def Object_GetAttrString(self,obj,attr):
+        impl = self.lib.getpointer("PyObject_GetAttrString",[libffi.ffi_type_pointer,libffi.ffi_type_pointer],libffi.ffi_type_pointer)
+        impl.push_arg(obj)
+        buf = rffi.str2charp(attr)
+        impl.push_arg(buf)
+        a = impl.call(rffi.VOIDP)
+        rffi.free_charp(buf)
+        if not a:
+            self._error()
+        return a
+
+
+    def Object_SetAttr(self,obj,attr,val):
+        impl = self.lib.getpointer("PyObject_SetAttr",[libffi.ffi_type_pointer,libffi.ffi_type_pointer,libffi.ffi_type_pointer],libffi.ffi_type_sint)
+        impl.push_arg(obj)
+        impl.push_arg(attr)
+        impl.push_arg(val)
+        res = impl.call(rffi.INT)
+        if res < 0:
+            self._error()
+        return None
+
+
+    def Object_SetAttrString(self,obj,attr,val):
+        impl = self.lib.getpointer("PyObject_SetAttrString",[libffi.ffi_type_pointer,libffi.ffi_type_pointer,libffi.ffi_type_pointer],libffi.ffi_type_sint)
+        impl.push_arg(obj)
+        buf = rffi.str2charp(attr)
+        impl.push_arg(buf)
+        impl.push_arg(val)
+        res = impl.call(rffi.INT)
+        rffi.free_charp(buf)
+        if res < 0:
+            self._error()
+        return None
+
+
     def Dict_New(self):
         impl = self.lib.getpointer("PyDict_New",[],libffi.ffi_type_pointer)
         d = impl.call(rffi.VOIDP)
@@ -175,17 +231,69 @@ class libpython(object):
             self._error()
 
 
-    def String_FromStringAndSize(self,buf,size):
-        impl = self.lib.getpointer("PyString_FromStringAndSize",[libffi.ffi_type_pointer,libffi.ffi_type_uint],libffi.ffi_type_pointer)
-        if not buf:
-            impl.push_arg(buf)
-        else:
-            impl.push_arg(buf)
+    def List_New(self,size=0):
+        impl = self.lib.getpointer("PyList_New",[libffi.ffi_type_uint],libffi.ffi_type_pointer)
         impl.push_arg(size)
-        s = impl.call(rffi.VOIDP)
-        if not s:
+        l = impl.call(rffi.VOIDP)
+        if not l:
+            self._error()
+        return l
+
+
+    def List_Size(self,l):
+        impl = self.lib.getpointer("PyList_Size",[libffi.ffi_type_pointer],libffi.ffi_type_uint)
+        impl.push_arg(l)
+        s = impl.call(rffi.INT)
+        if s < 0:
             self._error()
         return s
+
+
+    def List_SetItem(self,l,i,v):
+        impl = self.lib.getpointer("PyList_SetItem",[libffi.ffi_type_pointer,libffi.ffi_type_uint,libffi.ffi_type_pointer],libffi.ffi_type_sint)
+        impl.push_arg(l)
+        impl.push_arg(i)
+        impl.push_arg(v)
+        res = impl.call(rffi.INT)
+        if res < 0:
+            self._error()
+
+
+    def List_Append(self,l,v):
+        impl = self.lib.getpointer("PyList_Append",[libffi.ffi_type_pointer,libffi.ffi_type_pointer],libffi.ffi_type_sint)
+        impl.push_arg(l)
+        impl.push_arg(v)
+        res = impl.call(rffi.INT)
+        if res < 0:
+            self._error()
+
+
+    def String_FromString(self,s):
+        impl = self.lib.getpointer("PyString_FromString",[libffi.ffi_type_pointer],libffi.ffi_type_pointer)
+        buf = rffi.str2charp(s)
+        impl.push_arg(buf)
+        ps = impl.call(rffi.VOIDP)
+        rffi.free_charp(buf)
+        if not ps:
+            self._error()
+        return ps
+
+
+    def String_FromStringAndSize(self,s,size):
+        impl = self.lib.getpointer("PyString_FromStringAndSize",[libffi.ffi_type_pointer,libffi.ffi_type_uint],libffi.ffi_type_pointer)
+        if not s:
+            buf = None
+            impl.push_arg(None)
+        else:
+            buf = rffi.str2charp(s)
+            impl.push_arg(buf)
+        impl.push_arg(size)
+        ps = impl.call(rffi.VOIDP)
+        if s:
+            rffi.free_charp(buf)
+        if not ps:
+            self._error()
+        return ps
 
 
     def String_AsString(self,s):
@@ -195,6 +303,5 @@ class libpython(object):
         if not buf:
             self._error()
         return buf
-
 
 

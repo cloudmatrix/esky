@@ -29,7 +29,8 @@ import esky.sudo
 from esky import bdist_esky
 from esky.bdist_esky import Executable
 from esky.util import extract_zipfile, deep_extract_zipfile, get_platform, \
-                      ESKY_CONTROL_DIR, files_differ, ESKY_APPDATA_DIR
+                      ESKY_CONTROL_DIR, files_differ, ESKY_APPDATA_DIR, \
+                      really_rmtree
 from esky.fstransact import FSTransaction
 
 try:
@@ -109,10 +110,10 @@ class TestEsky(unittest.TestCase):
            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                                "bootstrap_code":bscode}})
 
-    if esky.sudo.can_get_root():
-        def test_esky_py2exe_needsroot(self):
-            with setenv("ESKY_NEEDSROOT","1"):
-               self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
+    #if esky.sudo.can_get_root():
+    #    def test_esky_py2exe_needsroot(self):
+    #        with setenv("ESKY_NEEDSROOT","1"):
+    #           self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
     if pypy is not None:
         def test_esky_py2exe_pypy(self):
@@ -187,20 +188,13 @@ class TestEsky(unittest.TestCase):
     sequence of tests performed range across "script1.py" to "script3.py".
     """
     olddir = os.path.abspath(os.curdir)
-    tdir = os.path.join(os.path.dirname(__file__),"DIST")
+#    tdir = os.path.join(os.path.dirname(__file__),"DIST")
 #    if os.path.exists(tdir):
-#        for i in xrange(10):
-#            try:
-#                shutil.rmtree(tdir)
-#            except EnvironmentError:
-#                time.sleep(0.5)
-#            else:
-#                break
-#        else:
-#            shutil.rmtree(tdir)
+#        really_rmtree(tdir)
 #    os.mkdir(tdir)
     tdir = tempfile.mkdtemp()
     server = None
+    script2 = None
     try:
         options.setdefault("build",{})["build_base"] = os.path.join(tdir,"build")
         options.setdefault("bdist",{})["dist_dir"] = os.path.join(tdir,"dist")
@@ -252,11 +246,12 @@ class TestEsky(unittest.TestCase):
         extract_zipfile(zfname,deploydir)
         #  Run the scripts in order.
         if options["bdist_esky"]["freezer_module"] == "py2app":
-            appdir = os.listdir(deploydir)[0]
-            cmd1 = os.path.join(deploydir,appdir,"Contents","MacOS","script1")
-            cmd2 = os.path.join(deploydir,appdir,"Contents","MacOS","script2")
-            cmd3 = os.path.join(deploydir,appdir,"Contents","MacOS","script3")
+            appdir = os.path.join(deploydir,os.listdir(deploydir)[0])
+            cmd1 = os.path.join(appdir,"Contents","MacOS","script1")
+            cmd2 = os.path.join(appdir,"Contents","MacOS","script2")
+            cmd3 = os.path.join(appdir,"Contents","MacOS","script3")
         else:
+            appdir = deploydir
             if sys.platform == "win32":
                 cmd1 = os.path.join(deploydir,"script1.exe")
                 cmd2 = os.path.join(deploydir,"script2.exe")
@@ -269,24 +264,24 @@ class TestEsky(unittest.TestCase):
         os.unlink(os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,)))
         p = subprocess.Popen(cmd1)
         assert p.wait() == 0
+        os.unlink(os.path.join(appdir,"tests-completed"))
         print "spawning eskytester script2"
         os.unlink(os.path.join(tdir,"dist","eskytester-0.2.%s.zip"%(platform,)))
         p = subprocess.Popen(cmd2)
         assert p.wait() == 0
+        os.unlink(os.path.join(appdir,"tests-completed"))
         print "spawning eskytester script3"
         p = subprocess.Popen(cmd3)
         assert p.wait() == 0
+        os.unlink(os.path.join(appdir,"tests-completed"))
     finally:
+        if script2:
+            script2.script[1].close()
         os.chdir(olddir)
-        for i in xrange(10):
-            try:
-                shutil.rmtree(tdir)
-            except EnvironmentError:
-                time.sleep(0.5)
-            else:
-                break
-        #else:
-        #    shutil.rmtree(tdir)
+        if sys.platform == "win32":
+           # wait for the cleanup-at-exit pocess to finish
+           time.sleep(4)
+        really_rmtree(tdir)
         if server:
             server.shutdown()
  
@@ -681,14 +676,8 @@ class TestPatch(unittest.TestCase):
 
     def _extract(self,filename,dest):
         dest = os.path.join(self.workdir,dest)
-        for i in xrange(10):
-            if os.path.exists(dest):
-                try:
-                    shutil.rmtree(dest)
-                except EnvironmentError:
-                    time.sleep(1)
-                else:
-                    break
+        if os.path.exists(dest):
+            really_rmtree(dest)
         f = tarfile.open(os.path.join(self.tfdir,filename),"r:gz")
         try:
             f.extractall(dest)

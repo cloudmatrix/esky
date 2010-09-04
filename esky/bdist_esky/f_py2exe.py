@@ -358,11 +358,14 @@ _CUSTOM_PYPY_CHAINLOADER = """
 import nt
 from pypy.rlib.rstruct.runpack import runpack
 
+import time;
+
 _orig_chainload = _chainload
 def _chainload(target_dir):
   mydir = dirname(sys.executable)
   pydll = pathjoin(target_dir,"python%s%s.dll" % sys.version_info[:2])
   if not exists(pydll):
+      raise ValueError("NO PY DLL")
       return _orig_chainload(target_dir)
   else:
 
@@ -388,6 +391,7 @@ def _chainload(target_dir):
       try:
           py_data = load_resource_pystr(py,target_exe,"PYTHONSCRIPT",1,0)
       except EnvironmentError:
+          raise
           return _orig_chainload(target_dir)
       data = py.String_AsString(py_data)
       headsz = 16  # <-- struct.calcsize("iiii")
@@ -415,19 +419,19 @@ def _chainload(target_dir):
       #  Preted the python env is running from within the frozen executable
       syspath = "%s;%s\\library.zip;%s" % (target_exe,target_dir,target_dir,)
       py.Sys_SetPath(syspath);
-      # TODO: can't get this through pypy's type annotator.
-      # going to fudge it in python instead :-)
-      #py.Sys_SetArgv(list(sys.argv))
-      #  Escape any double-quotes in sys.argv, so we can easily
-      #  include it in a python-level string.
-      new_argvs = []
-      for arg in sys.argv:
-          new_argvs.append('r"' + arg.replace('"','\\"') + '"')
-      new_argv = "[" + ",".join(new_argvs) + "]"
-      py.Run_SimpleString("import sys; sys.argv = %s" % (new_argv,))
-      py.Run_SimpleString("import sys; sys.frozen = 'py2exe'")
-      py.Run_SimpleString("import sys; sys.executable = r'%s'" % (target_exe.replace("'","\\'"),))
-      py.Run_SimpleString("import sys; sys.bootstrap_executable = r'%s'" % (sys.executable.replace("'","\\'"),))
+      sysmod = py.Import_ImportModule("sys")
+      sysargv = py.List_New(len(sys.argv))
+      for i in xrange(len(sys.argv)):
+          py.List_SetItem(sysargv,i,py.String_FromString(sys.argv[i]))
+      py.Object_SetAttrString(sysmod,"argv",sysargv)
+      py.Object_SetAttrString(sysmod,"frozen",py.String_FromString("py2exe"))
+      py.Object_SetAttrString(sysmod,"executable",py.String_FromString(target_exe))
+      py.Object_SetAttrString(sysmod,"bootstrap_executable",py.String_FromString(sys.executable))
+      py.Object_SetAttrString(sysmod,"prefix",py.String_FromString(dirname(target_exe)))
+
+      curdir = getcwd()
+      if curdir == mydir:
+          nt.chdir(target_dir)
 
       #  Execute the marshalled list of code objects
       globals = py.Dict_New()

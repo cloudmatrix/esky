@@ -211,6 +211,9 @@ class DefaultVersionFinder(VersionFinder):
             try:
                 self._prepare_version(app,version,local_path)
             except (PatchError,EskyVersionError,EnvironmentError):
+                print "ERROR"
+                import traceback
+                traceback.print_exc()
                 yield {"status":"retrying","size":None}
         yield {"status":"ready","path":name}
 

@@ -95,10 +95,11 @@ PATCH_HEADER = "ESKYPTCH".encode("ascii")
 
 from esky.errors import Error
 from esky.util import extract_zipfile, create_zipfile, deep_extract_zipfile,\
-                      zipfile_common_prefix_dir
+                      zipfile_common_prefix_dir, really_rmtree, really_rename
 
 __all__ = ["PatchError","DiffError","main","write_patch","apply_patch",
            "Differ","Patcher"]
+
 
 
 class PatchError(Error):
@@ -302,7 +303,7 @@ class Patcher(object):
         if self.outfile:
             self.outfile.close()
         if self._workdir and shutil:
-            shutil.rmtree(self._workdir)
+            really_rmtree(self._workdir)
 
     def _read(self,size):
         """Read the given number of bytes from the command stream."""
@@ -351,7 +352,7 @@ class Patcher(object):
         """
         if not self.outfile and not self.dry_run:
             if os.path.exists(self.target) and not os.path.isfile(self.target):
-                shutil.rmtree(self.target)
+                really_rmtree(self.target)
             self.new_target = self.target + ".new"
             while os.path.exists(self.new_target):
                 self.new_target += ".new"
@@ -376,7 +377,7 @@ class Patcher(object):
                 os.unlink(self.target)
                 if sys.platform == "win32":
                     time.sleep(0.01)
-            os.rename(self.new_target,self.target)
+            really_rename(self.new_target,self.target)
             self.new_target = None
 
     def _check_path(self,path=None):
@@ -515,7 +516,7 @@ class Patcher(object):
         self._check_end_patch()
         if not self.dry_run:
             if os.path.isdir(self.target):
-                shutil.rmtree(self.target)
+                really_rmtree(self.target)
             elif os.path.exists(self.target):
                 os.unlink(self.target)
             os.makedirs(self.target)
@@ -528,7 +529,7 @@ class Patcher(object):
         self._check_end_patch()
         if not self.dry_run:
             if os.path.isdir(self.target):
-                shutil.rmtree(self.target)
+                really_rmtree(self.target)
             elif os.path.exists(self.target):
                 os.unlink(self.target)
 
@@ -547,7 +548,7 @@ class Patcher(object):
         if not self.dry_run:
             if os.path.exists(self.target):
                 if os.path.isdir(self.target):
-                    shutil.rmtree(self.target)
+                    really_rmtree(self.target)
                 else:
                     os.unlink(self.target)
             if os.path.isfile(source_path):
@@ -570,12 +571,12 @@ class Patcher(object):
         if not self.dry_run:
             if os.path.exists(self.target):
                 if os.path.isdir(self.target):
-                    shutil.rmtree(self.target)
+                    really_rmtree(self.target)
                 else:
                     os.unlink(self.target)
                 if sys.platform == "win32":
                     time.sleep(0.01)
-            os.rename(source_path,self.target)
+            really_rename(source_path,self.target)
 
     def _do_PF_COPY(self):
         """Execute the PF_COPY command.
@@ -661,7 +662,7 @@ class Patcher(object):
             m_temp = os.path.join(workdir,"meta")
             z_temp = os.path.join(workdir,"result.zip")
         cur_state = self._blank_state()
-        zfmeta = [None]
+        zfmeta = [None]  # stupid lack of mutable closure variables...
         #  First we process a set of commands to generate the zipfile metadata.
         def end_metadata():
             if not self.dry_run:
@@ -678,7 +679,7 @@ class Patcher(object):
                         self.outfile.write(data)
                         data = f.read(1024*16)
                 zfmeta[0].close()
-                shutil.rmtree(workdir)
+                really_rmtree(workdir)
         self._context_stack.append(end_contents)
         self._context_stack.append(end_metadata)
         if not self.dry_run:
@@ -1066,15 +1067,7 @@ class _tempdir(object):
     def __enter__(self):
         return self.path
     def __exit__(self,*args):
-        for _ in xrange(5):
-            try:
-                shutil.rmtree(self.path)
-            except EnvironmentError:
-                time.sleep(0.1)
-            else:
-                break
-        else:
-            shutil.rmtree(self.path)
+        really_rmtree(self.path)
 
 
 if cx_bsdiff is not None:
@@ -1291,7 +1284,7 @@ def main(args):
                 if sys.platform == "win32":
                     os.unlink(target_zip)
                     time.sleep(0.01)
-                os.rename(target_temp,target_zip)
+                really_rename(target_temp,target_zip)
         else:
             raise ValueError("invalid command: " + cmd)
     finally:
@@ -1299,7 +1292,7 @@ def main(args):
             if stream not in (sys.stdin,sys.stdout,):
                 stream.close()
         if opts.zipped:
-            shutil.rmtree(workdir)
+            really_rmtree(workdir)
  
 
 if __name__ == "__main__":

@@ -91,6 +91,11 @@ def shutil():
     return shutil
 
 @lazy_import
+def time():
+    import time
+    return time
+
+@lazy_import
 def re():
     import re
     return re
@@ -429,4 +434,48 @@ def is_locked_version_dir(vdir):
             return False
         finally:
             f.close()
+
+
+def really_rename(source,target):
+    """Like os.rename, but try to work around some win32 wierdness."""
+    if sys.platform != "win32":
+        os.rename(source,target)
+    else:
+        for _ in xrange(3):
+            try:
+                os.rename(source,target)
+            except WindowsError, e:
+                if e.errno not in (errno.EACCES,):
+                    raise
+                time.sleep(0.01)
+            else:
+                break
+        else:
+            os.rename(source,target)
+
+
+def really_rmtree(path):
+    """Like shutil.rmtree, but try to work around some win32 wierdness."""
+    if sys.platform != "win32":
+        shutil.rmtree(path)
+    else:
+        if not os.path.exists(path):
+            shutil.rmtree(path)
+        for _ in xrange(3):
+            try:
+                shutil.rmtree(path)
+            except WindowsError, e:
+                if e.errno == errno.ENOTEMPTY:
+                    time.sleep(0.01)
+                elif e.errno == errno.ENOENT:
+                    if not os.path.exists(path):
+                        return
+                    time.sleep(0.01)
+                else:
+                    raise
+            else:
+                break
+        else:
+            shutil.rmtree(path)
+
 
