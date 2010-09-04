@@ -98,19 +98,20 @@ def freeze(dist):
     code_source.append("if not __rpython__:")
     code_source.append("    bootstrap()")
     code_source = "\n".join(code_source)
+    def copy_to_bootstrap_env(src,dst=None):
+        if dst is None:
+            dst = src
+        src = os.path.join(appnm,src)
+        dist.copy_to_bootstrap_env(src,dst)
     if dist.compile_bootstrap_exes:
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            dist.compile_to_bootstrap_exe(exe,code_source)
+            relpath = os.path.join("Contents","MacOS",exe.name)
+            dist.compile_to_bootstrap_exe(exe,code_source,relpath)
     else:
         #  Copy the core dependencies into the bootstrap env.
         pydir = "python%d.%d" % sys.version_info[:2]
-        def copy_to_bootstrap_env(src,dst=None):
-            if dst is None:
-                dst = src
-            src = os.path.join(appnm,src)
-            dist.copy_to_bootstrap_env(src,dst)
         copy_to_bootstrap_env("Contents/Frameworks/Python.framework")
         copy_to_bootstrap_env("Contents/Resources/include")
         copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
@@ -123,7 +124,7 @@ def freeze(dist):
         copy_to_bootstrap_env("Contents/Resources/__boot__.py")
         copy_to_bootstrap_env("Contents/Resources/site.py")
         #  Copy the bootstrapping code into the __boot__.py file.
-        bsdir = dist.boostrap_dir
+        bsdir = dist.bootstrap_dir
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
             f.write(code_source)
         #  Clear site.py in the bootstrap dir, it doesn't do anything useful.

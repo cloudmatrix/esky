@@ -657,7 +657,7 @@ class bdist_esky(Command):
         return None
 
 
-    def compile_to_bootstrap_exe(self,exe,source):
+    def compile_to_bootstrap_exe(self,exe,source,relpath=None):
         """Compile the given sourcecode into a bootstrapping exe.
 
         This method compiles the given sourcecode into a stand-alone exe using
@@ -665,6 +665,8 @@ class bdist_esky(Command):
         Executable object.  If the source has been previously compiled then a
         cached version of the exe may be used.
         """
+        if not relpath:
+            relpath = exe.name
         source = "__rpython__ = True\n" + source
         cdir = os.path.join(self.tempdir,"compile")
         if not os.path.exists(cdir):
@@ -679,7 +681,7 @@ class bdist_esky(Command):
         if COMPILED_BOOTSTRAP_CACHE is not None:
             outfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,outname)
             if os.path.exists(outfile):
-                return self.copy_to_bootstrap_env(outfile,exe.name)
+                return self.copy_to_bootstrap_env(outfile,relpath)
         #  Otherwise we have to compile it anew.
         try:
             outfile = self._compiled_exes[source_hash]
@@ -698,7 +700,7 @@ class bdist_esky(Command):
                 shutil.copy2(outfile,cachedfile)
             except EnvironmentError:
                 pass
-        return self.copy_to_bootstrap_env(outfile,exe.name)
+        return self.copy_to_bootstrap_env(outfile,relpath)
 
     def copy_to_bootstrap_env(self,src,dst=None):
         """Copy the named file into the bootstrap environment.

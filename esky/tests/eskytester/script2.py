@@ -34,6 +34,7 @@ app = esky.tests.TestableEsky(sys.executable,"http://localhost:8000/dist/")
 assert app.name == "eskytester"
 assert app.active_version == app.version == "0.2"
 assert app.find_update() == "0.3"
+print "SCRIPT PATH", eskytester.script_path(app,"script1")
 assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
 
