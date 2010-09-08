@@ -27,6 +27,7 @@ from esky.util import pairwise, files_differ
 
 LOAD_LIBRARY_AS_DATAFILE = 0x00000002
 RT_ICON = 3
+RT_GROUP_ICON = 14
 RT_VERSION = 16
 RT_MANIFEST = 24
 
@@ -201,17 +202,23 @@ def get_app_manifest(filename_or_handle=None):
     return load_resource(filename_or_handle,RT_MANIFEST,1)
 
 
-COMMON_SAFE_RESOURCES = ((RT_VERSION,1),(RT_ICON,1),(RT_ICON,2))
+COMMON_SAFE_RESOURCES = ((RT_VERSION,1,0),(RT_ICON,0,0),(RT_ICON,1,0),
+                         (RT_ICON,2,0),(RT_GROUP_ICON,1,0),)
+                         
 
 def copy_safe_resources(source,target):
-    """Copy "safe" exe resources from one executable to another."""
-    for (rtype,rid) in COMMON_SAFE_RESOURCES:
+    """Copy "safe" exe resources from one executable to another.
+
+    This is useful if you want to make one executable look the same as another,
+    by copying version info, icon resources, etc.
+    """
+    for (rtype,rid,rlang) in COMMON_SAFE_RESOURCES:
         try:
-            res = load_resource(source,rtype,rid)
+            res = load_resource(source,rtype,rid,rlang)
         except WindowsError:
             pass
         else:
-            add_resource(target,res,rtype,rid)
+            add_resource(target,res,rtype,rid,rlang)
 
 
 def is_safe_to_overwrite(source,target):
@@ -233,13 +240,13 @@ def is_safe_to_overwrite(source,target):
     #  Find each safe resource, and confirm that either (1) it's in the same
     #  location in both executables, or (2) it's missing in both executables.
     locs = []
-    for (rtype,rid) in COMMON_SAFE_RESOURCES:
+    for (rtype,rid,rlang) in COMMON_SAFE_RESOURCES:
         try:
-            s_loc = find_resource(source,rtype,rid)
+            s_loc = find_resource(source,rtype,rid,rlang)
         except WindowsError:
             s_loc = None
         try: 
-            t_loc = find_resource(target,rtype,rid)
+            t_loc = find_resource(target,rtype,rid,rlang)
         except WindowsError:
             t_loc = None
         if s_loc != t_loc:

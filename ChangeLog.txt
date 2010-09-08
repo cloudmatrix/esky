@@ -27,7 +27,7 @@ v0.9.0
     * Remove compatability hooks for pre-0.8.0 on-disk layout.
     * Add ability to compile the bootstrapping exes with the pypy translation
       toolchain, to reduce distribution size and increase loading speed:
-          * pass the the option "--compile-bootstrap-exes" to bdist_esky to
+          * pass the option "--compile-bootstrap-exes" to bdist_esky to
             enable the compilation step.
           * any custom bootstrapping code must be valid RPython; check the
             variable __rpython__ to determine whether you're being compiled.

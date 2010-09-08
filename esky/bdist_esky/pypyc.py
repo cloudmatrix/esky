@@ -20,6 +20,8 @@ def compile_rpython(infile,outfile,gui_only=False,static_msvcrt=False):
     """Compile the given RPython input file to executable output file."""
     orig_argv = sys.argv[:]
     try:
+        if sys.platform == "win32":
+            pypy.translator.platform.host.gui_only = gui_only
         sys.argv[0] = sys.executable
         sys.argv[1:] = ["--output",outfile,"--batch","--gc=ref",]
         sys.argv.append(infile)
