@@ -204,12 +204,15 @@ class KillablePopen(subprocess.Popen):
             kernel32.TerminateProcess(self._handle,-1)
 
 
-class FakePopen(object):
+class FakePopen(KillablePopen):
     """Popen-alike based on a raw process handle."""
     def __init__(self,handle):
+        super(FakePopen,self).__init__(None)
         self._handle = handle
     def terminate(self):
         kernel32.TerminateProcess(self._handle,-1)
+    def _execute_child(self,*args,**kwds):
+        pass
     
 
 class SecureStringPipe(base.SecureStringPipe):
