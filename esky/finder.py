@@ -220,8 +220,15 @@ class DefaultVersionFinder(VersionFinder):
         outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
         if not os.path.exists(outfilenm):
             infile = self.open_url(urljoin(self.download_url,url))
-            if not hasattr(infile,"size"):
-                infile.size = None
+            try:
+                infile_size = infile.size
+            except AttributeError:
+                try:
+                    fh = infile.fileno()
+                except AttributeError:
+                    infile_size = None
+                else:
+                    infile_size = os.fstat(fh).st_size
             try:
                 partfilenm = outfilenm + ".part"
                 partfile = open(partfilenm,"wb")
@@ -229,7 +236,7 @@ class DefaultVersionFinder(VersionFinder):
                     data = infile.read(1024*512)
                     while data:
                         yield {"status": "downloading",
-                               "size": infile.size,
+                               "size": infile_size,
                                "received": partfile.tell(),
                         }
                         partfile.write(data)
@@ -425,27 +432,8 @@ class LocalVersionFinder(DefaultVersionFinder):
                 self.version_graph.add_link(from_version or "",version,nm,cost)
         return self.version_graph.get_versions(app.version)
 
-    def _fetch_file(self,app,nm):
-        infile = open(os.path.join(self.download_url,nm),"rb")
-        outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
-        if not os.path.exists(outfilenm):
-            partfilenm = outfilenm + ".part"
-            partfile = open(partfilenm,"wb")
-            try:
-                data = infile.read(1024*512)
-                while data:
-                    partfile.write(data)
-                    data = infile.read(1024*512)
-            except Exception:
-                infile.close()
-                partfile.close()
-                os.unlink(partfilenm)
-                raise
-            else:
-                infile.close()
-                partfile.close()
-                really_rename(partfilenm,outfilenm)
-        return outfilenm
+    def open_url(self,url):
+        return open(url,"rb")
 
 
 class VersionGraph(object):
