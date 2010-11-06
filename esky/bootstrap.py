@@ -636,7 +636,7 @@ def lock_version_dir(vdir):
         #      * not inherited across fork()
         #      * released when closing *any* fd associated with that file
         #  fcntl.flock doesn't have these problems, but may fail on NFS.
-        #  To complicate matters, python sometimes emulated flock with fcntl!
+        #  To complicate matters, python sometimes emulates flock with fcntl!
         #  We therefore use a separate lock file to avoid unpleasantness.
         lockfile = pathjoin(vdir,ESKY_CONTROL_DIR,"lockfile.txt")
         f = os_open(lockfile,0,0)
