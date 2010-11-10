@@ -433,7 +433,7 @@ class LocalVersionFinder(DefaultVersionFinder):
         return self.version_graph.get_versions(app.version)
 
     def open_url(self,url):
-        return open(url,"rb")
+        return open(os.path.join(self.download_url,url),"rb")
 
 
 class VersionGraph(object):
