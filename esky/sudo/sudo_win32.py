@@ -13,7 +13,6 @@ launch a process with administrative rights on Windows Vista and above.
 
 import os
 import sys
-import errno
 import struct
 import uuid
 import ctypes
@@ -178,9 +177,9 @@ def can_get_root():
                 cls = TokenLinkedToken
                 GetTokenInformation(token,cls,byref(lToken),sizeof(lToken),byref(sz))
             except WindowsError, e:
-                if e.errno == ERROR_NO_SUCH_LOGON_SESSION:
+                if e.winerror == ERROR_NO_SUCH_LOGON_SESSION:
                     return False
-                elif e.errno == ERROR_PRIVILEGE_NOT_HELD:
+                elif e.winerror == ERROR_PRIVILEGE_NOT_HELD:
                     return False
                 else:
                     raise
@@ -204,12 +203,15 @@ class KillablePopen(subprocess.Popen):
             kernel32.TerminateProcess(self._handle,-1)
 
 
-class FakePopen(object):
+class FakePopen(KillablePopen):
     """Popen-alike based on a raw process handle."""
     def __init__(self,handle):
+        super(FakePopen,self).__init__(None)
         self._handle = handle
     def terminate(self):
         kernel32.TerminateProcess(self._handle,-1)
+    def _execute_child(self,*args,**kwds):
+        pass
     
 
 class SecureStringPipe(base.SecureStringPipe):

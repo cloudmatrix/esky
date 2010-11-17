@@ -110,10 +110,10 @@ class TestEsky(unittest.TestCase):
            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                                "bootstrap_code":bscode}})
 
-    #if esky.sudo.can_get_root():
-    #    def test_esky_py2exe_needsroot(self):
-    #        with setenv("ESKY_NEEDSROOT","1"):
-    #           self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
+    if esky.sudo.can_get_root():
+        def test_esky_py2exe_needsroot(self):
+            with setenv("ESKY_NEEDSROOT","1"):
+               self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
     if pypy is not None:
         def test_esky_py2exe_pypy(self):

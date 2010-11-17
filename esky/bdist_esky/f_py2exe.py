@@ -365,7 +365,6 @@ def _chainload(target_dir):
   mydir = dirname(sys.executable)
   pydll = pathjoin(target_dir,"python%s%s.dll" % sys.version_info[:2])
   if not exists(pydll):
-      raise ValueError("NO PY DLL")
       return _orig_chainload(target_dir)
   else:
 
@@ -391,7 +390,6 @@ def _chainload(target_dir):
       try:
           py_data = load_resource_pystr(py,target_exe,"PYTHONSCRIPT",1,0)
       except EnvironmentError:
-          raise
           return _orig_chainload(target_dir)
       data = py.String_AsString(py_data)
       headsz = 16  # <-- struct.calcsize("iiii")

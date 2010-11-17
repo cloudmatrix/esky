@@ -20,6 +20,8 @@ def compile_rpython(infile,outfile,gui_only=False,static_msvcrt=False):
     """Compile the given RPython input file to executable output file."""
     orig_argv = sys.argv[:]
     try:
+        if sys.platform == "win32":
+            pypy.translator.platform.host.gui_only = gui_only
         sys.argv[0] = sys.executable
         sys.argv[1:] = ["--output",outfile,"--batch","--gc=ref",]
         sys.argv.append(infile)
@@ -45,12 +47,22 @@ if sys.platform == "win32":
       gui_only = False
       static_msvcrt = False
 
+      def _is_main_srcfile(self,filename):
+          if "platcheck" in filename:
+              return True
+          if "implement_1" in filename:
+              return True
+          return False
+
       def _compile_c_file(self,cc,cfile,compile_args):
-          #  Add stub code for WinMain to gui-only compiles.
           if self.gui_only:
-              with open(str(cfile),"r+b") as f:
-                  f.seek(0,os.SEEK_END)
-                  f.write(WINMAIN_STUB)
+              #  Add stub code for WinMain to gui-only compiles.
+              if self._is_main_srcfile(str(cfile)):
+                  with open(str(cfile),"r+b") as f:
+                      data = f.read()
+                      f.seek(0)
+                      f.write(WINMAIN_STUB)
+                      f.write(data)
           return super(CustomWin32Platform,self)._compile_c_file(cc,cfile,compile_args)
 
       def _link(self,cc,ofiles,link_args,standalone,exe_name):
@@ -90,14 +102,18 @@ if sys.platform == "win32":
 
 WINMAIN_STUB = """
 #ifndef PYPY_NOT_MAIN_FILE
+#ifndef WIN32_LEAN_AND_MEAN
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <stdlib.h>
 
 int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,
                    LPWSTR lpCmdLine,int nCmdShow) {
     return main(__argc, __argv);
 }
+
+#endif
 #endif
 """
 
@@ -105,4 +121,22 @@ DUMMY_MANIFEST =  """
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 </assembly>
 """
+
+if __name__ == "__main__":
+    import optparse 
+    parser = optparse.OptionParser()
+    parser.add_option("-g","--gui-only",action="store_true")
+    parser.add_option("","--static-msvcrt",action="store_true")
+    (opts,args) = parser.parse_args()
+    if len(args) == 0:
+        raise RuntimeError("no input file specified")
+    if len(args) == 1:
+        outfile = os.path.basename(args[0]).rsplit(".",1)[0] + "-c"
+        if sys.platform == "win32":
+            outfile += ".exe"
+        outfile = os.path.join(os.path.dirname(args[0]),outfile)
+        args.append(outfile)
+    compile_rpython(args[0],args[1],opts.gui_only,opts.static_msvcrt)
+
+
 

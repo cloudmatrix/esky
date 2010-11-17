@@ -157,7 +157,7 @@ from esky.util import split_app_version, join_app_version,\
                       copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR,\
                       files_differ, lazy_import, ESKY_APPDATA_DIR, \
                       get_all_versions, is_locked_version_dir, \
-                      is_installed_version_dir
+                      is_installed_version_dir, really_rmtree, really_rename
 
 #  Since all frozen apps are required to import this module and call the
 #  run_startup_hooks() function, we use a simple lazy import mechanism to 
@@ -167,11 +167,6 @@ from esky.util import split_app_version, join_app_version,\
 def os():
     import os
     return os
-
-@lazy_import
-def shutil():
-    import shutil
-    return shutil
 
 @lazy_import
 def socket():
@@ -372,7 +367,7 @@ class Esky(object):
                     if mtime > newest_mtime:
                         newest_mtime = mtime
                 if newest_mtime + self.lock_timeout < time.time():
-                    shutil.rmtree(lockdir)
+                    really_rmtree(lockdir)
                     return self.lock(num_retries+1)
                 else:
                     raise EskyLockedError
@@ -869,7 +864,7 @@ class Esky(object):
         self.lock()
         try:
             if not os.path.exists(target):
-                os.rename(source,target)
+                really_rename(source,target)
             trn = esky.fstransact.FSTransaction(self.appdir)
             try:
                 self._unpack_bootstrap_env(target,trn)
@@ -955,7 +950,7 @@ class Esky(object):
             #  To avoid clobbering in-use version, respect locks on this file.
             if sys.platform == "win32":
                 try:
-                    os.rename(bsfile,bsfile_old)
+                    really_rename(bsfile,bsfile_old)
                 except EnvironmentError:
                     raise VersionLockedError("version in use: %s" % (version,))
             else:
@@ -973,7 +968,7 @@ class Esky(object):
                         msg = "version in use: %s" % (version,)
                         raise VersionLockedError(msg)
                     else:
-                        os.rename(bsfile,bsfile_old)
+                        really_rename(bsfile,bsfile_old)
                     finally:
                         f.close()
         finally:

@@ -26,7 +26,8 @@ from urlparse import urlparse, urljoin
 from esky.bootstrap import parse_version, join_app_version
 from esky.errors import *
 from esky.util import deep_extract_zipfile, copy_ownership_info, \
-                      ESKY_CONTROL_DIR, ESKY_APPDATA_DIR
+                      ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, \
+                      really_rmtree, really_rename
 from esky.patch import apply_patch, PatchError
 
 
@@ -154,10 +155,10 @@ class DefaultVersionFinder(VersionFinder):
             os.unlink(os.path.join(dldir,nm))
         updir = self._workdir(app,"unpack")
         for nm in os.listdir(updir):
-            shutil.rmtree(os.path.join(updir,nm))
+            really_rmtree(os.path.join(updir,nm))
         rddir = self._workdir(app,"ready")
         for nm in os.listdir(rddir):
-            shutil.rmtree(os.path.join(rddir,nm))
+            really_rmtree(os.path.join(rddir,nm))
 
     def open_url(self,url):
         f = urllib2.urlopen(url)
@@ -211,9 +212,6 @@ class DefaultVersionFinder(VersionFinder):
             try:
                 self._prepare_version(app,version,local_path)
             except (PatchError,EskyVersionError,EnvironmentError):
-                print "ERROR"
-                import traceback
-                traceback.print_exc()
                 yield {"status":"retrying","size":None}
         yield {"status":"ready","path":name}
 
@@ -222,8 +220,15 @@ class DefaultVersionFinder(VersionFinder):
         outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
         if not os.path.exists(outfilenm):
             infile = self.open_url(urljoin(self.download_url,url))
-            if not hasattr(infile,"size"):
-                infile.size = None
+            try:
+                infile_size = infile.size
+            except AttributeError:
+                try:
+                    fh = infile.fileno()
+                except AttributeError:
+                    infile_size = None
+                else:
+                    infile_size = os.fstat(fh).st_size
             try:
                 partfilenm = outfilenm + ".part"
                 partfile = open(partfilenm,"wb")
@@ -231,7 +236,7 @@ class DefaultVersionFinder(VersionFinder):
                     data = infile.read(1024*512)
                     while data:
                         yield {"status": "downloading",
-                               "size": infile.size,
+                               "size": infile_size,
                                "received": partfile.tell(),
                         }
                         partfile.write(data)
@@ -242,7 +247,7 @@ class DefaultVersionFinder(VersionFinder):
                     raise
                 else:
                     partfile.close()
-                    os.rename(partfilenm,outfilenm)
+                    really_rename(partfilenm,outfilenm)
             finally:
                 infile.close()
         yield {"status":"ready","path":outfilenm}
@@ -298,7 +303,7 @@ class DefaultVersionFinder(VersionFinder):
                                     raise
                                 if not path[0][0].endswith(".patch"):
                                     raise
-                                shutil.rmtree(uppath)
+                                really_rmtree(uppath)
                                 os.mkdir(uppath)
                                 self._copy_best_version(app,uppath,False)
                                 break
@@ -328,7 +333,8 @@ class DefaultVersionFinder(VersionFinder):
                 os.makedirs(bspath)
             for nm in os.listdir(uppath):
                 if nm != vdir and nm != ESKY_APPDATA_DIR:
-                    os.rename(os.path.join(uppath,nm),os.path.join(bspath,nm))
+                    really_rename(os.path.join(uppath,nm),
+                                  os.path.join(bspath,nm))
             # Check that it has an esky-files/bootstrap-manifest.txt file
             bsfile = os.path.join(ctrlpath,"bootstrap-manifest.txt")
             if not os.path.exists(bsfile):
@@ -344,16 +350,16 @@ class DefaultVersionFinder(VersionFinder):
                     tmpnm = rdpath + ".old"
                     while os.path.exists(tmpnm):
                         tmpnm = tmpnm + ".old"
-                    os.rename(rdpath,tmpnm)
-                os.rename(vdirpath,rdpath)
+                    really_rename(rdpath,tmpnm)
+                really_rename(vdirpath,rdpath)
             finally:
                 if tmpnm is not None:
-                    shutil.rmtree(tmpnm)
+                    really_rmtree(tmpnm)
             #  Clean up any downloaded files now that we've used them.
             for (filenm,_) in path:
                 os.unlink(filenm)
         finally:
-            shutil.rmtree(uppath)
+            really_rmtree(uppath)
 
     def _copy_best_version(self,app,uppath,force_appdata_dir=True):
         """Copy the best version directory from the given app.
@@ -426,27 +432,8 @@ class LocalVersionFinder(DefaultVersionFinder):
                 self.version_graph.add_link(from_version or "",version,nm,cost)
         return self.version_graph.get_versions(app.version)
 
-    def _fetch_file(self,app,nm):
-        infile = open(os.path.join(self.download_url,nm),"rb")
-        outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
-        if not os.path.exists(outfilenm):
-            partfilenm = outfilenm + ".part"
-            partfile = open(partfilenm,"wb")
-            try:
-                data = infile.read(1024*512)
-                while data:
-                    partfile.write(data)
-                    data = infile.read(1024*512)
-            except Exception:
-                infile.close()
-                partfile.close()
-                os.unlink(partfilenm)
-                raise
-            else:
-                infile.close()
-                partfile.close()
-                os.rename(partfilenm,outfilenm)
-        return outfilenm
+    def open_url(self,url):
+        return open(os.path.join(self.download_url,url),"rb")
 
 
 class VersionGraph(object):

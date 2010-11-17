@@ -108,6 +108,8 @@ class SudoProxy(object):
 
     def start(self):
         (self.proc,self.pipe) = spawn_sudo(self)
+        if self.proc.poll() is not None:
+            raise RuntimeError("sudo helper process terminated unexpectedly")
         if self.pipe.read() != b("READY"):
             self.close()
             raise RuntimeError("failed to spawn helper app")

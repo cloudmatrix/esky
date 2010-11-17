@@ -684,7 +684,7 @@ class bdist_esky(Command):
                 return self.copy_to_bootstrap_env(outfile,relpath)
         #  Otherwise we have to compile it anew.
         try:
-            outfile = self._compiled_exes[source_hash]
+            outfile = self._compiled_exes[(source_hash,exe.gui_only)]
         except KeyError:
             infile = os.path.join(cdir,"bootstrap.py")
             outfile = os.path.join(cdir,outname)
@@ -692,7 +692,7 @@ class bdist_esky(Command):
                 f.write(source)
             opts = dict(gui_only=exe.gui_only)
             pypyc.compile_rpython(infile,outfile,**opts)
-            self._compiled_exes[source_hash] = outfile
+            self._compiled_exes[(source_hash,exe.gui_only)] = outfile
         #  Try to save the compiled exe for future use.
         if COMPILED_BOOTSTRAP_CACHE is not None:
             cachedfile = os.path.join(COMPILED_BOOTSTRAP_CACHE,outname)

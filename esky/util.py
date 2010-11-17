@@ -437,7 +437,12 @@ def is_locked_version_dir(vdir):
 
 
 def really_rename(source,target):
-    """Like os.rename, but try to work around some win32 wierdness."""
+    """Like os.rename, but try to work around some win32 wierdness.
+
+    Every so often windows likes to throw a spurious error about not being
+    able to rename something; if we sleep for a brief period and try
+    again it seems to get over it.
+    """
     if sys.platform != "win32":
         os.rename(source,target)
     else:
@@ -455,17 +460,25 @@ def really_rename(source,target):
 
 
 def really_rmtree(path):
-    """Like shutil.rmtree, but try to work around some win32 wierdness."""
+    """Like shutil.rmtree, but try to work around some win32 wierdness.
+
+    Every so often windows likes to throw a spurious error about not being
+    able to remove a directory - like claiming it still contains files after
+    we just deleted all the files in the directory.  If we sleep for a brief
+    period and try again it seems to get over it.
+    """
     if sys.platform != "win32":
         shutil.rmtree(path)
     else:
+        #  If it's going to error out legitimately, let it do so.
         if not os.path.exists(path):
             shutil.rmtree(path)
+        #  This is a little retry loop that catches troublesome errors.
         for _ in xrange(3):
             try:
                 shutil.rmtree(path)
             except WindowsError, e:
-                if e.errno == errno.ENOTEMPTY:
+                if e.errno in (errno.ENOTEMPTY,errno.EACCES,):
                     time.sleep(0.01)
                 elif e.errno == errno.ENOENT:
                     if not os.path.exists(path):

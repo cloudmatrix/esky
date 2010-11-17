@@ -51,7 +51,7 @@ class SecureStringPipe(object):
     string, write() to write the next string.
 
     As a security measure, all strings are "signed" using a rolling hmac based
-    off a shared security token.  A bad signnature results in the pipe being
+    off a shared security token.  A bad signature results in the pipe being
     immediately closed and a RuntimeError geing generated.
     """
 

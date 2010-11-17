@@ -10,7 +10,7 @@ import os
 import sys
 import shutil
 
-from esky.util import get_backup_filename, files_differ
+from esky.util import get_backup_filename, files_differ, really_rename
 
 
 class FSTransaction(object):
@@ -70,11 +70,11 @@ class FSTransaction(object):
             target_old = target + ".old"
             while os.path.exists(target_old):
                 target_old = target_old + ".old"
-            os.rename(target,target_old)
+            really_rename(target,target_old)
             try:
-                os.rename(source,target)
+                really_rename(source,target)
             except:
-                os.rename(target_old,target)
+                really_rename(target_old,target)
                 raise
             else:
                 try:
@@ -87,14 +87,14 @@ class FSTransaction(object):
                 target_old = target + ".old"
                 while os.path.exists(target_old):
                     target_old = target_old + ".old"
-                os.rename(target,target_old)
+                really_rename(target,target_old)
             elif os.path.isfile(target) and os.path.isdir(source):
                 target_old = target + ".old"
                 while os.path.exists(target_old):
                     target_old = target_old + ".old"
-                os.rename(target,target_old)
+                really_rename(target,target_old)
             self._create_parents(target)
-            os.rename(source,target)
+            really_rename(source,target)
             if target_old is not None:
                 self._remove(target_old)
 
@@ -127,11 +127,11 @@ class FSTransaction(object):
         is_win32 = (sys.platform == "win32")
         if is_win32 and os.path.exists(target) and target != source:
             target_old = get_backup_filename(target)
-            os.rename(target,target_old)
+            really_rename(target,target_old)
             try:
                 self._do_copy(source,target)
             except:
-                os.rename(target_old,target)
+                really_rename(target_old,target)
                 raise
             else:
                 try:
@@ -142,10 +142,10 @@ class FSTransaction(object):
             target_old = None
             if os.path.isdir(target) and os.path.isfile(source):
                 target_old = get_backup_filename(target)
-                os.rename(target,target_old)
+                really_rename(target,target_old)
             elif os.path.isfile(target) and os.path.isdir(source):
                 target_old = get_backup_filename(target)
-                os.rename(target,target_old)
+                really_rename(target,target_old)
             self._do_copy(source,target)
             if target_old is not None:
                 self._remove(target_old)

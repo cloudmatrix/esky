@@ -18,7 +18,7 @@ import os
 import errno
 import struct
 import signal
-import tempfile
+import subprocess
 from base64 import b64encode, b64decode
 from functools import wraps
 
@@ -74,13 +74,16 @@ def can_get_root():
     return True
 
 
-class FakePopen(object):
+class FakePopen(subprocess.Popen):
     """Popen-esque class that's guaranteed killable, even on python2.5."""
     def __init__(self,pid):
+        super(FakePopen,self).__init__(None)
         self.pid = pid
     def terminate(self):
         import signal
         os.kill(self.pid,signal.SIGTERM)
+    def _execute_child(self,*args,**kwds):
+        pass
 
 
 class SecureStringPipe(base.SecureStringPipe):
