@@ -32,15 +32,17 @@ format expected by esky.  If you unzip it, you will see the application is laid
 out according to the following structure:
 
     example.exe              <-- bootstrapping exe produced by esky
-    example-app-0.1.win32/   <-- directory containing the frozen application
+    appdata/
+      example-app-0.1.win32/   <-- directory containing the frozen application
         example.exe              as produced by py2exe
         library.zip
         python26.dll
-        esky-bootstrap.txt   <-- extra metadata for use during updates
+        esky-files/
+          bootstrap-manifest.txt   <-- extra metadata for use during updates
         
 The top-level "example.exe" is a bootstrapping executable produced by esky.
 The "example-app-0.1.win32" directory contains the application exactly as
-frozen by py2exe, but with an extra file containing metadata for use when
+frozen by py2exe, but with some extra files containing metadata for use when
 updating the app.
 
 You can distribute these files to your users in any manner - e.g. by having
