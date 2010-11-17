@@ -123,7 +123,7 @@ def freeze(dist):
         copy_to_bootstrap_env("Contents/Resources/__boot__.py")
         copy_to_bootstrap_env("Contents/Resources/site.py")
         #  Copy the bootstrapping code into the __boot__.py file.
-        bsdir = dist.boostrap_dir
+        bsdir = dist.bootstrap_dir
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
             f.write(code_source)
         #  Clear site.py in the bootstrap dir, it doesn't do anything useful.
