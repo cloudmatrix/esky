@@ -3,7 +3,7 @@ This directory contains a brief tutorial on using esky in your frozen
 applications.  It assumes some basic familiarity with distutils and
 and a freezer module such as py2exe.
 
-The sub-directories "stage0" through "stage3" contain example code showing
+The sub-directories "stage0" through "stage4" contain example code showing
 the evolution of a simple example app.  To run them you'll need to be on a
 Windows machine with py2exe installed.
 

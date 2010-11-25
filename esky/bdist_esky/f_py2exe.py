@@ -266,6 +266,10 @@ def _chainload(target_dir):
           else:
                break
   # munge the environment to pretend we're in the target dir
+  try:
+      import nt
+  except ImportError:
+      return _orig_chainload(target_dir)
   sys.bootstrap_executable = sys.executable
   sys.executable = pathjoin(target_dir,basename(sys.executable))
   verify(sys.executable)
@@ -287,7 +291,6 @@ def _chainload(target_dir):
       pass
   try:
       import ctypes
-      import nt
       import struct
       import marshal
       import msvcrt
