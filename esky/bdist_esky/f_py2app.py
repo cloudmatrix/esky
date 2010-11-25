@@ -98,19 +98,20 @@ def freeze(dist):
     code_source.append("if not __rpython__:")
     code_source.append("    bootstrap()")
     code_source = "\n".join(code_source)
+    def copy_to_bootstrap_env(src,dst=None):
+        if dst is None:
+            dst = src
+        src = os.path.join(appnm,src)
+        dist.copy_to_bootstrap_env(src,dst)
     if dist.compile_bootstrap_exes:
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            dist.compile_to_bootstrap_exe(exe,code_source)
+            relpath = os.path.join("Contents","MacOS",exe.name)
+            dist.compile_to_bootstrap_exe(exe,code_source,relpath)
     else:
         #  Copy the core dependencies into the bootstrap env.
         pydir = "python%d.%d" % sys.version_info[:2]
-        def copy_to_bootstrap_env(src,dst=None):
-            if dst is None:
-                dst = src
-            src = os.path.join(appnm,src)
-            dist.copy_to_bootstrap_env(src,dst)
         copy_to_bootstrap_env("Contents/Frameworks/Python.framework")
         copy_to_bootstrap_env("Contents/Resources/include")
         copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
@@ -169,7 +170,13 @@ def _make_py2app_cmd(dist_dir,distribution,options,exe):
     cmd.plist["CFBundleExecutable"] = exe.name
     old_run = cmd.run
     def new_run():
+        #  py2app munges the environment in ways that break things.
+        old_deployment_target = os.environ.get("MACOSX_DEPLOYMENT_TARGET",None)
         old_run()
+        if old_deployment_target is None:
+            del os.environ["MACOSX_DEPLOYMENT_TARGET"]
+        else:
+            os.environ["MACOSX_DEPLOYMENT_TARGET"] = old_deployment_target
         #  We need to script file to have the same name as the exe, which
         #  it won't if they have changed it explicitly.
         resdir = os.path.join(dist_dir,distribution.get_name()+".app","Contents/Resources")

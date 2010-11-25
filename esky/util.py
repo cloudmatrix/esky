@@ -212,12 +212,12 @@ def appdir_from_executable(exepath):
     #  Stripping of <exepath> is done by _bs_appdir_from_executable.
     vdir = _bs_appdir_from_executable(exepath)
     appdir = os.path.dirname(vdir)
-    # TODO: remove compatability hook for ESKY_APPDATA_DIR=""
-    if ESKY_APPDATA_DIR and os.path.basename(appdir) == ESKY_APPDATA_DIR:
-        appdir = os.path.dirname(appdir)
     #  On OSX we sometimes need to strip an additional directory since the
     #  app can be contained in an <appname>.app directory.
-    if is_version_dir(appdir):
+    if sys.platform == "darwin" and is_version_dir(appdir):
+        appdir = os.path.dirname(appdir)
+    # TODO: remove compatability hook for ESKY_APPDATA_DIR=""
+    if ESKY_APPDATA_DIR and os.path.basename(appdir) == ESKY_APPDATA_DIR:
         appdir = os.path.dirname(appdir)
     return appdir
 
@@ -348,6 +348,7 @@ def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
     zf.close()
 
 
+_CACHED_PLATFORM = None
 def get_platform():
     """Get the platform identifier for the current platform.
 
@@ -359,7 +360,10 @@ def get_platform():
     is guaranteed not to contain any periods. This makes it much easier to
     parse out of filenames.
     """
-    return distutils.util.get_platform().replace(".","_")
+    global _CACHED_PLATFORM
+    if _CACHED_PLATFORM is None:
+        _CACHED_PLATFORM = distutils.util.get_platform().replace(".","_")
+    return _CACHED_PLATFORM
  
 
 def is_core_dependency(filenm):
