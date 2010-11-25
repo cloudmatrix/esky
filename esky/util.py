@@ -348,6 +348,7 @@ def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
     zf.close()
 
 
+_CACHED_PLATFORM = None
 def get_platform():
     """Get the platform identifier for the current platform.
 
@@ -359,7 +360,10 @@ def get_platform():
     is guaranteed not to contain any periods. This makes it much easier to
     parse out of filenames.
     """
-    return distutils.util.get_platform().replace(".","_")
+    global _CACHED_PLATFORM
+    if _CACHED_PLATFORM is None:
+        _CACHED_PLATFORM = distutils.util.get_platform().replace(".","_")
+    return _CACHED_PLATFORM
  
 
 def is_core_dependency(filenm):

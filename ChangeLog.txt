@@ -1,4 +1,14 @@
 
+v0.9.0p1
+
+    * Fix some build issues on OSX:
+        * varname typo in f_py2app.
+        * undo py2app's changes to env["MACOSX_DEPLOYMENT_TARGET"] after
+          it has finished its work.
+        * don't let get_platform() change its value due to changes in the
+          build environment; if it does the build files get corrupted.
+
+
 v0.9.0
 
   THIS RELEASE INTRODUCES A NEW ON-DISK FILE LAYOUT - SEE BELOW FOR NOTES
