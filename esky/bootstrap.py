@@ -45,7 +45,7 @@ except NameError:
 try:
     ESKY_APPDATA_DIR
 except NameError:
-    ESKY_APPDATA_DIR = ""#"appdata"
+    ESKY_APPDATA_DIR = "appdata"
 
 try:
     __esky_name__
