@@ -14,6 +14,7 @@ import re
 import sys
 import imp
 import time
+import errno
 import zipfile
 import shutil
 import tempfile
@@ -112,7 +113,14 @@ def freeze(dist):
     else:
         #  Copy the core dependencies into the bootstrap env.
         pydir = "python%d.%d" % sys.version_info[:2]
-        copy_to_bootstrap_env("Contents/Frameworks/Python.framework")
+        for nm in ("Python.framework","lib"+pydir+".dylib",):
+            try:
+                copy_to_bootstrap_env("Contents/Frameworks/" + nm)
+            except Exception, e:
+                #  Distutils does its own crazy exception-raising which I
+                #  have no interest in examining right now.  Eventually this
+                #  guard will be more conservative.
+                pass
         copy_to_bootstrap_env("Contents/Resources/include")
         copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
         if "fcntl" not in sys.builtin_module_names:
@@ -140,9 +148,9 @@ def freeze(dist):
     copy_to_bootstrap_env("Contents/Info.plist")
     copy_to_bootstrap_env("Contents/PkgInfo")
     with open(os.path.join(app_dir,"Contents","Info.plist"),"rt") as f:
-        infotxt = f .read()
+        infotxt = f.read()
     for nm in os.listdir(os.path.join(app_dir,"Contents","Resources")):
-        if nm in infotxt:
+        if "<string>%s</string>" % (nm,) in infotxt:
             copy_to_bootstrap_env("Contents/Resources/"+nm)
 
 
