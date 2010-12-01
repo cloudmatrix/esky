@@ -270,7 +270,7 @@ def appdir_from_executable(exepath):
     but when running via a bundle on OSX the executable will be located at
     <appdir>/Contents/MacOS/<exe>.
     """
-    appdir = dirname(abspath(exepath))
+    appdir = dirname(exepath)
     if sys.platform == "darwin" and basename(appdir) == "MacOS":
         # Looks like we might be in an app bundle.
         appdir = dirname(appdir)
@@ -288,8 +288,9 @@ def bootstrap():
 
     This function searches the application directory to find the highest-
     numbered version of the application that is fully installed, then
-    chain-loads that version of the application.
+    chainloads that version of the application.
     """
+    sys.executable = abspath(sys.executable)
     appdir = appdir_from_executable(sys.executable)
     vsdir = pathjoin(appdir,ESKY_APPDATA_DIR)
     # TODO: remove compatability hook for ESKY_APPDATA_DIR="".
