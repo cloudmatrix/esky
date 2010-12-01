@@ -270,7 +270,7 @@ def appdir_from_executable(exepath):
     but when running via a bundle on OSX the executable will be located at
     <appdir>/Contents/MacOS/<exe>.
     """
-    appdir = dirname(exepath)
+    appdir = dirname(abspath(exepath))
     if sys.platform == "darwin" and basename(appdir) == "MacOS":
         # Looks like we might be in an app bundle.
         appdir = dirname(appdir)
@@ -408,6 +408,7 @@ def _chainload(target_dir):
                 raise exc_type,exc_value,traceback
             else:
                 raise exc_value
+        raise RuntimeError("couldn't chainload any executables")
 
 
 def get_best_version(appdir,include_partial_installs=False,appname=None):

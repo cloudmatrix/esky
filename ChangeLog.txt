@@ -1,5 +1,5 @@
 
-v0.9.0p1
+v0.9.1
 
     * Fix some build issues on OSX:
         * varname typo in f_py2app.
@@ -7,6 +7,7 @@ v0.9.0p1
           it has finished its work.
         * don't let get_platform() change its value due to changes in the
           build environment; if it does the build files get corrupted.
+        * correctly handle dots etc in sys.executable
     * Fix some built issues on win32:
         * the py2exe custom chainloader tried to use 'nt' module before
           it was imported, giving an UnboundLocalError.
