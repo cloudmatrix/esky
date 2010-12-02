@@ -373,7 +373,7 @@ def is_core_dependency(filenm):
     bootstrapper).  Currently this includes only the python DLL and the
     MSVCRT private assembly.
     """
-    if re.match("^(lib)?python\\d[\\d\\.]*\\.[a-z\\.]*$",filenm):
+    if re.match("^(lib)?python\\d[\\d\\.]*\\.[a-z\d\\.]*$",filenm):
         return True
     if filenm.startswith("Microsoft.") and filenm.endswith(".CRT"):
         return True
