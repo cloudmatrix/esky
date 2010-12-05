@@ -1,6 +1,6 @@
 """
 
-    esky.bdist_esky.pypyc:  support for compiling bootstrap exes with PyPy
+  esky.bdist_esky.pypyc:  support for compiling bootstrap exes with PyPy
 
 
 This module provides the supporting code to compile bootstrapping exes with
@@ -8,6 +8,8 @@ PyPy.  In theory, this should provide for faster startup and less resource
 usage than building the bootstrap exes out of the frozen application stubs.
 
 """
+
+from __future__ import with_statement
 
 import os
 import sys
@@ -32,7 +34,7 @@ def compile_rpython(infile,outfile,gui_only=False,static_msvcrt=False):
 
 
 #  For win32, we need some fancy features not provided by the normal
-#  PyPy compiler.  Fortunately we csan hack them in.
+#  PyPy compiler.  Fortunately we can hack them in.
 #
 if sys.platform == "win32":
   import pypy.translator.platform.windows
@@ -40,7 +42,7 @@ if sys.platform == "win32":
       """Custom PyPy platform object with fancy windows features.
 
       This platform knows how to do two things that native PyPy cannot -
-      build a windows-only executable, and statically link the C runtime.
+      build a gui-only executable, and statically link the C runtime.
       Unfortunately there's a fair amount of monkey-patchery involved.
       """
 
