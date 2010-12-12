@@ -17,7 +17,7 @@ import sys
 import tempfile
 import ctypes
 import ctypes.wintypes
-from ctypes import WinError, windll, c_char, POINTER, byref, sizeof
+from ctypes import windll, c_char, POINTER, byref, sizeof
 
 if sys.platform != "win32":
     raise ImportError("winres is only avilable on Windows platforms")
@@ -112,16 +112,16 @@ def find_resource(filename_or_handle,res_type,res_id,res_lang=None):
             l_handle = filename_or_handle
         r_handle = k32.FindResourceExW(l_handle,res_type,res_id,res_lang)
         if not r_handle:
-            raise WinError()
+            raise ctypes.WinError()
         r_size = k32.SizeofResource(l_handle,r_handle)
         if not r_size:
-            raise WinError()
+            raise ctypes.WinError()
         r_info = k32.LoadResource(l_handle,r_handle)
         if not r_info:
-            raise WinError()
+            raise ctypes.WinError()
         r_ptr = k32.LockResource(r_info)
         if not r_ptr:
-            raise WinError()
+            raise ctypes.WinError()
         return (r_ptr - l_handle + 1,r_ptr - l_handle + r_size + 1)
     finally:
         if free_library:
@@ -153,16 +153,16 @@ def load_resource(filename_or_handle,res_type,res_id,res_lang=_DEFAULT_RESLANG):
     try:
         r_handle = k32.FindResourceExW(l_handle,res_type,res_id,res_lang)
         if not r_handle:
-            raise WinError()
+            raise ctypes.WinError()
         r_size = k32.SizeofResource(l_handle,r_handle)
         if not r_size:
-            raise WinError()
+            raise ctypes.WinError()
         r_info = k32.LoadResource(l_handle,r_handle)
         if not r_info:
-            raise WinError()
+            raise ctypes.WinError()
         r_ptr = k32.LockResource(r_info)
         if not r_ptr:
-            raise WinError()
+            raise ctypes.WinError()
         resource = ctypes.cast(r_ptr,POINTER(c_char))[0:r_size]
         return resource
     finally:
@@ -181,12 +181,12 @@ def add_resource(filename,resource,res_type,res_id,res_lang=_DEFAULT_RESLANG):
         filename = filename.decode(sys.getfilesystemencoding())
     l_handle = k32.BeginUpdateResourceW(filename,0)
     if not l_handle:
-        raise WinError()
+        raise ctypes.WinError()
     res_info = (resource,len(resource))
     if not k32.UpdateResourceW(l_handle,res_type,res_id,res_lang,*res_info):
-        raise WinError()
+        raise ctypes.WinError()
     if not k32.EndUpdateResourceW(l_handle,0):
-        raise WinError()
+        raise ctypes.WinError()
  
 
 def get_app_manifest(filename_or_handle=None):
