@@ -203,13 +203,13 @@ class DefaultVersionFinder(VersionFinder):
             if path is None:
                 raise EskyVersionError(version)
             local_path = []
-            for url in path:
-                for status in self._fetch_file_iter(app,url):
-                    if status["status"] == "ready":
-                        local_path.append((status["path"],url))
-                    else:
-                        yield status
             try:
+                for url in path:
+                    for status in self._fetch_file_iter(app,url):
+                        if status["status"] == "ready":
+                            local_path.append((status["path"],url))
+                        else:
+                            yield status
                 self._prepare_version(app,version,local_path)
             except (PatchError,EskyVersionError,EnvironmentError):
                 yield {"status":"retrying","size":None}
@@ -220,6 +220,7 @@ class DefaultVersionFinder(VersionFinder):
         outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
         if not os.path.exists(outfilenm):
             infile = self.open_url(urljoin(self.download_url,url))
+            outfile_size = 0
             try:
                 infile_size = infile.size
             except AttributeError:
@@ -240,7 +241,13 @@ class DefaultVersionFinder(VersionFinder):
                                "received": partfile.tell(),
                         }
                         partfile.write(data)
+                        outfile_size += len(data)
                         data = infile.read(1024*512)
+                    if infile_size is not None:
+                        if outfile_size != infile_size:
+                            self.version_graph.remove_all_links(url)
+                            err = "corrupted download: %s" % (url,)
+                            raise IOError(err)
                 except Exception:
                     partfile.close()
                     os.unlink(partfilenm)
