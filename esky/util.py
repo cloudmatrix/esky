@@ -236,7 +236,7 @@ def extract_zipfile(source,target,name_filter=None):
             zf_open = zf.open
         else:
             def zf_open(nm,mode):
-                return StringIO(zf.read(nm))
+                return StringIO.StringIO(zf.read(nm))
         for nm in zf.namelist():
             if nm.endswith("/"):
                 continue
