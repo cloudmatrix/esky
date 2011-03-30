@@ -9,3 +9,4 @@ esky/tests/patch-test-temp
 esky/tests/eskytester.egg-info
 build/
 tutorial/*/dist
+esky/bdist_esky/bootstrap_*

@@ -76,7 +76,8 @@ def freeze(dist):
     #  For win32 we include a special chainloader that can suck the selected
     #  version into the running process rather than spawn a new proc.
     code_source = ["__name__ = '__main__'"]
-    code_source.append("__esky_name__ = '%s'" % (dist.distribution.get_name(),))
+    esky_name = re.escape(dist.distribution.get_name())
+    code_source.append("__esky_name__ = '%s'" % (esky_name,))
     code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
         if sys.platform == "win32":

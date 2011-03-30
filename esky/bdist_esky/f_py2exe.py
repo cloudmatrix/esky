@@ -97,6 +97,14 @@ def freeze(dist):
         excludes.append("pypy")
     #  py2exe expects some arguments on the main distribution object.
     #  We handle data_files ourselves, so fake it out for py2exe.
+    if getattr(dist.distribution,"console",None):
+        msg = "don't call setup(console=[...]) with esky;"
+        msg += " use setup(scripts=[...]) instead"
+        raise RuntimeError(msg)
+    if getattr(dist.distribution,"windows",None):
+        msg = "don't call setup(windows=[...]) with esky;"
+        msg += " use setup(scripts=[...]) instead"
+        raise RuntimeError(msg)
     dist.distribution.console = []
     dist.distribution.windows = []
     my_data_files = dist.distribution.data_files
@@ -157,7 +165,8 @@ def freeze(dist):
     pass
     #  Create the bootstraping code, using custom code if specified.
     #  It gets stored as a marshalled list of code objects directly in the exe.
-    code_source = ["__esky_name__ = '%s'" % (dist.distribution.get_name(),)]
+    esky_name = re.escape(dist.distribution.get_name())
+    code_source = ["__esky_name__ = '%s'" % (esky_name,)]
     code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
         from esky.bdist_esky import pypy_libpython
