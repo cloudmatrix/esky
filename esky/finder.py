@@ -162,7 +162,14 @@ class DefaultVersionFinder(VersionFinder):
 
     def open_url(self,url):
         f = urllib2.urlopen(url)
-        f.size = f.headers.get("content-length",None)
+        try:
+            size = f.headers.get("content-length",None)
+            if size is not None:
+                size = int(size)
+        except ValueError:
+            pass
+        else:
+            f.size = size
         return f
 
     def find_versions(self,app):
