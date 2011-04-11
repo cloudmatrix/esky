@@ -373,6 +373,7 @@ from pypy.rlib.rstruct.runpack import runpack
 import time;
 
 _orig_chainload = _chainload
+
 def _chainload(target_dir):
   mydir = dirname(sys.executable)
   pydll = pathjoin(target_dir,"python%s%s.dll" % sys.version_info[:2])
