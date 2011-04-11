@@ -717,26 +717,30 @@ class bdist_esky(Command):
             if not os.path.isdir(os.path.dirname(dstpath)):
                self.mkpath(os.path.dirname(dstpath))
             self.copy_file(srcpath,dstpath)
+        self.add_to_bootstrap_manifest(dstpath)
+        return dstpath
+
+    def add_to_bootstrap_manifest(self,dstpath):
         if not os.path.isdir(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR)):
             os.mkdir(os.path.join(self.freeze_dir,ESKY_CONTROL_DIR))
         f_manifest = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"bootstrap-manifest.txt")
         with open(f_manifest,"at") as f_manifest:
             f_manifest.seek(0,os.SEEK_END)
-            if os.path.isdir(srcpath):
-                for (dirnm,_,filenms) in os.walk(srcpath):
+            if os.path.isdir(dstpath):
+                for (dirnm,_,filenms) in os.walk(dstpath):
                     for fnm in filenms:
                         fpath = os.path.join(dirnm,fnm)
-                        dpath = dst + fpath[len(srcpath):]
+                        dpath = fpath[len(self.bootstrap_dir)+1:]
                         if os.sep != "/":
                             dpath = dpath.replace(os.sep,"/")
                         f_manifest.write(dpath)
                         f_manifest.write("\n")
             else:
-                f_manifest.write(dst)
+                dst = dstpath[len(self.bootstrap_dir)+1:]
                 if os.sep != "/":
                     dst = dst.replace(os.sep,"/")
+                f_manifest.write(dst)
                 f_manifest.write("\n")
-        return dstpath
 
 
 class bdist_esky_patch(Command):
