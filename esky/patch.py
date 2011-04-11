@@ -1012,7 +1012,7 @@ class Differ(object):
         """
         t_nm = os.path.join(target,nm)
         if os.path.isfile(t_nm):
-             # For files, I haven't decided on a god heuristic yet...
+             # For files, I haven't decided on a good heuristic yet...
             return None
         elif os.path.isdir(t_nm):
             #  For directories, decide similarity based on the number of
