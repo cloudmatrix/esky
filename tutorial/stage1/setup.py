@@ -8,5 +8,8 @@ setup(
   version = "0.1",
   #  All executables are listed in the "scripts" argument
   scripts = ["example.py"],
+  options = {"py2exe": {
+              "dll_excludes":["pywintypes26.dll"],
+            }}
 )
 

@@ -234,7 +234,7 @@ class DefaultVersionFinder(VersionFinder):
                 partfilenm = outfilenm + ".part"
                 partfile = open(partfilenm,"wb")
                 try:
-                    data = infile.read(1024*512)
+                    data = infile.read(1024*64)
                     while data:
                         yield {"status": "downloading",
                                "size": infile_size,
@@ -242,7 +242,7 @@ class DefaultVersionFinder(VersionFinder):
                         }
                         partfile.write(data)
                         outfile_size += len(data)
-                        data = infile.read(1024*512)
+                        data = infile.read(1024*64)
                     if infile_size is not None:
                         if outfile_size != infile_size:
                             self.version_graph.remove_all_links(url)

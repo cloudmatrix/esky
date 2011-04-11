@@ -686,7 +686,7 @@ class Esky(object):
     _errors_to_ignore = (errno.ENOENT, errno.EPERM, errno.EACCES, errno.ENOTDIR,
                          errno.EISDIR, errno.EINVAL, errno.ENOTEMPTY,)
 
-    def auto_update(self):
+    def auto_update(self,callback=None):
         """Automatically install the latest version of the app.
 
         This method automatically performs the following sequence of actions,
@@ -706,15 +706,19 @@ class Esky(object):
         """
         if self.version_finder is None:
             raise NoVersionFinderError
+        if callback is None:
+            callback = lambda *args: True
         got_root = False
         cleaned = False
         try:
+            callback({"status":"searching"})
             version = self.find_update()
             if version is not None:
+                callback({"status":"found", "new_version":version})
                 #  Try to install the new version.  If it fails with
                 #  a permission error, escalate to root and try again.
                 try:
-                    self._do_auto_update(version)
+                    self._do_auto_update(version,callback)
                 except EnvironmentError:
                     exc_type,exc_value,exc_traceback = sys.exc_info()
                     if exc_value.errno != errno.EACCES or self.has_root():
@@ -725,11 +729,12 @@ class Esky(object):
                         raise exc_type,exc_value,exc_traceback
                     else:
                         got_root = True
-                        self._do_auto_update(version)
+                        self._do_auto_update(version,callback)
                 self.reinitialize()
             #  Try to clean up the app dir.  If it fails with a 
             #  permission error, escalate to root and try again.
             try:
+                callback({"status":"cleaning up"})
                 cleaned = self.cleanup()
             except EnvironmentError:
                 exc_type,exc_value,exc_traceback = sys.exc_info()
@@ -741,21 +746,29 @@ class Esky(object):
                     raise exc_type,exc_value,exc_traceback
                 else:
                     got_root = True
+                    callback({"status":"cleaning up"})
                     cleaned = self.cleanup()
+        except Exception, e:
+            callback({"status":"error","exception":e})
+            raise
+        else:
+            callback({"status":"done"})
         finally:
             #  Drop root privileges as soon as possible.
             if not cleaned and self.needs_cleanup():
                 self.cleanup_at_exit()
             if got_root:
                 self.drop_root()
+            callback({"status":"done"})
 
-    def _do_auto_update(self,version):
+    def _do_auto_update(self,version,callback):
         """Actual sequence of operations for auto-update.
 
         This is a separate method so it can easily be retried after gaining
         root privileges.
         """
-        self.fetch_version(version)
+        self.fetch_version(version,callback)
+        callback({"status":"installing", "new_version":version})
         self.install_version(version)
         try:
             self.uninstall_version(self.version)
