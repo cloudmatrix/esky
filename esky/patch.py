@@ -361,6 +361,9 @@ class Patcher(object):
             else:
                 self.infile = BytesIO("".encode("ascii"))
             self.outfile = open(self.new_target,"wb")
+            if os.path.isfile(self.target):
+                mod = os.stat(self.target).st_mode
+                os.chmod(self.new_target,mod)
 
     def _check_end_patch(self):
         """Finish patching the current file, if there is one.
