@@ -222,6 +222,17 @@ def appdir_from_executable(exepath):
     return appdir
 
 
+def appexe_from_executable(exepath):
+    """Find the top-level application executable, given sys.executable."""
+    appdir = appdir_from_executable(exepath)
+    exename = os.path.basename(exepath)
+    #  On OSX we might be in a bundle, run from Contents/MacOS/<exename>
+    if sys.platform == "darwin":
+        if os.path.isdir(os.path.join(appdir,"Contents","MacOS")):
+            return os.path.join(appdir,"Contents","MacOS",exename)
+    return os.path.join(appdir,exename)
+
+
 def extract_zipfile(source,target,name_filter=None):
     """Extract the contents of a zipfile into a target directory.
 
