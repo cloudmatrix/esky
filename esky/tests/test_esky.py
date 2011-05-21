@@ -104,6 +104,11 @@ class TestEsky(unittest.TestCase):
                                             "freezer_options": {
                                               "bundle_files": 3}}})
 
+    def test_esky_py2exe_skiparchive(self):
+        self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                            "freezer_options": {
+                                              "skip_archive": True}}})
+
     def test_esky_py2exe_nocustomchainload(self):
         with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
            bscode = "_chainload = _orig_chainload\nbootstrap()"

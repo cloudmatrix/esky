@@ -159,7 +159,7 @@ if sys.platform == "win32":
                              None,
                              OPEN_EXISTING,
                              FILE_FLAG_BACKUP_SEMANTICS,
-                             None
+                             0
                  )
 
         #  Since this loop may still be running at interpreter close, we

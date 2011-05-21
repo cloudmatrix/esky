@@ -3,6 +3,7 @@ v0.9.4
 
     * Added esky.util.appexe_from_executable, a convenience method to
       find the bootstrapping exe corresponding to the running program.
+    * py2exe: support the skip_archive option; thanks yflau
 
 
 v0.9.3

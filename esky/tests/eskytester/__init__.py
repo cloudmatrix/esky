@@ -27,8 +27,12 @@ def yes_my_data_is_installed():
         else:
             mydir = os.path.join(os.path.dirname(sys.executable))
             assert os.path.exists(os.path.join(mydir,"data","datafile.txt"))
-            lib = zipfile.ZipFile(os.path.join(mydir,"library.zip"))
-            assert "eskytester/pkgdata.txt" in lib.namelist()
+            try:
+                lib = zipfile.ZipFile(os.path.join(mydir,"library.zip"))
+                assert "eskytester/pkgdata.txt" in lib.namelist()
+            except IOError:
+                pkgdata = os.path.join(mydir,"eskytester","pkgdata.txt")
+                assert os.path.exists(pkgdata)
     else:
         mydir = os.path.dirname(__file__)
         assert os.path.exists(os.path.join(mydir,"datafile.txt"))

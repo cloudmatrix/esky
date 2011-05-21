@@ -151,15 +151,24 @@ def freeze(dist):
     open(os.path.join(dist.freeze_dir,marker_file),"w").close()
     #  Copy package data into the library.zip
     #  For now, we don't try to put package data into a bundled zipfile.
-    if dist.distribution.zipfile is not None:
-        lib = zipfile.ZipFile(os.path.join(dist.freeze_dir,"library.zip"),"a")
+    dist_zipfile = dist.distribution.zipfile
+    if dist_zipfile is None:
+        for (src,arcnm) in dist.get_package_data():
+            err = "zipfile=None can't be used with package_data (yet...)"
+            raise RuntimeError(err)
+    elif not cmd.skip_archive:
+        lib = zipfile.ZipFile(os.path.join(dist.freeze_dir,dist_zipfile),"a")
         for (src,arcnm) in dist.get_package_data():
             lib.write(src,arcnm)
         lib.close()
     else:
         for (src,arcnm) in dist.get_package_data():
-            err = "zipfile=None can't be used with package_data (yet...)"
-            raise RuntimeError(err)
+            lib = os.path.join(dist.freeze_dir,os.path.dirname(dist_zipfile))
+            dest = os.path.join(lib, os.path.dirname(src))
+            f = os.path.basename(src)
+            if not os.path.isdir(dest):
+                dist.mkpath(dest)
+            dist.copy_file(src,os.path.join(dest, f))
     #  There's no need to copy library.zip into the bootstrap env, as the
     #  chainloader will run before py2exe goes looking for it.
     pass
@@ -291,8 +300,11 @@ def _chainload(target_dir):
   if newdir != curdir:
       nt.chdir(newdir)
   libfile = pathjoin(target_dir,"library.zip")
-  if exists(libfile) and libfile not in sys.path:
-      sys.path.append(libfile)
+  if libfile not in sys.path:
+      if exists(libfile):
+          sys.path.append(libfile)
+      else:
+          sys.path.append(target_dir)
   # try to import the modules we need for bootstrapping
   try:
       import zipextimporter; zipextimporter.install()
