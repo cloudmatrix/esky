@@ -1,6 +1,6 @@
 """
 
-    esky.bdist_esky.pypy_libpython:  load python DLL into pypy bootstrap exe
+  esky.bdist_esky.pypy_libpython:  load python DLL into pypy bootstrap exe
 
 
 This module provides the class "libpython", an RPython-compatible class for

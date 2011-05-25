@@ -759,7 +759,6 @@ class Esky(object):
                 self.cleanup_at_exit()
             if got_root:
                 self.drop_root()
-            callback({"status":"done"})
 
     def _do_auto_update(self,version,callback):
         """Actual sequence of operations for auto-update.

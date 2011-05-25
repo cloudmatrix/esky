@@ -1,6 +1,6 @@
 """
 
-    esky.bdist_esky.pypy_winres:  access win32 exe resources in rpython
+  esky.bdist_esky.pypy_winres:  access win32 exe resources in rpython
 
 
 This module provides some functions for accessing win32 exe resources from
@@ -23,6 +23,7 @@ k32_SizeofResource = rwin32.winexternal("SizeofResource",[rwin32.HANDLE,rwin32.H
 k32_LoadResource = rwin32.winexternal("LoadResource",[rwin32.HANDLE,rwin32.HANDLE],rwin32.HANDLE)
 k32_LockResource = rwin32.winexternal("LockResource",[rwin32.HANDLE],rffi.CCHARP)
 k32_FreeLibrary = rwin32.winexternal("FreeLibrary",[rwin32.HANDLE],rwin32.BOOL)
+
 
 def load_resource(filename,resname,resid,reslang):
     """Load the named resource from the given file.
@@ -50,6 +51,7 @@ def load_resource(filename,resname,resid,reslang):
     finally:
         if not k32_FreeLibrary(l_handle):
             raise WindowsError(rwin32.GetLastError(),"FreeLibrary failed")
+
 
 def load_resource_pystr(py,filename,resname,resid,reslang):
     """Load the named resource from the given file as a python-level string
