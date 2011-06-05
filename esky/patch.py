@@ -75,10 +75,150 @@ if sys.version_info[0] < 3:
 else:
     from io import BytesIO
 
+
+#  Try to get code for working with bsdiff4-format patches.
+#
+#  We have three options:
+#     * use the cleaned-up bsdiff4 module by Ilan Schnell.
+#     * use the original cx-bsdiff module by Anthony Tuininga.
+#     * use a pure-python patch-only version.
+#
+#  We define each one if we can, so it's available for testing purposes.
+#  We then set the main "bsdiff4" name equal to the best option.
+#
+#  TODO: move this into a support module, it clutters up reading
+#        of the code in this file
+#
+
 try:
-    import bsdiff as cx_bsdiff
+    import bsdiff4 as bsdiff4_native
 except ImportError:
-    cx_bsdiff = None
+    bsdiff4_native = None
+
+
+try:
+    import bsdiff as _cx_bsdiff
+except ImportError:
+    bsdiff4_cx = None
+else:
+    #  This wrapper code basically takes care of the bsdiff patch format,
+    #  translating to/from the raw control information for the algorithm.
+    class bsdiff4_cx(object):
+        @staticmethod
+        def diff(source,target):
+            (tcontrol,bdiff,bextra) = _cx_bsdiff.Diff(source,target)
+            #  Write control tuples as series of offts
+            bcontrol = BytesIO()
+            for c in tcontrol:
+                for x in c:
+                    bcontrol.write(_encode_offt(x))
+            del tcontrol
+            bcontrol = bcontrol.getvalue()
+            #  Compress each block
+            bcontrol = bz2.compress(bcontrol)
+            bdiff = bz2.compress(bdiff)
+            bextra = bz2.compress(bextra)
+            #  Final structure is:
+            #  (header)(len bcontrol)(len bdiff)(len target)(bcontrol)\
+            #  (bdiff)(bextra)
+            return "".join((
+                "BSDIFF40",
+                _encode_offt(len(bcontrol)),
+                _encode_offt(len(bdiff)),
+                _encode_offt(len(target)),
+                bcontrol,
+                bdiff,
+                bextra,
+            ))
+        @staticmethod
+        def patch(source,patch):
+            #  Read the length headers
+            l_bcontrol = _decode_offt(patch[8:16])
+            l_bdiff = _decode_offt(patch[16:24])
+            l_target = _decode_offt(patch[24:32])
+            #  Read the three data blocks
+            e_bcontrol = 32 + l_bcontrol
+            e_bdiff = e_bcontrol + l_bdiff
+            bcontrol = bz2.decompress(patch[32:e_bcontrol])
+            bdiff = bz2.decompress(patch[e_bcontrol:e_bdiff])
+            bextra = bz2.decompress(patch[e_bdiff:])
+            #  Decode the control tuples 
+            tcontrol = []
+            for i in xrange(0,len(bcontrol),24):
+                tcontrol.append((
+                    _decode_offt(bcontrol[i:i+8]),
+                    _decode_offt(bcontrol[i+8:i+16]),
+                    _decode_offt(bcontrol[i+16:i+24]),
+                ))
+            #  Actually do the patching.
+            return _cx_bsdiff.Patch(source,l_target,tcontrol,bdiff,bextra)
+
+
+class bsdiff4_py(object):
+    """Pure-python version of bsdiff4 module that can only patch, not diff.
+
+    By providing a pure-python fallback, we don't force frozen apps to 
+    bundle the bsdiff module in order to make use of patches.  Besides,
+    the patch-applying algorithm is very simple.
+    """
+    #  Expose a diff method if we have one from another module, to
+    #  make it easier to test this class.
+    if bsdiff4_native is not None:
+        @staticmethod
+        def diff(source,target):
+            return bsdiff4_native.diff(source,target)
+    elif bsdiff4_cx is not None:
+        @staticmethod
+        def diff(source,target):
+            return bsdiff4_cx.diff(source,target)
+    else:
+        diff = None
+    @staticmethod
+    def patch(source,patch):
+        #  Read the length headers
+        l_bcontrol = _decode_offt(patch[8:16])
+        l_bdiff = _decode_offt(patch[16:24])
+        l_target = _decode_offt(patch[24:32])
+        #  Read the three data blocks
+        e_bcontrol = 32 + l_bcontrol
+        e_bdiff = e_bcontrol + l_bdiff
+        bcontrol = bz2.decompress(patch[32:e_bcontrol])
+        bdiff = bz2.decompress(patch[e_bcontrol:e_bdiff])
+        bextra = bz2.decompress(patch[e_bdiff:])
+        #  Decode the control tuples 
+        tcontrol = []
+        for i in xrange(0,len(bcontrol),24):
+            tcontrol.append((
+                _decode_offt(bcontrol[i:i+8]),
+                _decode_offt(bcontrol[i+8:i+16]),
+                _decode_offt(bcontrol[i+16:i+24]),
+            ))
+        #  Actually do the patching.
+        #  This is the bdiff4 patch algorithm in slow, pure python.
+        source = BytesIO(source)
+        result = BytesIO()
+        bdiff = BytesIO(bdiff)
+        bextra = BytesIO(bextra)
+        for (x,y,z) in tcontrol:
+            diff_data = bdiff.read(x)
+            orig_data = source.read(x)
+            if sys.version_info[0] < 3:
+                for i in xrange(len(diff_data)):
+                    result.write(chr((ord(diff_data[i])+ord(orig_data[i]))%256))
+            else:
+                for i in xrange(len(diff_data)):
+                    result.write(bytes([(diff_data[i]+orig_data[i])%256]))
+            result.write(bextra.read(y))
+            source.seek(z,os.SEEK_CUR)
+        return result.getvalue()
+
+
+if bsdiff4_native is not None:
+    bsdiff4 = bsdiff4_native
+elif bsdiff4_cx is not None:
+    bsdiff4 = bsdiff4_cx
+else:
+    bsdiff4 = bsdiff4_py
 
 
 #  Default size of blocks to use when diffing a file.  4M seems reasonable.
@@ -644,7 +784,7 @@ class Patcher(object):
             source = self.infile.read(n)
             if len(source) != n:
                 raise PatchError("insufficient source data in %s" % (self.target,))
-            self.outfile.write(bsdiff4_patch(source,patch))
+            self.outfile.write(bsdiff4.patch(source,patch))
 
     def _do_PF_REC_ZIP(self):
         """Execute the PF_REC_ZIP command.
@@ -1047,10 +1187,11 @@ class Differ(object):
         options.append((0,PF_INS_RAW,tdata))
         #  We could bzip2 the raw data
         options.append((0,PF_INS_BZ2,bz2.compress(tdata)))
-        #  We could bsdiff4 the data, if we have cx-bsdiff installed
-        if cx_bsdiff is not None:
+        #  We could bsdiff4 the data, if we have an appropriate module
+        if bsdiff4.diff is not None:
+            patch_data = bsdiff4.diff(sdata,tdata)
             # remove the 8 header bytes, we know it's BSDIFF4 format
-           options.append((len(sdata),PF_BSDIFF4,len(sdata),bsdiff4_diff(sdata,tdata)[8:]))
+            options.append((len(sdata),PF_BSDIFF4,len(sdata),patch_data[8:]))
         #  Find the option with the smallest data and use that.
         options = [(len(cmd[-1]),cmd) for cmd in options]
         options.sort()
@@ -1073,94 +1214,14 @@ class _tempdir(object):
         really_rmtree(self.path)
 
 
-if cx_bsdiff is not None:
-    def bsdiff4_diff(source,target):
-        """Generate a BSDIFF4-format patch from 'source' to 'target'.
 
-        You must have cx-bsdiff installed for this to work; if I get really
-        bored I might do a pure-python version but it would probably be too
-        slow and ugly to be worthwhile.
-        """
-        (tcontrol,bdiff,bextra) = cx_bsdiff.Diff(source,target)
-        #  Write control tuples as series of offts
-        bcontrol = BytesIO()
-        for c in tcontrol:
-            for x in c:
-                bcontrol.write(_encode_offt(x))
-        del tcontrol
-        bcontrol = bcontrol.getvalue()
-        #  Compress each block
-        bcontrol = bz2.compress(bcontrol)
-        bdiff = bz2.compress(bdiff)
-        bextra = bz2.compress(bextra)
-        #  Final structure is:
-        #  (head)(len bcontrol)(len bdiff)(len target)(bcontrol)(bdiff)(bextra)
-        return "".join((
-            "BSDIFF40",
-            _encode_offt(len(bcontrol)),
-            _encode_offt(len(bdiff)),
-            _encode_offt(len(target)),
-            bcontrol,
-            bdiff,
-            bextra,
-        ))
-
-
-def bsdiff4_patch(source,patch):
-    """Apply a BSDIFF4-format patch to the given string.
-
-    This function returns the result of applying the BSDIFF4-format patch
-    'patch' to the input string 'source'.  If cx-bsdiff is installed then
-    it will be used; otherwise a pure-python fallback is used.
-
-    The idea of a pure-python fallback is to avoid making frozen apps depend
-    on cx-bsdiff; only the developer needs to have it installed.
-    """
-    #  Read the length headers
-    l_bcontrol = _decode_offt(patch[8:16])
-    l_bdiff = _decode_offt(patch[16:24])
-    l_target = _decode_offt(patch[24:32])
-    #  Read the three data blocks
-    bcontrol = bz2.decompress(patch[32:32+l_bcontrol])
-    bdiff = bz2.decompress(patch[32+l_bcontrol:32+l_bcontrol+l_bdiff])
-    bextra = bz2.decompress(patch[32+l_bcontrol+l_bdiff:])
-    #  Decode the control tuples 
-    tcontrol = []
-    for i in xrange(0,len(bcontrol),24):
-        tcontrol.append((
-            _decode_offt(bcontrol[i:i+8]),
-            _decode_offt(bcontrol[i+8:i+16]),
-            _decode_offt(bcontrol[i+16:i+24]),
-        ))
-    #  Actually do the patching.
-    #  This is simple enough that I can provide a pure-python fallback
-    #  when cx_bsdiff is not available.
-    if cx_bsdiff is not None:
-        return cx_bsdiff.Patch(source,l_target,tcontrol,bdiff,bextra)
-    else:
-        source = BytesIO(source)
-        result = BytesIO()
-        bdiff = BytesIO(bdiff)
-        bextra = BytesIO(bextra)
-        for (x,y,z) in tcontrol:
-            diff_data = bdiff.read(x)
-            orig_data = source.read(x)
-            if sys.version_info[0] < 3:
-                for i in xrange(len(diff_data)):
-                    result.write(chr((ord(diff_data[i])+ord(orig_data[i]))%256))
-            else:
-                for i in xrange(len(diff_data)):
-                    result.write(bytes([(diff_data[i]+orig_data[i])%256]))
-            result.write(bextra.read(y))
-            source.seek(z,os.SEEK_CUR)
-        return result.getvalue()
 
 
 def _decode_offt(bytes):
     """Decode an off_t value from a string.
 
     This decodes a signed integer into 8 bytes.  I'd prefer some sort of
-    signed vint representation, but it's the format used by bsdiff4....
+    signed vint representation, but this is the format used by bsdiff4.
     """
     if sys.version_info[0] < 3:
         bytes = map(ord,bytes)
@@ -1175,7 +1236,7 @@ def _encode_offt(x):
     """Encode an off_t value as a string.
 
     This encodes a signed integer into 8 bytes.  I'd prefer some sort of
-    signed vint representation, but it's the format used by bsdiff4....
+    signed vint representation, but this is the format used by bsdiff4.
     """
     if x < 0:
         x = -x

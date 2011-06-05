@@ -689,6 +689,34 @@ class TestPatch(unittest.TestCase):
         finally:
             f.close()
         return dest
+
+
+class TestPatch_cxbsdiff(TestPatch):
+    """Test the patching code with cx-bsdiff rather than bsdiff4."""
+
+    def setUp(self):
+        self.__orig_bsdiff4 = esky.patch.bsdiff4
+        if esky.patch.bsdiff4_cx is not None:
+            esky.patch.bsdiff4 = esky.patch.bsdiff4_cx
+        return super(TestPatch_cxbsdiff,self).setUp()
+
+    def tearDown(self):
+        esky.patch.bsdiff4 = self.__orig_bsdiff4
+        return super(TestPatch_cxbsdiff,self).setUp()
+
+
+class TestPatch_pybsdiff(TestPatch):
+    """Test the patching code with pure-python bsdiff4."""
+
+    def setUp(self):
+        self.__orig_bsdiff4 = esky.patch.bsdiff4
+        esky.patch.bsdiff4 = esky.patch.bsdiff4_py
+        return super(TestPatch_pybsdiff,self).setUp()
+
+    def tearDown(self):
+        esky.patch.bsdiff4 = self.__orig_bsdiff4
+        return super(TestPatch_pybsdiff,self).setUp()
+    
         
 
 class TestFilesDiffer(unittest.TestCase):
