@@ -9,7 +9,7 @@ just enough functionality to get the py2exe compiled bootstrapper working.
 
 """
 
-from pypy.rlib import libffi
+from pypy.rlib import clibffi
 from pypy.rpython.lltypesystem import rffi, lltype
 from pypy.rlib import rwin32
 
@@ -31,7 +31,7 @@ def load_resource(filename,resname,resid,reslang):
     The filename and resource name must be ascii strings, and the resid and
     reslang must be integers.
     """
-    l_handle = k32_LoadLibraryExA(filename,0,LOAD_LIBRARY_AS_DATAFILE)
+    l_handle = k32_LoadLibraryExA(filename,rffi.cast(rwin32.HANDLE,0),LOAD_LIBRARY_AS_DATAFILE)
     if not l_handle:
         raise WindowsError(rwin32.GetLastError(),"LoadLibraryExW failed")
     try:
@@ -62,7 +62,7 @@ def load_resource_pystr(py,filename,resname,resid,reslang):
     This uses the given python dll object to load the data directly into 
     a python string, saving a lot of copying and carrying on.
     """
-    l_handle = k32_LoadLibraryExA(filename,0,LOAD_LIBRARY_AS_DATAFILE)
+    l_handle = k32_LoadLibraryExA(filename,rffi.cast(rwin32.HANDLE,0),LOAD_LIBRARY_AS_DATAFILE)
     if not l_handle:
         raise WindowsError(rwin32.GetLastError(),"LoadLibraryExW failed")
     try:
@@ -80,7 +80,7 @@ def load_resource_pystr(py,filename,resname,resid,reslang):
             raise WindowsError(rwin32.GetLastError(),"LockResource failed")
         s = py.String_FromStringAndSize(None,r_size)
         buf = py.String_AsString(s)
-        memcpy(buf,r_ptr,r_size)
+        memcpy(buf,rffi.cast(rffi.VOIDP,r_ptr),r_size)
         return s
     finally:
         if not k32_FreeLibrary(l_handle):
@@ -88,7 +88,7 @@ def load_resource_pystr(py,filename,resname,resid,reslang):
 
 
 def memcpy(target,source,n):
-    impl = libffi.CDLL(libffi.get_libc_name()).getpointer("memcpy",[libffi.ffi_type_pointer,libffi.ffi_type_pointer,libffi.ffi_type_uint],libffi.ffi_type_void)
+    impl = clibffi.CDLL(clibffi.get_libc_name()).getpointer("memcpy",[clibffi.ffi_type_pointer,clibffi.ffi_type_pointer,clibffi.ffi_type_uint],clibffi.ffi_type_void)
     impl.push_arg(target)
     impl.push_arg(source)
     impl.push_arg(n)

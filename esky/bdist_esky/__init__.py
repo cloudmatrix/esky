@@ -41,8 +41,9 @@ if sys.platform == "win32":
 
 try:
     from esky.bdist_esky import pypyc
-except ImportError:
+except ImportError, e:
     pypyc = None
+    PYPYC_ERROR = e
     COMPILED_BOOTSTRAP_CACHE = None
 else:
     COMPILED_BOOTSTRAP_CACHE = os.path.dirname(__file__)
@@ -266,8 +267,7 @@ class bdist_esky(Command):
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
         if self.compile_bootstrap_exes and pypyc is None:
-            err = "compiling bootstrap exes requires pypy installed."
-            raise RuntimeError(err)
+            raise PYPYC_ERROR
         if self.freezer_module is None:
             for freezer_module in ("py2exe","py2app","bbfreeze","cxfreeze"):
                 self.freezer_module = _FREEZERS[freezer_module]
