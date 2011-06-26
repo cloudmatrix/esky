@@ -461,7 +461,7 @@ def really_rename(source,target):
     if sys.platform != "win32":
         os.rename(source,target)
     else:
-        for _ in xrange(3):
+        for _ in xrange(10):
             try:
                 os.rename(source,target)
             except WindowsError, e:
@@ -489,7 +489,7 @@ def really_rmtree(path):
         if not os.path.exists(path):
             shutil.rmtree(path)
         #  This is a little retry loop that catches troublesome errors.
-        for _ in xrange(3):
+        for _ in xrange(10):
             try:
                 shutil.rmtree(path)
             except WindowsError, e:
