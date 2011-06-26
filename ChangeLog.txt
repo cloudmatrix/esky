@@ -5,9 +5,9 @@ v0.9.4
       find the bootstrapping exe corresponding to the running program.
     * Use "bsdiff4" module in preference to cx-bdiff if available; it's
       got a simpler API and is pip-installable.
-    * Better handling of non-alphanumeric characters in app name.
     * Update rpython-compilation support for PyPy v1.5.
-    * py2exe: support the skip_archive option; thanks yflau
+    * Better handling of non-alpha chars in app names; thanks Rafe Kettler.
+    * py2exe: support the skip_archive option; thanks yflau.
 
 
 v0.9.3
