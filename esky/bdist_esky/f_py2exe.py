@@ -418,7 +418,7 @@ def _chainload(target_dir):
           return _orig_chainload(target_dir)
       data = py.String_AsString(py_data)
       headsz = 16  # <-- struct.calcsize("iiii")
-      headdata = rffi.charpsize2str(data,headsz)
+      headdata = rffi.charpsize2str(rffi.cast(rffi.CCHARP,data),headsz)
       (magic,optmz,unbfrd,codesz) = runpack("iiii",headdata)
       assert magic == 0x78563412
       # skip over the archive name to find start of code

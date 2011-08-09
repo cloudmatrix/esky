@@ -138,7 +138,7 @@ from __future__ import absolute_import
 
 __ver_major__ = 0
 __ver_minor__ = 9
-__ver_patch__ = 3
+__ver_patch__ = 4
 __ver_sub__ = ""
 __ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
@@ -759,7 +759,6 @@ class Esky(object):
                 self.cleanup_at_exit()
             if got_root:
                 self.drop_root()
-            callback({"status":"done"})
 
     def _do_auto_update(self,version,callback):
         """Actual sequence of operations for auto-update.

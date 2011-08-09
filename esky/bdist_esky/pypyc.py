@@ -16,6 +16,12 @@ import sys
 
 import pypy.translator.goal.translate
 
+try:
+    import pypy.rlib.clibffi
+except (ImportError,AttributeError,), e:
+    msg = "Compiling bootstrap exes requires PyPy v1.5 or later"
+    msg += " [error: %s]" % (e,)
+    raise ImportError(msg)
 
 
 def compile_rpython(infile,outfile,gui_only=False,static_msvcrt=False):
@@ -94,6 +100,13 @@ if sys.platform == "win32":
 
       def _finish_linking(self,ofiles,*args,**kwds):
           return super(CustomWin32Platform,self)._finish_linking(ofiles,*args,**kwds)
+
+      #  Ugh.
+      #  Trick pypy into letting us mix this with other platform objects.
+      #  I should probably check that it's an MsvcPlatform...
+      def __eq__(self, other):
+          return True
+
 
   pypy.translator.platform.platform = CustomWin32Platform()
   pypy.translator.platform.host = pypy.translator.platform.platform

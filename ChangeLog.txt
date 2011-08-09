@@ -3,7 +3,11 @@ v0.9.4
 
     * Added esky.util.appexe_from_executable, a convenience method to
       find the bootstrapping exe corresponding to the running program.
-    * py2exe: support the skip_archive option; thanks yflau
+    * Use "bsdiff4" module in preference to cx-bdiff if available; it's
+      got a simpler API and is pip-installable.
+    * Update rpython-compilation support for PyPy v1.5.
+    * Better handling of non-alpha chars in app names; thanks Rafe Kettler.
+    * py2exe: support the skip_archive option; thanks yflau.
 
 
 v0.9.3
