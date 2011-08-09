@@ -330,7 +330,7 @@ class Patcher(object):
         if len(bytes) != l:
             raise PatchError("corrupted bytestring")
         if self.dry_run:
-            print "  [%s bytes]" % (len(bytes),)
+            print "   [%s bytes]" % (len(bytes),)
         return bytes
 
     def _read_path(self):

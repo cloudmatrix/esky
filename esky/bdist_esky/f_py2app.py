@@ -183,7 +183,7 @@ def _make_py2app_cmd(dist_dir,distribution,options,exe):
         old_deployment_target = os.environ.get("MACOSX_DEPLOYMENT_TARGET",None)
         old_run()
         if old_deployment_target is None:
-            del os.environ["MACOSX_DEPLOYMENT_TARGET"]
+            os.environ.pop("MACOSX_DEPLOYMENT_TARGET",None)
         else:
             os.environ["MACOSX_DEPLOYMENT_TARGET"] = old_deployment_target
         #  We need to script file to have the same name as the exe, which
