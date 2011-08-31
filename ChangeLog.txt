@@ -2,6 +2,8 @@
 v0.9.5
 
     * Fix some env-var-handling errors on OSX; thanks Robin Dunn.
+    * When using a custom win32 chainloader, be more careful about
+      changing the current working directory on startup.
     * Clean up handling of unbuffered mode in py2exe.  (The old code
       never actually worked; the new code works most of the time but
       might give you the wrong mode if running from a partial update)

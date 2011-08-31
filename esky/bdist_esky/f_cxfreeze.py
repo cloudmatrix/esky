@@ -197,9 +197,13 @@ def _chainload(target_dir):
       for i in range(len(sys.path)):
           sys.path[i] = sys.path[i].replace(mydir,target_dir)
       curdir = getcwd()
-      newdir = curdir.replace(mydir,target_dir)
-      if newdir != curdir:
-          nt.chdir(newdir)
+      if not target_dir in curdir:
+          newdir = curdir.replace(mydir,target_dir)
+          if newdir != curdir:
+              try:
+                  nt.chdir(newdir)
+              except EnvironmentError:
+                  pass
       import zipimport
       for init_path in sys.path:
           verify(init_path)
