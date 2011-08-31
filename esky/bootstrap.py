@@ -656,7 +656,7 @@ if __rpython__:
         """Target function for compiling a standalone bootstraper with PyPy."""
         def entry_point(argv):
              exit_code = 0
-             #  Todo: resolve symlinks etc
+             #  TODO: resolve symlinks etc
              sys.executable = abspath(pathjoin(getcwd(),argv[0]))
              sys.argv = argv
              try:

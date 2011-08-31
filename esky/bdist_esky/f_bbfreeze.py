@@ -178,14 +178,11 @@ def _chainload(target_dir):
       sys.argv[0] = sys.executable
       for i in xrange(len(sys.path)):
           sys.path[i] = sys.path[i].replace(mydir,target_dir)
+      #  If we're in the bootstrap dir, try to chdir into the version dir.
+      #  This is sometimes necessary for loading of DLLs by relative path.
       curdir = getcwd()
-      if not target_dir in curdir:
-          newdir = curdir.replace(mydir,target_dir)
-          if newdir != curdir:
-              try:
-                  nt.chdir(newdir)
-              except EnvironmentError:
-                  pass
+      if curdir == mydir:
+          nt.chdir(target_dir)
       try:
           verify(sys.path[0])
           import zipimport

@@ -307,17 +307,11 @@ def _chainload(target_dir):
   sys.argv[0] = sys.executable
   for i in xrange(len(sys.path)):
       sys.path[i] = sys.path[i].replace(mydir,target_dir)
-  #  If we're in a directory inside the bootstrap dir, try to
-  #  chdir into the equivalent directory inside the version dir.
-  #  But not if we're *already* inside the version dir.
+  #  If we're in the bootstrap dir, try to chdir into the version dir.
+  #  This is sometimes necessary for loading of DLLs by relative path.
   curdir = getcwd()
-  if not target_dir in curdir:
-      newdir = curdir.replace(mydir,target_dir)
-      if newdir != curdir:
-          try:
-              nt.chdir(newdir)
-          except EnvironmentError:
-              pass
+  if curdir == mydir:
+      nt.chdir(target_dir)
   #  Use the library.zip from the version dir.
   #  It should already be in sys.path from the above env mangling,
   #  but you never know...
