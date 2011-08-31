@@ -1,4 +1,12 @@
 
+v0.9.5
+
+    * Fix some env-var-handling errors on OSX; thanks Robin Dunn.
+    * Clean up handling of unbuffered mode in py2exe.  (The old code
+      never actually worked; the new code works most of the time but
+      might give you the wrong mode if running from a partial update)
+
+
 v0.9.4
 
     * Added esky.util.appexe_from_executable, a convenience method to

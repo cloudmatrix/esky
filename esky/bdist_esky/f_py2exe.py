@@ -202,12 +202,6 @@ def freeze(dist):
         code_source.append("bootstrap()")
         code_source = "\n".join(code_source)
         code = marshal.dumps([compile(code_source,"__main__.py","exec")])
-        coderes = struct.pack("iiii",
-                         0x78563412, # magic value used for integrity checking,
-                         0, # no optimization
-                         False,  # normal buffered output
-                         len(code),
-                         ) + "\x00" + code + "\x00\x00"
         #  Copy any core dependencies into the bootstrap env.
         for nm in os.listdir(dist.freeze_dir):
             if is_core_dependency(nm):
@@ -217,11 +211,23 @@ def freeze(dist):
             if not exe.include_in_bootstrap_env:
                 continue
             exepath = dist.copy_to_bootstrap_env(exe.name)
+            #  Read the py2exe metadata from the frozen exe.  We will
+            #  need to duplicate some of these fields when to rewrite it.
+            coderes = winres.load_resource(exepath,u"PYTHONSCRIPT",1,0)
+            headsz = struct.calcsize("iiii")
+            (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",coderes[:headsz])
+            assert magic == 0x78563412
             #  Insert the bootstrap code into the exe as a resource.
             #  This appears to have the happy side-effect of stripping any
             #  extra data from the end of the exe, which is exactly what we
             #  want when zipfile=None is specified; otherwise each bootstrap
             #  exe would also contain the whole bundled zipfile.
+            coderes = struct.pack("iiii",
+                         magic, # magic value used for integrity checking,
+                         optmz, # optimization level to enable
+                         unbfrd,  # whether to use unbuffered output
+                         len(code),
+                      ) + "\x00" + code + "\x00\x00"
             winres.add_resource(exepath,coderes,u"PYTHONSCRIPT",1,0)
         #  If the python dll hasn't been copied into the bootstrap env,
         #  make sure it's stored in each bootstrap dll as a resource.
@@ -264,12 +270,18 @@ _CUSTOM_WIN32_CHAINLOADER = """
 _orig_chainload = _chainload
 
 def _chainload(target_dir):
-  # careful to escape percent-sign, this gets interpolated below
+  # Be careful to escape percent-sign, this gets interpolated below
   marker_file = pathjoin(ESKY_CONTROL_DIR,"f-py2exe-%%d%%d.txt")%%sys.version_info[:2]
   pydll = "python%%s%%s.dll" %% sys.version_info[:2]
   mydir = dirname(sys.executable)
+  #  Check that the target directory is the same version of python as this
+  #  bootstrapping script.  If not, we can't chainload it in-process.
   if not exists(pathjoin(target_dir,marker_file)):
       return _orig_chainload(target_dir)
+  #  Check whether the target directory contains unbundled C extensions.
+  #  These require a physical python dll on disk next to the running
+  #  executable, so we must have such a dll in order to chainload.
+  #  bootstrapping script.  If not, we can't chainload it in-process.
   for nm in listdir(target_dir):
       if nm == pydll:
           continue
@@ -277,13 +289,13 @@ def _chainload(target_dir):
           continue
       if nm.lower().endswith(".pyd") or nm.lower().endswith(".dll"):
           #  The freeze dir contains unbundled C extensions.
-          #  Since they're linked against a physical python DLL, we
-          #  can't chainload them unless we have one too.
           if not exists(pathjoin(mydir,pydll)):
               return _orig_chainload(target_dir)
           else:
                break
-  # munge the environment to pretend we're in the target dir
+  # Munge the environment to pretend we're in the target dir.
+  # This will let us load modules from inside it.
+  # If we fail for whatever reason, we can't chainload in-process.
   try:
       import nt
   except ImportError:
@@ -305,7 +317,8 @@ def _chainload(target_dir):
           sys.path.append(libfile)
       else:
           sys.path.append(target_dir)
-  # try to import the modules we need for bootstrapping
+  # Try to import the modules we need for bootstrapping.
+  # If we fail for whatever reason, we can't chainload in-process.
   try:
       import zipextimporter; zipextimporter.install()
   except ImportError:
@@ -317,13 +330,14 @@ def _chainload(target_dir):
       import msvcrt
   except ImportError:
       return _orig_chainload(target_dir)
-  # the source for esky.winres.load_resource gets inserted below:
+  # The source for esky.winres.load_resource gets inserted below.
+  # This allows us to grab the code out of the frozen version exe.
   from ctypes import c_char, POINTER
   k32 = ctypes.windll.kernel32
   LOAD_LIBRARY_AS_DATAFILE = 0x00000002
   _DEFAULT_RESLANG = 1033
   %s
-  # now we magically have the load_resource function :-)
+  # Great, now we magically have the load_resource function :-)
   try:
       data = load_resource(sys.executable,u"PYTHONSCRIPT",1,0)
   except EnvironmentError:
@@ -337,28 +351,15 @@ def _chainload(target_dir):
       headsz = struct.calcsize("iiii")
       (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",data[:headsz])
       assert magic == 0x78563412
-      # Set up the environment requested by "optimized" and "unbuffered"
+      # Set up the environment requested by "optimized" flag.
+      # Currently "unbuffered" is not supported at run-time since I
+      # haven't figured out the necessary incantations.
       try:
           opt_var = ctypes.c_int.in_dll(ctypes.pythonapi,"Py_OptimizeFlag")
           opt_var.value = optmz
       except ValueError:
           pass
-      if unbfrd:
-          msvcrt.setmode(0,nt.O_BINARY)
-          msvcrt.setmode(1,nt.O_BINARY)
-          ctypes.pythonapi.PyFile_AsFile.argtypes = (ctypes.py_object,)
-          if hasattr(ctypes.cdll.msvcrt,"setvbuf"):
-              def setunbuf(f):
-                  fp = ctypes.pythonapi.PyFile_AsFile(f)
-                  ctypes.cdll.msvcrt.setvbuf(fp,None,4,512)
-          else:
-              def setunbuf(fd,mode):
-                  fp = ctypes.pythonapi.PyFile_AsFile(f)
-                  ctypes.cdll.msvcrt.setbuf(fp,None)
-          setunbuf(sys.stdin)
-          setunbuf(sys.stdout)
-          setunbuf(sys.stderr)
-      # skip over the archive name to find start of code
+      # Skip over the archive name to find start of code
       codestart = headsz
       while data[codestart] != "\\0":
           codestart += 1
@@ -432,6 +433,10 @@ def _chainload(target_dir):
       #  Tweak the python env according to the py2exe frozen metadata
       py.Set_OptimizeFlag(optmz)
       # TODO: set up buffering
+      # If you can decide on buffered/unbuffered before loading up
+      # the python runtime, this can be done by just setting the
+      # PYTHONUNBUFFERED environment variable.  If not, we have to
+      # do it ourselves like this:
       #if unbfrd:
       #     setmode(0,nt.O_BINARY)
       #     setmode(1,nt.O_BINARY)

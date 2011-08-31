@@ -109,6 +109,11 @@ class TestEsky(unittest.TestCase):
                                             "freezer_options": {
                                               "skip_archive": True}}})
 
+    def test_esky_py2exe_unbuffered(self):
+        self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                            "freezer_options": {
+                                              "unbuffered": True}}})
+
     def test_esky_py2exe_nocustomchainload(self):
         with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
            bscode = "_chainload = _orig_chainload\nbootstrap()"
@@ -124,6 +129,11 @@ class TestEsky(unittest.TestCase):
         def test_esky_py2exe_pypy(self):
             self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                                 "compile_bootstrap_exes":1}})
+        def test_esky_py2exe_unbuffered_pypy(self):
+            self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
+                                                "compile_bootstrap_exes":1,
+                                                "freezer_options": {
+                                                  "unbuffered": True}}})
 
 
   if py2app is not None:
