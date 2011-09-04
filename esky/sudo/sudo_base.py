@@ -52,7 +52,7 @@ class SecureStringPipe(object):
 
     As a security measure, all strings are "signed" using a rolling hmac based
     off a shared security token.  A bad signature results in the pipe being
-    immediately closed and a RuntimeError geing generated.
+    immediately closed and a RuntimeError being generated.
     """
 
     def __init__(self,token=None):
@@ -102,7 +102,10 @@ class SecureStringPipe(object):
         pass
 
     def read(self):
-        """Read the next string from the pipe."""
+        """Read the next string from the pipe.
+
+        The expected data format is:  4-byte size, data, signature
+        """
         self.check_connection()
         sz = self._read(4)
         if len(sz) < 4:
@@ -119,7 +122,10 @@ class SecureStringPipe(object):
         return data
 
     def write(self,data):
-        """Write the given string to the pipe."""
+        """Write the given string to the pipe.
+
+        The expected data format is:  4-byte size, data, signature
+        """
         self.check_connection()
         self._write(struct.pack("I",len(data)))
         self._write(data)

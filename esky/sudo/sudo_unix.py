@@ -32,7 +32,7 @@ def can_get_root():
     """Check whether the usee may be able to get root access.
 
     This is currently always True on unix-like platforms, since we have no
-    way of peering inside the sudoers file.
+    sensible way of peering inside the sudoers file.
     """
     return True
 

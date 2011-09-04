@@ -93,11 +93,15 @@ def b(data):
 
 
 class SudoProxy(object):
-    """Object method proxy with root privileges."""
+    """Object method proxy with root privileges.
+
+    This class creates a copy of an object whose methods can be executed
+    with root privileges.
+    """
 
     def __init__(self,target):
         #  Reflect the 'name' attribute if it has one, but don't worry
-        #  if not.  This helps SudoProxy be re-used on other clases.
+        #  if not.  This helps SudoProxy be re-used on other classes.
         try:
             self.name = target.name
         except AttributeError:
@@ -230,7 +234,7 @@ def allow_from_sudo(*argtypes,**kwds):
     through the sudo proxy: allowing it via this decorator, and actually 
     passing on the call to the proxy object.  I have no intention of making
     this any more hidden, because the fact that a method can have escalated
-    privileges is somethat that needs to be very obvious from the code.
+    privileges is something that that needs to be very obvious from the code.
     """
     def decorator(func):
         func._esky_sudo_argtypes = argtypes
@@ -272,12 +276,22 @@ def _get_sudo_iterator(obj,methname):
     return False
 
 def _get_mro(obj):
+    """Get the method resolution order for an object.
+
+    In other words, get the list of classes what are used to look up methods
+    on the given object, in the order in which they'll be consulted.
+    """
     try:
         return obj.__class__.__mro__
     except AttributeError:
         return _get_oldstyle_mro(obj.__class__,set())
 
 def _get_oldstyle_mro(cls,seen):
+    """Get the method resolution order bor an old-style class.
+
+    This is essentially a bottom-up left-to-right iteration of all the
+    superclasses.
+    """
     yield cls
     seen.add(cls)
     for base in cls.__bases__:
