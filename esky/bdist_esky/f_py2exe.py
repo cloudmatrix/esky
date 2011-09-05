@@ -10,7 +10,6 @@ from __future__ import with_statement
 
 
 import os
-import re
 import sys
 import imp
 import time
@@ -174,8 +173,8 @@ def freeze(dist):
     pass
     #  Create the bootstraping code, using custom code if specified.
     #  It gets stored as a marshalled list of code objects directly in the exe.
-    esky_name = re.escape(dist.distribution.get_name())
-    code_source = ["__esky_name__ = '%s'" % (esky_name,)]
+    esky_name = dist.distribution.get_name()
+    code_source = ["__esky_name__ = %r" % (esky_name,)]
     code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
         from esky.bdist_esky import pypy_libpython

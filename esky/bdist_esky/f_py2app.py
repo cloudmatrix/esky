@@ -10,7 +10,6 @@ from __future__ import with_statement
 
 
 import os
-import re
 import sys
 import imp
 import time
@@ -90,8 +89,8 @@ def freeze(dist):
         lib.write(src,arcnm)
     lib.close()
     #  Create the bootstraping code, using custom code if specified.
-    esky_name = re.escape(dist.distribution.get_name())
-    code_source = ["__esky_name__ = '%s'" % (esky_name,)]
+    esky_name = dist.distribution.get_name()
+    code_source = ["__esky_name__ = %r" % (esky_name,)]
     code_source.append(inspect.getsource(esky.bootstrap))
     if not dist.compile_bootstrap_exes:
         code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
