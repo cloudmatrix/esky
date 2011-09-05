@@ -32,6 +32,7 @@ We also provide some handy utility functions:
 from __future__ import absolute_import
 
 import sys
+import time
 
 from esky.util import lazy_import
 
@@ -47,6 +48,14 @@ def pickle():
     except ImportError:
         import pickle
     return pickle
+
+@lazy_import
+def threading():
+    try:
+        import threading
+    except ImportError:
+        threading = None
+    return threading
 
 
 if sys.platform == "win32":
@@ -114,9 +123,33 @@ class SudoProxy(object):
         (self.proc,self.pipe) = spawn_sudo(self)
         if self.proc.poll() is not None:
             raise RuntimeError("sudo helper process terminated unexpectedly")
-        if self.pipe.read() != b("READY"):
+        #  If threading is available, run a background thread to monitor
+        #  the sudo process.  If it dies, terminate things immediately.
+        if threading:
+            self._do_monitor_proc = True
+            monitor_thread = threading.Thread(target=self._monitor_proc)
+            monitor_thread.daemon = True
+            monitor_thread.start()
+        #  Try to read initialisation message from the pipe.
+        #  If this fails, the helper program must have died.
+        try:
+            msg = self.pipe.read()
+        except EOFError:
+            msg = b("")
+        if msg != b("READY"):
             self.close()
             raise RuntimeError("failed to spawn helper app")
+        if threading:
+            self._do_monitor_proc = False
+            monitor_thread.join()
+
+    def _monitor_proc(self):
+        while self._do_monitor_proc:
+            if self.proc.poll() is not None:
+                self.pipe._recover()
+                self.pipe.close()
+                break
+            time.sleep(0)
 
     def close(self):
         self.pipe.write(b("CLOSE"))

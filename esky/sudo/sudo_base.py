@@ -99,7 +99,7 @@ class SecureStringPipe(object):
             self.connected = True
 
     def close(self):
-        pass
+        self.connected = False
 
     def read(self):
         """Read the next string from the pipe.

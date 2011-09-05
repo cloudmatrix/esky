@@ -7,6 +7,7 @@ v0.9.5
     * Clean up handling of unbuffered mode in py2exe.  (The old code
       never actually worked; the new code works most of the time but
       might give you the wrong mode if running from a partial update)
+    * esky.sudo: avoid deadlocking if the helper process dies.
 
 
 v0.9.4
