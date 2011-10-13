@@ -179,8 +179,15 @@ class DefaultVersionFinder(VersionFinder):
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
         filename_re = filename_re % (appname_re,version_re,)
         link_re = "href=['\"](?P<href>([^'\"]*/)?%s)['\"]" % (filename_re,)
-        # TODO: would be nice not to have to guess encoding here.
+        # Read the URL.  If this followed any redirects, update the
+        # recorded URL to match the final endpoint.
         df = self.open_url(self.download_url)
+        try:
+            if df.url != self.download_url:
+                self.download_url = df.url
+        except AttributeError:
+            pass
+        # TODO: would be nice not to have to guess encoding here.
         try:
             downloads = df.read().decode("utf-8")
         finally:

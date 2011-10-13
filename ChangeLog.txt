@@ -1,4 +1,10 @@
 
+v0.9.6
+
+    * Fix downloading of updates when there was a HTTP redirect encountered
+      as part of VersionFinder.find_versions().
+
+
 v0.9.5
 
     * Fix some env-var-handling errors on OSX; thanks Robin Dunn.
