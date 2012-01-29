@@ -14,7 +14,7 @@ patches will be gratefully accepted.
 The main interface is the 'Esky' class, which represents a frozen app.  An Esky
 must be given the path to the top-level directory of the frozen app, and a
 'VersionFinder' object that it will use to search for updates.  Typical usage
-for an app automatically updating itself would look something like this:
+for an app automatically updating itself would look something like this::
 
     if hasattr(sys,"frozen"):
         app = esky.Esky(sys.executable,"http://example.com/downloads/")
@@ -28,7 +28,7 @@ subclass to meet your specific needs.
 The real trick is freezing your app in a format sutiable for use with esky.
 You'll almost certainly want to use the "bdist_esky" distutils command, and
 should consult its docstring for full details; the following is an example
-of a simple setup.py script using esky:
+of a simple setup.py script using esky::
 
     from esky import bdist_esky
     from distutils.core import setup
@@ -39,7 +39,7 @@ of a simple setup.py script using esky:
           options={"bdist_esky":{"includes":["mylib"]}},
          )
 
-Invoking this setup script would create an esky for "appname" version 1.2.3:
+Invoking this setup script would create an esky for "appname" version 1.2.3::
 
     #>  python setup.py bdist_esky
     ...
@@ -90,7 +90,7 @@ following methods control this behaviour:
 
 
 When properly installed, the on-disk layout of an app managed by esky looks
-like this:
+like this::
 
     prog.exe                     - esky bootstrapping executable
     appdata/                     - container for all the esky magic
