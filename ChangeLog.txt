@@ -1,4 +1,11 @@
 
+v0.9.6
+
+    * Fix downloading of updates when there was a HTTP redirect encountered
+      as part of VersionFinder.find_versions().
+    * Fix win32 bootstrap version of abspath() to correctly handle UNC paths.
+
+
 v0.9.5
 
     * Fix some env-var-handling errors on OSX; thanks Robin Dunn.

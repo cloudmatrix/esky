@@ -179,8 +179,15 @@ class DefaultVersionFinder(VersionFinder):
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
         filename_re = filename_re % (appname_re,version_re,)
         link_re = "href=['\"](?P<href>([^'\"]*/)?%s)['\"]" % (filename_re,)
-        # TODO: would be nice not to have to guess encoding here.
+        # Read the URL.  If this followed any redirects, update the
+        # recorded URL to match the final endpoint.
         df = self.open_url(self.download_url)
+        try:
+            if df.url != self.download_url:
+                self.download_url = df.url
+        except AttributeError:
+            pass
+        # TODO: would be nice not to have to guess encoding here.
         try:
             downloads = df.read().decode("utf-8")
         finally:
@@ -198,9 +205,10 @@ class DefaultVersionFinder(VersionFinder):
         return self.version_graph.get_versions(app.version)
 
     def fetch_version_iter(self,app,version):
-        #  There's always the possibility that a patch fails to apply.
-        #  _prepare_version will remove such patches from the version graph;
-        #  we loop until we find a path that applies, or we run out of options.
+        #  There's always the possibility that a file fails to download or 
+        #  that a patch fails to apply.  _fetch_file_iter and _prepare_version
+        #  will remove such files from the version graph; we loop until we find
+        #  a patch path that works, or we run out of options.
         name = self._ready_name(app,version)
         while not os.path.exists(name):
             try:
@@ -226,44 +234,52 @@ class DefaultVersionFinder(VersionFinder):
         nm = os.path.basename(urlparse(url).path)
         outfilenm = os.path.join(self._workdir(app,"downloads"),nm)
         if not os.path.exists(outfilenm):
-            infile = self.open_url(urljoin(self.download_url,url))
-            outfile_size = 0
             try:
-                infile_size = infile.size
-            except AttributeError:
+                infile = self.open_url(urljoin(self.download_url,url))
+                outfile_size = 0
+                # The to determine size of download, so that we can
+                # detect corrupted or truncated downloads.
                 try:
-                    fh = infile.fileno()
+                    infile_size = infile.size
                 except AttributeError:
-                    infile_size = None
-                else:
-                    infile_size = os.fstat(fh).st_size
-            try:
-                partfilenm = outfilenm + ".part"
-                partfile = open(partfilenm,"wb")
+                    try:
+                        fh = infile.fileno()
+                    except AttributeError:
+                        infile_size = None
+                    else:
+                        infile_size = os.fstat(fh).st_size
+                # Read it into a temporary file, then rename into place.
                 try:
-                    data = infile.read(1024*64)
-                    while data:
-                        yield {"status": "downloading",
-                               "size": infile_size,
-                               "received": partfile.tell(),
-                        }
-                        partfile.write(data)
-                        outfile_size += len(data)
+                    partfilenm = outfilenm + ".part"
+                    partfile = open(partfilenm,"wb")
+                    try:
                         data = infile.read(1024*64)
-                    if infile_size is not None:
-                        if outfile_size != infile_size:
-                            self.version_graph.remove_all_links(url)
-                            err = "corrupted download: %s" % (url,)
-                            raise IOError(err)
-                except Exception:
-                    partfile.close()
-                    os.unlink(partfilenm)
-                    raise
-                else:
-                    partfile.close()
-                    really_rename(partfilenm,outfilenm)
-            finally:
-                infile.close()
+                        while data:
+                            yield {"status": "downloading",
+                                   "size": infile_size,
+                                   "received": partfile.tell(),
+                            }
+                            partfile.write(data)
+                            outfile_size += len(data)
+                            data = infile.read(1024*64)
+                        if infile_size is not None:
+                            if outfile_size != infile_size:
+                                err = "corrupted download: %s" % (url,)
+                                raise IOError(err)
+                    except Exception:
+                        partfile.close()
+                        os.unlink(partfilenm)
+                        raise
+                    else:
+                        partfile.close()
+                        really_rename(partfilenm,outfilenm)
+                finally:
+                    infile.close()
+            except Exception:
+                # Something went wrong.  To avoid infinite looping, we
+                # must remove that file from the link graph.
+                self.version_graph.remove_all_links(url)
+                raise
         yield {"status":"ready","path":outfilenm}
 
     def _prepare_version(self,app,version,path):

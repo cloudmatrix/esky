@@ -72,6 +72,18 @@ if "posix" in sys.builtin_module_names:
     SEP = "/"
     def isabs(path):
         return (path.startswith(SEP))
+    def abspath(path):
+        path = pathjoin(getcwd(),path)
+        components_in = path.split(SEP)
+        components = [components_in[0]]
+        for comp in components_in[1:]:
+            if not comp or comp == ".":
+                pass
+            elif comp == "..":
+                components.pop()
+            else:
+                components.append(comp)
+        return SEP.join(components)
 elif "nt" in sys.builtin_module_names:
     fcntl = None
     import nt
@@ -88,6 +100,20 @@ elif "nt" in sys.builtin_module_names:
             if path[0].isalpha() and path[1] == ":":
                 return True
         return False
+    def abspath(path):
+        path = pathjoin(getcwd(),path)
+        components_in = path.split(SEP)
+        components = [components_in[0]]
+        for comp in components_in[1:]:
+            if not comp or comp == ".":
+                pass
+            elif comp == "..":
+                components.pop()
+            else:
+                components.append(comp)
+        if path.startswith(SEP + SEP):
+            components.insert(0, "")
+        return SEP.join(components)
     #  The standard execv terminates the spawning process, which makes
     #  it impossible to wait for it.  This alternative is waitable, and
     #  uses the esky.slaveproc machinery to avoid leaving zombie children.
@@ -227,20 +253,6 @@ def pathjoin(*args):
                 path = path[:-1]
             path = path + SEP + arg
     return path
-
-def abspath(path):
-    """Absolute-ize and normalise the given path."""
-    path = pathjoin(getcwd(),path)
-    components_in = path.split(SEP)
-    components = [components_in[0]]
-    for comp in components_in[1:]:
-        if not comp or comp == ".":
-            pass
-        elif comp == "..":
-            components.pop()
-        else:
-            components.append(comp)
-    return SEP.join(components)
 
 def basename(p):
     """Local re-implementation of os.path.basename."""
