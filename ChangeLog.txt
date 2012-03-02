@@ -1,3 +1,7 @@
+v0.9.7
+
+    * Avoid a possible infinite loop during updates; thanks vkosh.
+
 
 v0.9.6
 
