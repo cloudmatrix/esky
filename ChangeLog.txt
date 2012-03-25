@@ -1,3 +1,8 @@
+v0.9.8
+
+    * Fix various unicode-handling issues on Python3; thank vkosh.
+
+
 v0.9.7
 
     * Avoid a possible infinite loop during updates; thanks vkosh.

@@ -18,13 +18,9 @@ import uuid
 import ctypes
 import ctypes.wintypes
 import subprocess
-from base64 import b64encode, b64decode
 
 from esky.sudo import sudo_base as base
 import esky.slaveproc
-
-pickle = base.pickle
-HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
 
 
 byref = ctypes.byref
@@ -300,8 +296,8 @@ def spawn_sudo(proxy):
     else:
         exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
     args = ["--esky-spawn-sudo"]
-    args.append(b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL)))
-    args.append(b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL)))
+    args.append(base.b64pickle(proxy))
+    args.append(base.b64pickle(c_pipe))
     # Make it a slave process so it dies if we die
     exe = exe + esky.slaveproc.get_slave_process_args() + args
     if sys.getwindowsversion()[0] < 6:
@@ -326,9 +322,7 @@ def spawn_sudo(proxy):
 
 def run_startup_hooks():
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
-        proxy = pickle.loads(b64decode(sys.argv[2]))
-        pipe = pickle.loads(b64decode(sys.argv[3]))
+        proxy = base.b64unpickle(sys.argv[2])
+        pipe = base.b64unpickle(sys.argv[3])
         proxy.run(pipe)
         sys.exit(0)
-
-

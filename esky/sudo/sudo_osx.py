@@ -149,8 +149,8 @@ def spawn_sudo(proxy):
             raise OSError(None,"unable to sudo: startup hooks not run")
         exe = [sys.executable]
     args = ["--esky-spawn-sudo"]
-    args.append(b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL)))
-    args.append(b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL)))
+    args.append(b64pickle(proxy))
+    args.append(b64pickle(c_pipe))
 
     # Make it a slave process so it dies if we die
     exe = exe + esky.slaveproc.get_slave_process_args() + args
@@ -207,8 +207,8 @@ def spawn_sudo(proxy):
 def run_startup_hooks():
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
         if sys.version_info[0] > 2:
-            proxy = pickle.loads(b64decode(sys.argv[2].encode("ascii")))
-            pipe = pickle.loads(b64decode(sys.argv[3].encode("ascii")))
+            proxy = b64unpickle(sys.argv[2])
+            pipe = b64unpickle(sys.argv[3])
         else:
             proxy = pickle.loads(b64decode(sys.argv[2]))
             pipe = pickle.loads(b64decode(sys.argv[3]))

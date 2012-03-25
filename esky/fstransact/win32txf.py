@@ -33,16 +33,23 @@ try:
     CommitTransaction = check_call(ktmw32.CommitTransaction)
     RollbackTransaction = check_call(ktmw32.RollbackTransaction)
     kernel32 = ctypes.windll.kernel32
-    MoveFileTransacted = check_call(kernel32.MoveFileTransactedA)
-    CopyFileTransacted = check_call(kernel32.CopyFileTransactedA)
-    DeleteFileTransacted = check_call(kernel32.DeleteFileTransactedA)
-    RemoveDirectoryTransacted = check_call(kernel32.RemoveDirectoryTransactedA)
-    CreateDirectoryTransacted = check_call(kernel32.CreateDirectoryTransactedA)
+    MoveFileTransacted = check_call(kernel32.MoveFileTransactedW)
+    CopyFileTransacted = check_call(kernel32.CopyFileTransactedW)
+    DeleteFileTransacted = check_call(kernel32.DeleteFileTransactedW)
+    RemoveDirectoryTransacted = check_call(kernel32.RemoveDirectoryTransactedW)
+    CreateDirectoryTransacted = check_call(kernel32.CreateDirectoryTransactedW)
 except (WindowsError,AttributeError):
     raise ImportError("win32 TxF is not available")
 
 
 ERROR_TRANSACTIONAL_OPEN_NOT_ALLOWED = 6832
+
+
+def unicode_path(path):
+    if sys.version_info[0] < 3:
+        if not isinstance(path, unicode):
+            path = path.decode(sys.getfilesystemencoding())
+    return path
 
 
 class FSTransaction(object):
@@ -56,6 +63,7 @@ class FSTransaction(object):
         if root is None:
             self.root = None
         else:
+            root = unicode_path(root)
             self.root = os.path.normpath(os.path.abspath(root))
             if self.root.endswith(os.sep):
                 self.root = self.root[:-1]
@@ -111,8 +119,8 @@ class FSTransaction(object):
                 self._remove(source)
 
     def _move(self,source,target):
-        source = source.encode(sys.getfilesystemencoding())
-        target = target.encode(sys.getfilesystemencoding())
+        source = unicode_path(source)
+        target = unicode_path(target)
         if os.path.exists(target) and target != source:
             target_old = get_backup_filename(target)
             MoveFileTransacted(target,target_old,None,None,1,self.trnid)
@@ -158,8 +166,8 @@ class FSTransaction(object):
                 self._copy(source,target)
 
     def _copy(self,source,target):
-        source = source.encode(sys.getfilesystemencoding())
-        target = target.encode(sys.getfilesystemencoding())
+        source = unicode_path(source)
+        target = unicode_path(target)
         if os.path.exists(target) and target != source:
             target_old = get_backup_filename(target)
             MoveFileTransacted(target,target_old,None,None,1,self.trnid)
@@ -192,7 +200,7 @@ class FSTransaction(object):
         self._remove(target)
 
     def _remove(self,target):
-        target = target.encode(sys.getfilesystemencoding())
+        target = unicode_path(target)
         if os.path.isdir(target):
             for nm in os.listdir(target):
                 self.remove(os.path.join(target,nm))
