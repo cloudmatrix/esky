@@ -1067,7 +1067,7 @@ def run_startup_hooks():
         lock_version_dir(vdir)
     # Run the "spawn-cleanup" hook if given.
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-cleanup":
-        app = pickle.loads(base64.b64decode(sys.argv[2]).encode("ascii"))
+        app = pickle.loads(base64.b64decode(sys.argv[2].encode("ascii")))
         time.sleep(1)
         app.cleanup()
         sys.exit(0)
