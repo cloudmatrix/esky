@@ -452,6 +452,16 @@ class TestFSTransact(unittest.TestCase):
         self.assertContents("file2","hello world")
         self.assertFalse(os.path.exists(self.path("file1")))
 
+    def test_move_file_with_unicode_name(self):
+        self.setContents(u"file\N{SNOWMAN}","hello world")
+        trn = FSTransaction()
+        trn.move(self.path(u"file\N{SNOWMAN}"),self.path("file2"))
+        self.assertContents(u"file\N{SNOWMAN}","hello world")
+        self.assertFalse(os.path.exists(self.path("file2")))
+        trn.commit()
+        self.assertContents("file2","hello world")
+        self.assertFalse(os.path.exists(self.path(u"file\N{SNOWMAN}")))
+
     def test_copy_file(self):
         self.setContents("file1","hello world")
         trn = FSTransaction()
