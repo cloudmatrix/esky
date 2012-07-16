@@ -13,14 +13,10 @@ import struct
 import signal
 import subprocess
 import tempfile
-from base64 import b64encode, b64decode
 from functools import wraps
 
 from esky.sudo import sudo_base as base
 import esky.slaveproc
-
-pickle = base.pickle
-HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
 
 
 def has_root():
@@ -147,7 +143,7 @@ def spawn_sudo(proxy):
             raise OSError(None,"unable to sudo: startup hooks not run")
         exe = [sys.executable]
     args = ["--esky-spawn-sudo"]
-    args.append(b64encode(pickle.dumps(proxy,HIGHEST_PROTOCOL)))
+    args.append(base.b64pickle(proxy))
     # Look for a variety of sudo-like programs
     sudo = None
     display_name = "%s update" % (proxy.name,)
@@ -165,10 +161,7 @@ def spawn_sudo(proxy):
     exe = sudo + exe + esky.slaveproc.get_slave_process_args() + args
     # Pass the pipe in environment vars, they seem to be harder to snoop.
     env = os.environ.copy()
-    env["ESKY_SUDO_PIPE"] = b64encode(pickle.dumps(c_pipe,HIGHEST_PROTOCOL))
-    if sys.version_info[0] > 2:
-        #  Python3 doesn't like bytestrings in the env dict
-        env["ESKY_SUDO_PIPE"] = env["ESKY_SUDO_PIPE"].decode("ascii")
+    env["ESKY_SUDO_PIPE"] = base.b64pickle(c_pipe)
     # Spawn the subprocess
     kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True,env=env)
     proc = KillablePopen(exe,**kwds)
@@ -177,13 +170,8 @@ def spawn_sudo(proxy):
 
 def run_startup_hooks():
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
-        if sys.version_info[0] > 2:
-            proxy = pickle.loads(b64decode(sys.argv[2].encode("ascii")))
-            pipe = pickle.loads(b64decode(os.environ["ESKY_SUDO_PIPE"].encode("ascii")))
-        else:
-            proxy = pickle.loads(b64decode(sys.argv[2]))
-            pipe = pickle.loads(b64decode(os.environ["ESKY_SUDO_PIPE"]))
+        proxy = base.b64unpickle(sys.argv[2])
+        pipe = base.b64unpickle(os.environ["ESKY_SUDO_PIPE"])
         proxy.run(pipe)
         sys.exit(0)
-
 

@@ -28,6 +28,17 @@ except ImportError:
     threading = None
 
 
+def b64pickle(obj):
+    """Serialize object to a base64-string."""
+    return base64.b64encode(pickle.dumps(obj, -1)).decode("ascii")
+
+
+def b64unpickle(data):
+    """Deserialize object from a base64-string."""
+    if sys.version_info[0] > 2:
+        data = data.encode("ascii")
+    return pickle.loads(base64.b64decode(data))
+
 
 def has_root():
     """Check whether the user currently has root access."""

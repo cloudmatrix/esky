@@ -161,7 +161,7 @@ class DefaultVersionFinder(VersionFinder):
             really_rmtree(os.path.join(rddir,nm))
 
     def open_url(self,url):
-        f = urllib2.urlopen(url)
+        f = urllib2.urlopen(url, timeout=30)
         try:
             size = f.headers.get("content-length",None)
             if size is not None:

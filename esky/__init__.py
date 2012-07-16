@@ -138,7 +138,7 @@ from __future__ import absolute_import
 
 __ver_major__ = 0
 __ver_minor__ = 9
-__ver_patch__ = 6
+__ver_patch__ = 7
 __ver_sub__ = ""
 __ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
@@ -626,7 +626,7 @@ class Esky(object):
                     raise OSError(None,"unable to cleanup: startup hooks not run")
                 exe = [exe,"--esky-spawn-cleanup"]
         appdata = pickle.dumps(self,pickle.HIGHEST_PROTOCOL)
-        exe = exe + [base64.b64encode(appdata)]
+        exe = exe + [base64.b64encode(appdata).decode("ascii")]
         @atexit.register
         def spawn_cleanup():
             rnul = open(os.devnull,"r")
@@ -1067,8 +1067,8 @@ def run_startup_hooks():
         lock_version_dir(vdir)
     # Run the "spawn-cleanup" hook if given.
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-cleanup":
-        app = pickle.loads(base64.b64decode(sys.argv[2]))
-        time.sleep(1)        
+        app = pickle.loads(base64.b64decode(sys.argv[2].encode("ascii")))
+        time.sleep(1)
         app.cleanup()
         sys.exit(0)
     # Let esky.slaveproc run its hooks.
