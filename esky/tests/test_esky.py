@@ -697,7 +697,34 @@ class TestPatch(unittest.TestCase):
             esky.patch.apply_patch(path1,f)
         self.assertEquals(esky.patch.calculate_digest(path1),
                          esky.patch.calculate_digest(path2))
-        
+
+    def test_copying_multiple_targets_from_a_single_sibling(self):
+        join = os.path.join
+        src_dir = src_dir = join(self.workdir, "source")
+        tgt_dir = tgt_dir = join(self.workdir, "target")
+        for dirnm in src_dir, tgt_dir:
+            os.mkdir(dirnm)
+        zf = zipfile.ZipFile(join(self.tfdir, "movefrom-source.zip"), "r")
+        zf.extractall(src_dir)
+        zf = zipfile.ZipFile(join(self.tfdir, "movefrom-target.zip"), "r")
+        zf.extractall(tgt_dir)
+
+        # The two directory structures should initially be difference.
+        self.assertNotEquals(esky.patch.calculate_digest(src_dir),
+                             esky.patch.calculate_digest(tgt_dir))
+
+        # Create patch from source to target.
+        patch_fname = join(self.workdir, "patch")
+        with open(patch_fname, "wb") as patchfile:
+            esky.patch.write_patch(src_dir, tgt_dir, patchfile)
+
+        # Try to apply the patch.
+        with open(patch_fname, "rb") as patchfile:
+            esky.patch.apply_patch(src_dir, patchfile)
+
+        # Then the two directory structures should be equal.
+        self.assertEquals(esky.patch.calculate_digest(src_dir),
+                          esky.patch.calculate_digest(tgt_dir))
 
     def _extract(self,filename,dest):
         dest = os.path.join(self.workdir,dest)

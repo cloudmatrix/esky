@@ -862,7 +862,7 @@ class Differ(object):
             diff_window_size = DIFF_WINDOW_SIZE
         self.diff_window_size = diff_window_size
         self.outfile = outfile
-        self._pending_pop_path = False
+        self._pending_pop_path = 0
 
     def _write(self,data):
         self.outfile.write(data)
@@ -876,20 +876,25 @@ class Differ(object):
         This does some simple optimisations to collapse sequences of commands
         into a single command - current only around path manipulation.
         """
+        # Gather up POP_PATH instructions, we may be able to eliminate them.
         if cmd == POP_PATH:
-            if self._pending_pop_path:
-                _write_vint(self.outfile,POP_PATH)
-            else:
-                self._pending_pop_path = True
+            self._pending_pop_path += 1
+        # If POP_PATH is followed by something else, try to eliminate.
         elif self._pending_pop_path:
-            self._pending_pop_path = False
+            # POP_PATH,JOIN_PATH => POP_JOIN_PATH
             if cmd == JOIN_PATH:
+                for _ in xrange(self._pending_pop_path - 1):
+                    _write_vint(self.outfile,POP_PATH)
                 _write_vint(self.outfile,POP_JOIN_PATH)
+            # POP_PATH,SET_PATH => SET_PATH
             elif cmd == SET_PATH:
                 _write_vint(self.outfile,SET_PATH)
+            # Otherwise, write out all the POP_PATH instructions.
             else:
-                _write_vint(self.outfile,POP_PATH)
+                for _ in xrange(self._pending_pop_path):
+                    _write_vint(self.outfile,POP_PATH)
                 _write_vint(self.outfile,cmd)
+            self._pending_pop_path = 0
         else:
             _write_vint(self.outfile,cmd)
 
@@ -935,63 +940,71 @@ class Differ(object):
 
     def _diff_dir(self,source,target):
         """Generate patch commands for when the target is a directory."""
+        #  If it's not already a directoy, make it one.
         if not os.path.isdir(source):
             self._write_command(MAKEDIR)
-        moved_sources = []
+        #  For each new item try to find a sibling to copy/move from.
+        #  This might generate a few spurious COPY_FROM and REMOVE commands,
+        #  but in return we get a better chance of diffing against something.
+        nm_sibnm_map = {}
+        sibnm_nm_map = {}
         for nm in os.listdir(target):
             s_nm = os.path.join(source,nm)
-            t_nm = os.path.join(target,nm)
-            #  If this is a new file or directory, try to find a promising
-            #  sibling against which to diff.  This might generate a few
-            #  spurious COPY_FROM and REMOVE commands, but in return we
-            #  get a better chance of diffing against something.
-            at_path = False
             if not os.path.exists(s_nm):
                 sibnm = self._find_similar_sibling(source,target,nm)
                 if sibnm is not None:
-                    s_nm = os.path.join(source,sibnm)
-                    at_path = True
-                    self._write_command(JOIN_PATH)
-                    self._write_path(nm)
-                    if os.path.exists(os.path.join(target,sibnm)):
-                        self._write_command(COPY_FROM)
-                    else:
-                        self._write_command(MOVE_FROM)
-                        moved_sources.append(sibnm)
-                    self._write_path(sibnm)
-            #  Recursively diff against the selected source directory
+                    nm_sibnm_map[nm] = sibnm
+                    try:
+                        sibnm_nm_map[sibnm].append(nm)
+                    except KeyError:
+                        sibnm_nm_map[sibnm] = [nm]
+        #  Now generate COPY or MOVE commands for all those new items.
+        #  Doing them all in a batch means we gracefully cope with
+        #  several tagrgets coming from the same source.
+        for nm, sibnm in nm_sibnm_map.iteritems():
+            s_nm = os.path.join(source,sibnm)
+            self._write_command(JOIN_PATH)
+            self._write_path(nm)
+            if os.path.exists(os.path.join(target,sibnm)):
+                self._write_command(COPY_FROM)
+            elif len(sibnm_nm_map[sibnm]) > 1:
+                self._write_command(COPY_FROM)
+            else:
+                self._write_command(MOVE_FROM)
+            self._write_path(sibnm)
+            sibnm_nm_map[sibnm].remove(nm)
+            self._write_command(POP_PATH)
+        # Every target item now has a source. Diff against it.
+        for nm in os.listdir(target):
+            try:
+                s_nm = os.path.join(source,nm_sibnm_map[nm])
+            except KeyError:
+                s_nm = os.path.join(source,nm)
+            t_nm = os.path.join(target,nm)
+            #  Recursively diff against the selected source.
             if paths_differ(s_nm,t_nm):
-                if not at_path:
-                    self._write_command(JOIN_PATH)
-                    self._write_path(nm)
-                    at_path = True
+                self._write_command(JOIN_PATH)
+                self._write_path(nm)
                 self._diff(s_nm,t_nm)
+                self._write_command(POP_PATH)
             #  Clean up .pyc files, as they can be generated automatically
             #  and cause digest verification to fail.
             if nm.endswith(".py"):
                 if not os.path.exists(t_nm+"c"):
-                    if at_path:
-                        self._write_command(POP_JOIN_PATH)
-                    else:
-                        self._write_command(JOIN_PATH)
+                    self._write_command(JOIN_PATH)
                     self._write_path(nm+"c")
-                    at_path = True
                     self._write_command(REMOVE)
+                    self._write_command(POP_PATH)
                 if not os.path.exists(t_nm+"o"):
-                    if at_path:
-                        self._write_command(POP_JOIN_PATH)
-                    else:
-                        self._write_command(JOIN_PATH)
+                    self._write_command(JOIN_PATH)
                     self._write_path(nm+"o")
-                    at_path = True
                     self._write_command(REMOVE)
-            if at_path:
-                self._write_command(POP_PATH)
+                    self._write_command(POP_PATH)
         #  Remove anything that's no longer in the target dir
         if os.path.isdir(source):
             for nm in os.listdir(source):
                 if not os.path.exists(os.path.join(target,nm)):
-                    if not nm in moved_sources:
+                    if nm not in sibnm_nm_map:
                         self._write_command(JOIN_PATH)
                         self._write_path(nm)
                         self._write_command(REMOVE)
