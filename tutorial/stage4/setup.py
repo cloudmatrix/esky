@@ -3,7 +3,7 @@ from esky.bdist_esky import Executable
 from distutils.core import setup
 from glob import glob
 
-subversion = 6;
+subversion = 8
 
 if sys.platform in ['win32','cygwin','win64']:
 
@@ -38,7 +38,7 @@ if sys.platform in ['win32','cygwin','win64']:
 
 if sys.platform == 'darwin':
 
-    data_files = [("images", glob(r'.\images\*.*'))]
+    data_files = [("images", glob(r'./images/*'))]
     app = ['example.py']
 
     example = Executable("example.py",

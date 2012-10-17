@@ -1,12 +1,12 @@
 import sys
 from esky import bdist_esky
+from distutils.core import setup
 
 # for windows
 # > python setup.py bdist_esky
 if sys.platform in ['win32','cygwin','win64']:
 
     # Use bdist_esky instead of py2exe
-    from distutils.core import setup
 
     setup(
         name = "example-app",
