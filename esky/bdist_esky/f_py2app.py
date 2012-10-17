@@ -130,7 +130,7 @@ def freeze(dist):
                     copy_to_bootstrap_env(os.path.join(dynload,nm))
         copy_to_bootstrap_env("Contents/Resources/__error__.sh")
         copy_to_bootstrap_env("Contents/Resources/__boot__.py")
-        copy_to_bootstrap_env("Contents/Resources/site.py")
+        copy_to_bootstrap_env("Contents/Resources/site.pyc")
         #  Copy the bootstrapping code into the __boot__.py file.
         bsdir = dist.bootstrap_dir
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
@@ -146,6 +146,9 @@ def freeze(dist):
             exepath = copy_to_bootstrap_env("Contents/MacOS/"+exe.name)
     #  Copy non-python resources (e.g. icons etc) into the bootstrap dir
     copy_to_bootstrap_env("Contents/Info.plist")
+    # Include Icon
+    if exe.icon is not None:
+        copy_to_bootstrap_env("Contents/Resources/"+exe.icon)
     copy_to_bootstrap_env("Contents/PkgInfo")
     with open(os.path.join(app_dir,"Contents","Info.plist"),"rt") as f:
         infotxt = f.read()
