@@ -3,6 +3,7 @@ import esky
 
 if getattr(sys,"frozen",False):
     app = esky.Esky(sys.executable,"https://example-app.com/downloads/")
+    print "You are running: %s" % app.active_version
     try:
         if(app.find_update() != None):
             app.auto_update()
