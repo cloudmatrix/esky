@@ -16,6 +16,7 @@ from __future__ import with_statement
 import os
 import re
 import stat
+import urllib
 import urllib2
 import zipfile
 import shutil
@@ -175,7 +176,8 @@ class DefaultVersionFinder(VersionFinder):
     def find_versions(self,app):
         version_re = "[a-zA-Z0-9\\.-_]+"
         appname_re = "(?P<version>%s)" % (version_re,)
-        appname_re = join_app_version(app.name,appname_re,app.platform)
+        name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
+        appname_re = join_app_version(name_re,appname_re,app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
         filename_re = filename_re % (appname_re,version_re,)
         link_re = "href=['\"](?P<href>([^'\"]*/)?%s)['\"]" % (filename_re,)
