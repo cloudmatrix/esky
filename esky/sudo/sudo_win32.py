@@ -302,7 +302,7 @@ def spawn_sudo(proxy):
     exe = exe + esky.slaveproc.get_slave_process_args() + args
     if sys.getwindowsversion()[0] < 6:
         kwds = {}
-        if sys.hexversion >= 0x20600000:
+        if sys.hexversion >= 0x02060000:
             kwds["close_fds"] = True
         proc = KillablePopen(exe,**kwds)
     else:

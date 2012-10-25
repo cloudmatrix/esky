@@ -39,7 +39,7 @@ assert os.path.isfile(eskytester.script_path(app,"script1"))
 assert os.path.isfile(eskytester.script_path(app,"script2"))
 
 #  Test that MSVCRT was bundled correctly
-if sys.platform == "win32" and sys.hexversion >= 0x20600000:
+if sys.platform == "win32" and sys.hexversion >= 0x02600000:
     versiondir = os.path.dirname(sys.executable)
     for nm in os.listdir(versiondir):
         if nm.startswith("Microsoft.") and nm.endswith(".CRT"):
