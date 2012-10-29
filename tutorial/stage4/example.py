@@ -1,4 +1,5 @@
 import sys
+import os
 import esky
 
 if getattr(sys,"frozen",False):

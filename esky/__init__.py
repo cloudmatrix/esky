@@ -632,7 +632,7 @@ class Esky(object):
             rnul = open(os.devnull,"r")
             wnul = open(os.devnull,"w")
             if sys.platform == "win32":
-                if sys.hexversion >= 0x20600000:
+                if sys.hexversion >= 0x02060000:
                     kwds = dict(close_fds=True)
                 else:
                     kwds = {}
