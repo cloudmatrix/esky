@@ -434,14 +434,14 @@ def calculate_patch_digest(target, hash=hashlib.md5):
 
 
 def load_filelist(root):
-    '''locates the esky file list, reads it and returns it as a list'''
+    '''locates the esky file list, reads it and returns it as a sorted list'''
     for path, dirs, files in os.walk(root):
         for f in files:
             if f == ESKY_FILELIST_NAME:
                 file_path = os.path.join(path, f)
                 with open(file_path) as list_file:
                     filelist = json.loads(list_file.read())
-                    return filelist
+                    return sorted(filelist)
 
 
 class Patcher(object):
