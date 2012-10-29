@@ -130,7 +130,11 @@ def freeze(dist):
                     copy_to_bootstrap_env(os.path.join(dynload,nm))
         copy_to_bootstrap_env("Contents/Resources/__error__.sh")
         copy_to_bootstrap_env("Contents/Resources/__boot__.py")
-        copy_to_bootstrap_env("Contents/Resources/site.pyc")
+        for nm in ("site.py", "site.py"):
+            try:
+                copy_to_bootstrap_env("Contents/Resources/" + nm)
+            except EnvironmentError:
+                pass
         #  Copy the bootstrapping code into the __boot__.py file.
         bsdir = dist.bootstrap_dir
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
