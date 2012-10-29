@@ -24,6 +24,7 @@ import zipfile
 import tempfile
 import hashlib
 import inspect
+import json
 from glob import glob
 
 import distutils.command
@@ -320,6 +321,7 @@ class bdist_esky(Command):
         self._run_freeze_scripts()
         if self.pre_zip_callback is not None:
             self.pre_zip_callback(self)
+        self._generate_file_manifest()
         self._run_create_zipfile()
 
     def _run_initialise_dirs(self):
@@ -347,6 +349,20 @@ class bdist_esky(Command):
             lockfile = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR,"lockfile.txt")
             with open(lockfile,"w") as lf:
                 lf.write("this file is used by esky to lock the version dir\n")
+
+    def _list_files(self, directory):
+        for root, dirs, files in os.walk(directory):
+            for f in files:
+                yield os.path.join(os.path.relpath(root, directory), f)
+
+    def _generate_file_manifest(self):
+        """Create a list of all the files in application"""
+        print "generating file manifest"
+        filelist_file = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR, esky.patch.ESKY_FILELIST_NAME)
+        filelist = [f for f in self._list_files(self.bootstrap_dir)]
+        with open(filelist_file, 'w') as f:
+            f.write(json.dumps(filelist))
+
 
     def _run_create_zipfile(self):
         """Zip up the final distribution."""

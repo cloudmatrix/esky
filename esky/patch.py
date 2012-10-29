@@ -67,6 +67,7 @@ import hashlib
 import optparse
 import zipfile
 import tempfile
+import json
 if sys.version_info[0] < 3:
     try:
         from cStringIO import StringIO as BytesIO
@@ -152,6 +153,8 @@ else:
                 ))
             #  Actually do the patching.
             return _cx_bsdiff.Patch(source,l_target,tcontrol,bdiff,bextra)
+    
+ESKY_FILELIST_NAME = "esky_filelist.txt"
 
 
 class bsdiff4_py(object):
@@ -417,6 +420,30 @@ def calculate_digest(target,hash=hashlib.md5):
     return d.digest()
 
 
+def calculate_patch_digest(target, hash=hashlib.md5):
+    """Calculate the digest of the entire project based on the files listed
+    in the esky_filelist. This will ensure that patches don't break if any
+    superfluous files have been added to the application folder"""
+    filelist = load_filelist(target)
+    d = hash()
+    for f in filelist:
+        file_path = os.path.join(target, f)
+        d.update(os.path.basename(file_path).encode("utf8"))
+        d.update(calculate_digest(file_path, hash))
+    return d.digest()
+
+
+def load_filelist(root):
+    '''locates the esky file list, reads it and returns it as a list'''
+    for path, dirs, files in os.walk(root):
+        for f in files:
+            if f == ESKY_FILELIST_NAME:
+                file_path = os.path.join(path, f)
+                with open(file_path) as list_file:
+                    filelist = json.loads(list_file.read())
+                    return filelist
+
+
 class Patcher(object):
     """Class interpreting our patch protocol.
 
@@ -646,7 +673,7 @@ class Patcher(object):
         digest = self._read(16)
         assert len(digest) == 16
         if not self.dry_run:
-            if digest != calculate_digest(self.target,hashlib.md5):
+            if digest != calculate_patch_digest(self.target,hashlib.md5):
                 raise PatchError("incorrect MD5 digest for %s" % (self.target,))
 
     def _do_MAKEDIR(self):
@@ -920,7 +947,7 @@ class Differ(object):
         self._write_command(SET_PATH)
         self._write_bytes("".encode("ascii"))
         self._write_command(VERIFY_MD5)
-        self._write(calculate_digest(target,hashlib.md5))
+        self._write(calculate_patch_digest(target,hashlib.md5))
 
     def _diff(self,source,target):
         """Recursively generate patch commands to transform source into target.
