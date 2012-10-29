@@ -154,8 +154,6 @@ else:
             #  Actually do the patching.
             return _cx_bsdiff.Patch(source,l_target,tcontrol,bdiff,bextra)
     
-ESKY_FILELIST_NAME = "esky_filelist.txt"
-
 
 class bsdiff4_py(object):
     """Pure-python version of bsdiff4 module that can only patch, not diff.
@@ -234,6 +232,10 @@ HIGHEST_VERSION = 1
 
 #  Header bytes included in the patch file
 PATCH_HEADER = "ESKYPTCH".encode("ascii")
+
+#  Filename of the esky_filelist manifest file.
+#  esky_filelist lists all the files in the project
+ESKY_FILELIST_NAME = "esky_filelist.txt"
 
 
 from esky.errors import Error
