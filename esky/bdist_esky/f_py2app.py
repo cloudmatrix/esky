@@ -42,23 +42,14 @@ def freeze(dist):
         excludes.append("pypy")
     options["includes"] = includes
     options["excludes"] = excludes
-    # py2app can't simultaneously freeze multiple scripts.
-    # We do a separate freeze of each then merge them together.
     # The control info (name, icon, etc) for the app will be taken from
-    # the first script in the list.
+    # the first script in the list.  Subsequent scripts will be passed
+    # as the extra_scripts argument.
     exes = list(dist.get_executables())
     if not exes:
         raise RuntimeError("no scripts specified")
-    cmd = _make_py2app_cmd(dist.freeze_dir,dist.distribution,options,exes[0])
+    cmd = _make_py2app_cmd(dist.freeze_dir,dist.distribution,options,exes)
     cmd.run()
-    for exe in exes[1:]:
-        tempdir = tempfile.mkdtemp()
-        try:
-            cmd = _make_py2app_cmd(tempdir,dist.distribution,options,exe)
-            cmd.run()
-            _merge_dir(tempdir,dist.freeze_dir)
-        finally:
-            shutil.rmtree(tempdir)
     #  Remove any .pyc files with a corresponding .py file.
     #  This helps avoid timestamp changes that might interfere with
     #  the generation of useful patches between versions.
@@ -130,18 +121,10 @@ def freeze(dist):
                     copy_to_bootstrap_env(os.path.join(dynload,nm))
         copy_to_bootstrap_env("Contents/Resources/__error__.sh")
         copy_to_bootstrap_env("Contents/Resources/__boot__.py")
-        for nm in ("site.py", "site.py"):
-            try:
-                copy_to_bootstrap_env("Contents/Resources/" + nm)
-            except EnvironmentError:
-                pass
         #  Copy the bootstrapping code into the __boot__.py file.
         bsdir = dist.bootstrap_dir
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
             f.write(code_source)
-        #  Clear site.py in the bootstrap dir, it doesn't do anything useful.
-        with open(bsdir+"/Contents/Resources/site.py","wt") as f:
-            f.write("")
         #  Copy the loader program for each script into the bootstrap env.
         copy_to_bootstrap_env("Contents/MacOS/python")
         for exe in dist.get_executables(normalise=False):
@@ -174,13 +157,15 @@ def zipit(dist,bsdir,zfname):
     return create_zipfile(bsdir,zfname,get_arcname,compress=True)
 
 
-def _make_py2app_cmd(dist_dir,distribution,options,exe):
+def _make_py2app_cmd(dist_dir,distribution,options,exes):
+    exe = exes[0]
+    extra_exes = exes[1:]
     cmd = py2app(distribution)
     for (nm,val) in options.iteritems():
         setattr(cmd,nm,val)
     cmd.dist_dir = dist_dir
-    cmd.app = [Target(script=exe.script,dest_base=exe.name,
-                      prescripts=[StringIO(_EXE_PRESCRIPT_CODE)])]
+    cmd.app = [Target(script=exe.script,dest_base=exe.name)]
+    cmd.extra_scripts = [e.script for e in extra_exes]
     cmd.finalize_options()
     cmd.plist["CFBundleExecutable"] = exe.name
     old_run = cmd.run
@@ -203,19 +188,6 @@ def _make_py2app_cmd(dist_dir,distribution,options,exe):
     cmd.run = new_run
     return cmd
 
-
-def _merge_dir(src,dst):
-    if not os.path.isdir(dst):
-        os.makedirs(dst)
-    for nm in os.listdir(src):
-        srcnm = os.path.join(src,nm)
-        dstnm = os.path.join(dst,nm)
-        if os.path.isdir(srcnm):
-            _merge_dir(srcnm,dstnm)
-        else:
-            if not os.path.exists(dstnm):
-               shutil.copy2(srcnm,dstnm)
-        
 
 #  Code to fake out any bootstrappers that try to import from esky.
 _FAKE_ESKY_BOOTSTRAP_MODULE = """
