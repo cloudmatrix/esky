@@ -18,6 +18,8 @@ import zipfile
 import shutil
 import tempfile
 import inspect
+import struct
+import marshal
 from StringIO import StringIO
 
 
@@ -120,9 +122,19 @@ def freeze(dist):
                 if nm.startswith("fcntl"):
                     copy_to_bootstrap_env(os.path.join(dynload,nm))
         copy_to_bootstrap_env("Contents/Resources/__error__.sh")
-        copy_to_bootstrap_env("Contents/Resources/__boot__.py")
-        #  Copy the bootstrapping code into the __boot__.py file.
+        # Copy site.py/site.pyc into the boostrap env, then zero them out.
         bsdir = dist.bootstrap_dir
+        if os.path.exists(os.path.join(app_dir, "Contents/Resources/site.py")):
+            copy_to_bootstrap_env("Contents/Resources/site.py")
+            with open(bsdir + "/Contents/Resources/site.py", "wt") as f:
+                pass
+        if os.path.exists(os.path.join(app_dir, "Contents/Resources/site.pyc")):
+            copy_to_bootstrap_env("Contents/Resources/site.pyc")
+            with open(bsdir + "/Contents/Resources/site.pyc", "wb") as f:
+                f.write(imp.get_magic() + struct.pack("<i", 0))
+                f.write(marshal.dumps(compile("", "site.py", "exec")))
+        #  Copy the bootstrapping code into the __boot__.py file.
+        copy_to_bootstrap_env("Contents/Resources/__boot__.py")
         with open(bsdir+"/Contents/Resources/__boot__.py","wt") as f:
             f.write(code_source)
         #  Copy the loader program for each script into the bootstrap env.
