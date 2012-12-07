@@ -217,17 +217,3 @@ from posix import environ
 sys.executable = environ["EXECUTABLEPATH"]
 sys.argv[0] = environ["ARGVZERO"]
 """
-
-
-#  py2app isn't designed for freezing multiple exes, so its standard
-#  bootstrap code runs a fixed script.  This code gets inserted into the
-#  bootstrap code to inspect the environment and find the actual script
-#  to be run.
-_EXE_PRESCRIPT_CODE = """
-import os
-import sys
-scriptnm = os.path.basename(os.environ["EXECUTABLEPATH"])
-_run(scriptnm + ".py")
-sys.exit(0)
-"""
-
