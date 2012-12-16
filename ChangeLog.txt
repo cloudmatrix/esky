@@ -1,7 +1,10 @@
 v0.9.8
 
+    * Many small fixes for Mac OSX, including compatibility with newer
+      versions of py2app; thanks thomasschaff, poupas, and others.
     * Fix various unicode-handling issues on Python3; thank vkosh.
     * Use a timeout in calls to urlopen(); thanks kollivier.
+    * Updates and improvements to tutorial code; thanks thomaschaaf, komola.
 
 
 v0.9.7

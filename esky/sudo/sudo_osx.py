@@ -149,8 +149,8 @@ def spawn_sudo(proxy):
             raise OSError(None,"unable to sudo: startup hooks not run")
         exe = [sys.executable]
     args = ["--esky-spawn-sudo"]
-    args.append(b64pickle(proxy))
-    args.append(b64pickle(c_pipe))
+    args.append(base.b64pickle(proxy))
+    args.append(base.b64pickle(c_pipe))
 
     # Make it a slave process so it dies if we die
     exe = exe + esky.slaveproc.get_slave_process_args() + args
