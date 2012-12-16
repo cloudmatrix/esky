@@ -472,7 +472,7 @@ class VersionGraph(object):
     """Class for managing links between different versions.
 
     This class implements a simple graph-based approach to planning upgrades
-    between versions.  It allow syou to specify "links" from one version to
+    between versions.  It allows you to specify "links" from one version to
     another, each with an associated cost.  You can then do a graph traversal
     to find the lowest-cose route between two versions.
 
