@@ -25,8 +25,6 @@ from distutils import dir_util
 
 import esky
 import esky.patch
-import esky.sudo
-from esky import bdist_esky
 from esky.bdist_esky import Executable
 from esky.util import extract_zipfile, deep_extract_zipfile, get_platform, \
                       ESKY_CONTROL_DIR, files_differ, ESKY_APPDATA_DIR, \
@@ -620,7 +618,7 @@ class TestFSTransact(unittest.TestCase):
 
 class TestPatch(unittest.TestCase):
     """Testcases for esky.patch."""
- 
+
     _TEST_FILES = (
         ("pyenchant-1.2.0.tar.gz","2fefef0868b110b1da7de89c08344dd2"),
         ("pyenchant-1.5.2.tar.gz","fa1e4f3f3c473edd98c7bb0e46eea352"),
@@ -688,7 +686,9 @@ class TestPatch(unittest.TestCase):
                 self.assertEquals(esky.patch.calculate_digest(path1),
                                   esky.patch.calculate_digest(path2))
 
-    def test_apply_patch(self):
+    def test_apply_patch_old(self):
+        '''uses the old method which calculates the digest for the entire
+        folder when comparing, application has no filelist'''
         path1 = self._extract("pyenchant-1.2.0.tar.gz","source")
         path2 = self._extract("pyenchant-1.6.0.tar.gz","target")
         path1 = os.path.join(path1,"pyenchant-1.2.0")
@@ -701,23 +701,143 @@ class TestPatch(unittest.TestCase):
         self.assertEquals(esky.patch.calculate_digest(path1),
                          esky.patch.calculate_digest(path2))
 
-    def test_copying_multiple_targets_from_a_single_sibling(self):
-        join = os.path.join
-        src_dir = src_dir = join(self.workdir, "source")
-        tgt_dir = tgt_dir = join(self.workdir, "target")
+    def _unzip_source_and_target(self, source, target):
+        '''takes two zipfiles as arguments and extracts them
+        into a source and target directory. Returns both those
+        directories.'''
+        src_dir = os.path.join(self.workdir, "source")
+        tgt_dir = os.path.join(self.workdir, "target")
         for dirnm in src_dir, tgt_dir:
             os.mkdir(dirnm)
-        zf = zipfile.ZipFile(join(self.tfdir, "movefrom-source.zip"), "r")
+        zf = zipfile.ZipFile(os.path.join(self.tfdir, source), "r")
         zf.extractall(src_dir)
-        zf = zipfile.ZipFile(join(self.tfdir, "movefrom-target.zip"), "r")
+        zf = zipfile.ZipFile(os.path.join(self.tfdir, target), "r")
         zf.extractall(tgt_dir)
 
-        # The two directory structures should initially be difference.
+        return src_dir, tgt_dir
+
+    def test_apply_patch_with_filelist(self):
+        '''Test applying patches where there is a filelist.
+        Adds a file to the source and tries to apply the patch
+        The digests of the folders should be different using calculate_digest
+        but the same using calculate_patch_digest.
+        This proves that the method with the filelist manifest works
+        where the old method of digesting the whole folder, fails.'''
+        source = "example-app-0.4.8.win32.zip"
+        target = "example-app-0.4.9.win32.zip"
+        src_dir, tgt_dir = self._unzip_source_and_target(source, target)
+        #we need to mock out the _cleanup_patch method because it will otherwise remove
+        #any added files upon patching. In order to mock it out we
+        #override the apply_patch function and pass it our custom Patcher where the
+        #_cleanup_patch function has been neutralized.
+        class EskyPatcher(esky.patch.Patcher):
+            def _cleanup_patch(self):
+                pass
+        eskyApplyPatch = esky.patch.apply_patch
+
+        def new_apply_patch(target, stream, **kwds):
+            EskyPatcher(target, stream, **kwds).patch()
+        esky.patch.apply_patch = new_apply_patch
+
+        # The two directory structures should initially be different.
+        self.assertNotEquals(esky.patch.calculate_patch_digest(src_dir),
+            esky.patch.calculate_patch_digest(tgt_dir))
+
+        # Create patch from source to target.
+        patch_fname = os.path.join(self.workdir, "patch")
+        with open(patch_fname, "wb") as patchfile:
+            esky.patch.write_patch(src_dir, tgt_dir, patchfile)
+
+        # Add file to source
+        with open(os.path.join(src_dir, 'logfile.log'), 'w') as newfile:
+            newfile.write('')
+
+        # Try to apply the patch.
+        with open(patch_fname, "rb") as patchfile:
+            esky.patch.apply_patch(src_dir, patchfile)
+
+        # Then the two directory structures should be different.
+        self.assertNotEquals(esky.patch.calculate_digest(src_dir),
+            esky.patch.calculate_digest(tgt_dir))
+
+        # But using the filelist they should be equal
+        self.assertEquals(esky.patch.calculate_patch_digest(src_dir),
+            esky.patch.calculate_patch_digest(tgt_dir))
+
+        #restore the apply_patch function
+        esky.patch.apply_patch = eskyApplyPatch
+
+    def test_apply_patch_with_filelist_removal_of_files_not_in_filelist(self):
+        '''Test applying patches and cleaning up any files not in the filelist
+        This works in the same way as the test_apply_patch_with_filelist
+        Except now we don't mock out the _cleanup_patch method, and the directories
+        should be identical after patching using the old or new method'''
+        source = 'example-app-0.4.8.win32.zip'
+        target = 'example-app-0.4.9.win32.zip'
+        src_dir, tgt_dir = self._unzip_source_and_target(source, target)
+        print src_dir, tgt_dir
+
+        # The two directory structures should initially be different.
+        self.assertNotEquals(esky.patch.calculate_patch_digest(src_dir),
+            esky.patch.calculate_patch_digest(tgt_dir))
+
+        # Create patch from source to target.
+        patch_fname = os.path.join(self.workdir, "patch")
+        with open(patch_fname, "wb") as patchfile:
+            esky.patch.write_patch(src_dir, tgt_dir, patchfile)
+
+        # Add file to source
+        with open(os.path.join(src_dir, 'logfile.log'), 'w') as newfile:
+            newfile.write('')
+
+        # Try to apply the patch.
+        with open(patch_fname, "rb") as patchfile:
+            esky.patch.apply_patch(src_dir, patchfile)
+
+        # Then the two directory structures should be the same.
+        self.assertEquals(esky.patch.calculate_digest(src_dir),
+            esky.patch.calculate_digest(tgt_dir))
+
+    def _test_apply_patch_fail_when_sourcefile_has_been_deleted(self):
+        '''Creates a patch between two versions, removes a file from
+        the source and tries to apply patch. Should raise an exception'''
+        source = "example-app-0.4.8.win32.zip"
+        target = "example-app-0.4.9.win32.zip"
+        src_dir, tgt_dir = self._unzip_source_and_target(source, target)
+
+        # The two directory structures should initially be different.
+        self.assertNotEquals(esky.patch.calculate_patch_digest(src_dir),
+            esky.patch.calculate_patch_digest(tgt_dir))
+
+        # Create patch from source to target.
+        patch_fname = os.path.join(self.workdir, "patch")
+        with open(patch_fname, "wb") as patchfile:
+            esky.patch.write_patch(src_dir, tgt_dir, patchfile)
+
+        # Remove file from source
+        os.remove(os.path.join(src_dir, 'example.exe'))
+
+        # Try to apply the patch.
+        with open(patch_fname, "rb") as patchfile:
+            esky.patch.apply_patch(src_dir, patchfile)
+
+        # should have failed by now...
+
+
+    def test_apply_patch_fail_when_sourcefile_has_been_deleted(self):
+        self.assertRaises(self._test_apply_patch_fail_when_sourcefile_has_been_deleted)
+
+    def test_copying_multiple_targets_from_a_single_sibling(self):
+        source = "movefrom-source.zip"
+        target = "movefrom-target.zip"
+        src_dir, tgt_dir = self._unzip_source_and_target(source, target)
+
+        # The two directory structures should initially be different.
         self.assertNotEquals(esky.patch.calculate_digest(src_dir),
                              esky.patch.calculate_digest(tgt_dir))
 
         # Create patch from source to target.
-        patch_fname = join(self.workdir, "patch")
+        patch_fname = os.path.join(self.workdir, "patch")
         with open(patch_fname, "wb") as patchfile:
             esky.patch.write_patch(src_dir, tgt_dir, patchfile)
 

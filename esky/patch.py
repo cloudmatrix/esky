@@ -427,6 +427,9 @@ def calculate_patch_digest(target, hash=hashlib.md5):
     in the esky_filelist. This will ensure that patches don't break if any
     superfluous files have been added to the application folder"""
     filelist = load_filelist(target)
+    if filelist is None:
+        # No filelist found, fall back to hashing entire directory
+        return calculate_digest(target, hash)
     d = hash()
     for f in filelist:
         file_path = os.path.join(target, f)
@@ -579,6 +582,32 @@ class Patcher(object):
         """Restore the object to a previously-saved state."""
         (self.target,self.root_dir,self.infile,self.outfile,self.new_target) = state
 
+    def _cleanup_patch(self):
+        '''Go throught the appdata folder of the new version and remove any files not 
+        in the filelist. If there is no filelist we do nothing
+        This prevents us from leaving old .pyc or .pyo files behind if we for instance 
+        change a module into a folder instead of a single file.
+        '''
+        filelist = load_filelist(self.target)
+        if filelist is None:
+            return
+        else:
+            #we normalize the paths in filelist so that we can compare with the items
+            # in it later
+            filelist = [os.path.normpath(f) for f in filelist]
+            fileset = set(filelist)
+            dirname = self.target
+            for root, dirs, files in os.walk(self.target):
+                dirname = os.path.join(dirname, root)
+                for f in files:
+                    if f == ESKY_FILELIST_NAME:
+                        #the filelist doesn't include itself but should be ignored.
+                        continue
+                    filepath = os.path.join(dirname, f)
+                    relpath = os.path.relpath(filepath, self.target)
+                    if os.path.normpath(relpath)  not in fileset:
+                        os.unlink(filepath)
+
     def patch(self):
         """Interpret and apply patch commands to the target.
 
@@ -598,6 +627,7 @@ class Patcher(object):
                 getattr(self,"_do_" + _COMMANDS[cmd])()
         except EOFError:
             self._check_end_patch()
+            self._cleanup_patch()
         finally:
             if self.infile:
                 self.infile.close()
