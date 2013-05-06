@@ -67,12 +67,12 @@ def get_loaded_modules():
             buf = (ctypes.wintypes.HMODULE * sz)()
             if not EnumProcessModules(proc,byref(buf),sz*msz,byref(needed)):
                 raise ctypes.WinError()
-        nmbuf = ctypes.create_string_buffer(300)
+        nmbuf = ctypes.create_unicode_buffer(300)
         i = 0
         while i < needed.value / msz:
             hmod = buf[i]
             i += 1
-            if not k32.GetModuleFileNameA(hmod, byref(nmbuf), 300):
+            if not k32.GetModuleFileNameW(hmod,byref(nmbuf),300):
                 raise ctypes.WinError()
             yield nmbuf.value
     finally:
