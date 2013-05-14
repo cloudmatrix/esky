@@ -749,7 +749,7 @@ class TestPatch_cxbsdiff(TestPatch):
 
     def tearDown(self):
         esky.patch.bsdiff4 = self.__orig_bsdiff4
-        return super(TestPatch_cxbsdiff,self).setUp()
+        return super(TestPatch_cxbsdiff,self).tearDown()
 
 
 class TestPatch_pybsdiff(TestPatch):
@@ -762,7 +762,7 @@ class TestPatch_pybsdiff(TestPatch):
 
     def tearDown(self):
         esky.patch.bsdiff4 = self.__orig_bsdiff4
-        return super(TestPatch_pybsdiff,self).setUp()
+        return super(TestPatch_pybsdiff,self).tearDown()
     
         
 
