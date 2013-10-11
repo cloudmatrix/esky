@@ -129,13 +129,30 @@ def freeze(dist):
         code_source.append(dist.get_bootstrap_code())
         code_source.append("bootstrap()")
         code_source = "\n".join(code_source)
-        maincode = imp.get_magic() + struct.pack("<i",0)
+        
+        #  Since Python 3.3 the .pyc file format contains the source size.
+        #  It's not used for anything at all except to check if the file is up to date.
+        #  We can set this value to zero to make Esky also work for Python 3.3
+        if sys.version_info[:2] < (3, 3):
+            maincode = imp.get_magic() + struct.pack("<i",0)
+        else:
+            maincode = imp.get_magic() + struct.pack("<ii",0,0)
         maincode += marshal.dumps(compile(code_source,INITNAME+".py","exec"))
+        
         #  Create code for a fake esky.bootstrap module
-        eskycode = imp.get_magic() + struct.pack("<i",0)
+        #  We do here the the same to deal with python 3.3
+        if sys.version_info[:2] < (3, 3):
+            eskycode = imp.get_magic() + struct.pack("<i",0)
+        else:
+            eskycode = imp.get_magic() + struct.pack("<ii",0,0)
         eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
-        eskybscode = imp.get_magic() + struct.pack("<i",0)
+        
+        if sys.version_info[:2] < (3, 3):
+            eskybscode = imp.get_magic() + struct.pack("<i",0)
+        else:
+            eskybscode = eskycode = imp.get_magic() + struct.pack("<ii",0,0)
         eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
+        
         #  Copy any core dependencies
         if "fcntl" not in sys.builtin_module_names:
             for nm in os.listdir(dist.freeze_dir):
