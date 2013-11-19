@@ -244,8 +244,8 @@ class bdist_esky(Command):
                      "function to call just before starting to zip up the app"),
                     ('enable-appdata-dir=', None,
                      "enable new 'appdata' directory layout (will go away after the 0.9.X series)"),
-                    ('force-bootstrap-library=', None,
-                     "By default Esky appends the library.zip to the bootstrap executable when using CX_Freeze, this will force esky to not do that"),
+                    ('detached-bootstrap-library=', None,
+                     "By default Esky appends the library.zip to the bootstrap executable when using CX_Freeze, this will tell esky to not do that, but create a separate library.zip instead"),
                    ]
 
     boolean_options = ["bundle-msvcrt","dont-run-startup-hooks","compile-bootstrap-exes","enable-appdata-dir"]
@@ -265,7 +265,7 @@ class bdist_esky(Command):
         self.pre_freeze_callback = None
         self.pre_zip_callback = None
         self.enable_appdata_dir = False
-        self.force_bootstrap_library = False
+        self.detached_bootstrap_library = False
 
     def finalize_options(self):
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))

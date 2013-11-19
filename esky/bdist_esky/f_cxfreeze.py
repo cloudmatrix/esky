@@ -162,7 +162,7 @@ def freeze(dist):
                 continue
             
             exepath = dist.copy_to_bootstrap_env(exe.name)
-            if not dist.force_bootstrap_library:
+            if not dist.detached_bootstrap_library:
                 #append library to the bootstrap exe.
                 exepath = dist.copy_to_bootstrap_env(exe.name)
                 bslib = zipfile.PyZipFile(exepath,"a",zipfile.ZIP_STORED)
