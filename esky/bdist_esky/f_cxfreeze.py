@@ -135,22 +135,15 @@ def freeze(dist):
         #  We can set this value to zero to make Esky also work for Python 3.3
         if sys.version_info[:2] < (3, 3):
             maincode = imp.get_magic() + struct.pack("<i",0)
-        else:
-            maincode = imp.get_magic() + struct.pack("<ii",0,0)
-        maincode += marshal.dumps(compile(code_source,INITNAME+".py","exec"))
-        
-        #  Create code for a fake esky.bootstrap module
-        #  We do here the the same to deal with python 3.3
-        if sys.version_info[:2] < (3, 3):
             eskycode = imp.get_magic() + struct.pack("<i",0)
-        else:
-            eskycode = imp.get_magic() + struct.pack("<ii",0,0)
-        eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
-        
-        if sys.version_info[:2] < (3, 3):
             eskybscode = imp.get_magic() + struct.pack("<i",0)
         else:
+            maincode = imp.get_magic() + struct.pack("<ii",0,0)
+            eskycode = imp.get_magic() + struct.pack("<ii",0,0)
             eskybscode = eskycode = imp.get_magic() + struct.pack("<ii",0,0)
+        
+        maincode += marshal.dumps(compile(code_source,INITNAME+".py","exec"))    
+        eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
         eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
         
         #  Copy any core dependencies
@@ -161,13 +154,22 @@ def freeze(dist):
         for nm in os.listdir(dist.freeze_dir):
             if is_core_dependency(nm):
                 dist.copy_to_bootstrap_env(nm)
+                
         #  Copy the loader program for each script into the bootstrap env, and
         #  append the bootstrapping code to it as a zipfile.
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
+            
             exepath = dist.copy_to_bootstrap_env(exe.name)
-            bslib = zipfile.PyZipFile(exepath,"a",zipfile.ZIP_STORED)
+            if not dist.detached_bootstrap_library:
+                #append library to the bootstrap exe.
+                exepath = dist.copy_to_bootstrap_env(exe.name)
+                bslib = zipfile.PyZipFile(exepath,"a",zipfile.ZIP_STORED)
+            else:
+                #Create a separate library.zip for the bootstrap exe.
+                bslib_path = dist.copy_to_bootstrap_env("library.zip")
+                bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
             cdate = (2000,1,1,0,0,0)
             bslib.writestr(zipfile.ZipInfo(INITNAME+".pyc",cdate),maincode)
             bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
