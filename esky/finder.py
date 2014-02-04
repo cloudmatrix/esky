@@ -228,8 +228,8 @@ class DefaultVersionFinder(VersionFinder):
                         else:
                             yield status
                 self._prepare_version(app,version,local_path)
-            except (PatchError,EskyVersionError,EnvironmentError):
-                yield {"status":"retrying","size":None}
+            except (PatchError,EskyVersionError,EnvironmentError), e:
+                yield {"status":"retrying","size":None,"exception":e}
         yield {"status":"ready","path":name}
 
     def _fetch_file_iter(self,app,url):

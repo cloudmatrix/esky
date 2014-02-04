@@ -142,7 +142,11 @@ elif "nt" in sys.builtin_module_names:
                         break
                     except EnvironmentError:
                         pass
-        res = spawnv(P_WAIT,filename,args)
+        # Ensure all arguments are quoted (to allow spaces in paths)
+        for i, arg in enumerate(args):
+            if arg[0] != "\"" and args[-1] != "\"":
+                args[i] = "\"{}\"".format(arg)
+        res = spawnv(P_WAIT,filename, args)
         _exit_code[0] = res
         raise SystemExit(res)
     #  A fake fcntl module which is false, but can fake out RPython
