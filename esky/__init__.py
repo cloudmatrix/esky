@@ -531,7 +531,10 @@ class Esky(object):
             for nm in os.listdir(tdir):
                 if nm not in manifest:
                     fullnm = os.path.join(tdir,nm)
-                    if not os.path.isdir(fullnm):
+                    if ".old." in nm or nm.endswith(".old"):
+                        #  It's a temporary backup file; remove it.
+                        yield (self._try_remove, (tdir,nm,manifest,))
+                    elif not os.path.isdir(fullnm):
                         #  It's an unaccounted-for file in the bootstrap env.
                         #  Leave it alone.
                         pass
@@ -547,9 +550,6 @@ class Esky(object):
                             yield (self._try_remove, (tdir,nm,manifest,))
                     elif is_uninstalled_version_dir(fullnm):
                         #  It's a partially-removed version; finish removing it.
-                        yield (self._try_remove, (tdir,nm,manifest,))
-                    elif ".old." in nm or nm.endswith(".old"):
-                        #  It's a temporary backup file; remove it.
                         yield (self._try_remove, (tdir,nm,manifest,))
                     else:
                         for (_,_,filenms) in os.walk(fullnm):

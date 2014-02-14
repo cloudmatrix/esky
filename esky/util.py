@@ -32,7 +32,7 @@ def lazy_import(func):
 
     The name "socket" will then be bound to a transparent object proxy which
     will import the socket module upon first use.
- 
+
     The syntax here is slightly more verbose than other lazy import recipes,
     but it's designed not to hide the actual "import" statements from tools
     like py2exe or grep.
@@ -60,7 +60,7 @@ class _LazyImport(object):
             self._esky_lazy_target = self._esky_lazy_loader()
             ns = self._esky_lazy_namespace
             if ns is not None:
-                try: 
+                try:
                     if ns[self._esky_lazy_name] is self:
                         ns[self._esky_lazy_name] = self._esky_lazy_target
                 except KeyError:
@@ -228,8 +228,16 @@ def appexe_from_executable(exepath):
     exename = os.path.basename(exepath)
     #  On OSX we might be in a bundle, run from Contents/MacOS/<exename>
     if sys.platform == "darwin":
-        if os.path.isdir(os.path.join(appdir,"Contents","MacOS")):
-            return os.path.join(appdir,"Contents","MacOS",exename)
+        osx_dot_app_name = os.path.basename(appdir)
+        potential_py2app_bootstrap_exe = None
+        if osx_dot_app_name.endswith('.app'):
+            potential_py2app_bootstrap_exe = osx_dot_app_name[:-4]
+        app_bin_dir = os.path.join(appdir,"Contents","MacOS")
+        if os.path.isdir(app_bin_dir):
+            if potential_py2app_bootstrap_exe and os.path.exists(
+                    os.path.join(app_bin_dir, potential_py2app_bootstrap_exe)):
+                return os.path.join(app_bin_dir, potential_py2app_bootstrap_exe)
+            return os.path.join(app_bin_dir, exename)
     return os.path.join(appdir,exename)
 
 
@@ -375,12 +383,12 @@ def get_platform():
     if _CACHED_PLATFORM is None:
         _CACHED_PLATFORM = distutils.util.get_platform().replace(".","_")
     return _CACHED_PLATFORM
- 
+
 
 def is_core_dependency(filenm):
     """Check whether than named file is a core python dependency.
 
-    If it is, then it's required for any frozen program to run (even the 
+    If it is, then it's required for any frozen program to run (even the
     bootstrapper).  Currently this includes only the python DLL and the
     MSVCRT private assembly.
     """
