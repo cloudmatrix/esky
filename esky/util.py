@@ -396,6 +396,8 @@ def is_core_dependency(filenm):
         return True
     if filenm.startswith("Microsoft.") and filenm.endswith(".CRT"):
         return True
+    if filenm.startswith("Python"):
+        return True
     return False
 
 

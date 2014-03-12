@@ -1126,7 +1126,7 @@ class Differ(object):
                     self._write_bytes("".encode("ascii"))
                 else:
                     while tdata:
-                        sdata = ""
+                        sdata = b""
                         if sfile is not None:
                             sdata = sfile.read(self.diff_window_size)
                         #  Look for a shared prefix.
