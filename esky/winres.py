@@ -17,7 +17,8 @@ import sys
 import tempfile
 import ctypes
 import ctypes.wintypes
-from ctypes import windll, c_char, POINTER, byref, sizeof
+from ctypes import windll, c_char, c_void_p, POINTER, byref, sizeof
+from ctypes.wintypes import HMODULE, DWORD
 
 if sys.platform != "win32":
     raise ImportError("winres is only avilable on Windows platforms")
@@ -33,6 +34,12 @@ RT_MANIFEST = 24
 
 
 k32 = windll.kernel32
+
+# Ensure that the first parameter is treated as a handle, not an int. They
+# are the same size on Win32, and typically small enough values on Win64 that
+# they translate okay, but if a handle value is too large there will be a
+# overflow exception.  So this will tell ctypes to convert the value correctly.
+k32.GetModuleFileNameA.argtypes = [HMODULE, c_void_p, DWORD]
 
 # AFAIK 1033 is some sort of "default" language.
 # Is it (LANG_NEUTRAL,SUBLANG_NEUTRAL)?
@@ -65,7 +72,7 @@ def get_loaded_modules():
         while i < needed.value / msz:
             hmod = buf[i]
             i += 1
-            if not k32.GetModuleFileNameA(buf[i],byref(nmbuf),300):
+            if not k32.GetModuleFileNameA(hmod, byref(nmbuf), 300):
                 raise ctypes.WinError()
             yield nmbuf.value
     finally:
