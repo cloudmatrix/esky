@@ -1,3 +1,8 @@
+v0.9.9dev
+
+    * Compatability fixes for Win64; thanks Robin Dunn.
+    * Edge-cases fixes in DefaultVersionFinder; thanks fingul.
+
 v0.9.8
 
     * Many small fixes for Mac OSX, including compatibility with newer

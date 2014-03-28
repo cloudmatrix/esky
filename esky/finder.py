@@ -447,7 +447,7 @@ class LocalVersionFinder(DefaultVersionFinder):
     """
 
     def find_versions(self,app):
-        version_re = "[a-zA-Z0-9\\.-_]+"
+        version_re = "[a-zA-Z0-9\\.\\-_]+"
         appname_re = "(?P<version>%s)" % (version_re,)
         appname_re = join_app_version(app.name,appname_re,app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
