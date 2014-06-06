@@ -268,6 +268,11 @@ def extract_zipfile(source,target,name_filter=None):
                 outfilenm = os.path.join(target,nm)
             if not os.path.isdir(os.path.dirname(outfilenm)):
                 os.makedirs(os.path.dirname(outfilenm))
+            zinfo = zf.getinfo(nm)
+            if hex(zinfo.external_attr) == 2716663808L: # it's a symlink
+                target = zf.read(nm)
+                os.symlink(target, outfilenm)
+                continue
             infile = zf_open(nm,"r")
             try:
                 outfile = open(outfilenm,"wb")
@@ -277,7 +282,7 @@ def extract_zipfile(source,target,name_filter=None):
                     outfile.close()
             finally:
                 infile.close()
-            mode = zf.getinfo(nm).external_attr >> 16L
+            mode = zinfo.external_attr >> 16L
             if mode:
                 os.chmod(outfilenm,mode)
     finally:
@@ -357,13 +362,30 @@ def create_zipfile(source,target,get_zipinfo=None,members=None,compress=None):
             else:
                 zinfo = None
             fpath = os.path.join(source,fpath)
-        if zinfo is None:
-            zf.write(fpath,fpath[len(source)+1:])
-        elif isinstance(zinfo,basestring):
-            zf.write(fpath,zinfo)
-        else:
-            with open(fpath,"rb") as f:
-                zf.writestr(zinfo,f.read())
+        if os.path.islink(fpath):
+            # For information about adding symlinks to a zip file, see
+            # https://mail.python.org/pipermail/python-list/2005-June/322180.html
+            dest = os.readlink(fpath)
+            if zinfo is None:
+                zinfo = zipfile.ZipInfo()
+                zinfo.filename = fpath[len(source)+1:]
+            elif isinstance(zinfo,basestring):
+                link = zinfo
+                zinfo = zipfile.ZipInfo()
+                zinfo.filename = link
+            else: # isinstance(zinfo,zipfile.ZipInfo)
+                pass
+            zinfo.create_system = 3
+            zinfo.external_attr = 2716663808L # symlink: 0xA1ED0000
+            zf.writestr(zinfo,dest)
+        else: # not a symlink
+            if zinfo is None:
+                zf.write(fpath,fpath[len(source)+1:])
+            elif isinstance(zinfo,basestring):
+                zf.write(fpath,zinfo)
+            else:
+                with open(fpath,"rb") as f:
+                    zf.writestr(zinfo,f.read())
     zf.close()
 
 
