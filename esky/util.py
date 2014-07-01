@@ -517,3 +517,18 @@ def really_rmtree(path):
             shutil.rmtree(path)
 
 
+def compile_to_bytecode(source_code, compile_filename=None):
+    """Given source_code, return its compiled bytecode."""
+    if sys.version_info[:2] < (3, 1):
+        bytecode = imp.get_magic() + struct.pack("<i", 0)
+        bytecode += marshal.dumps(compile(source_code, compile_filename, "exec"))
+    elif sys.version_info[:2] < (3, 4):
+        bytecode = imp.get_magic() + struct.pack("<ii", 0, 0)
+        bytecode += marshal.dumps(compile(source_code, compile_filename, "exec"))
+    else:
+        import importlib._bootstrap
+        loader = importlib._bootstrap.SourceLoader()    
+        code = loader.source_to_code(source_code, '<string>')
+        bytecode = importlib._bootstrap._code_to_bytecode(code)
+        
+    return bytecode
