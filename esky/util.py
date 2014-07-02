@@ -125,6 +125,29 @@ def distutils():
     import distutils.util
     return distutils
 
+# imports for compile_to_bytecode util function
+if sys.version_info[:2] < (3, 4):
+    importlib = None
+    @lazy_import
+    def imp():
+        import imp
+        return imp
+        
+    @lazy_import
+    def marshal():
+        import marshal
+        return marshal
+        
+    @lazy_import
+    def struct():
+        import struct
+        return struct
+else:
+    @lazy_import
+    def importlib():
+        import importlib._bootstrap
+        return importlib
+
 
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 from esky.bootstrap import get_best_version, get_all_versions,\
@@ -526,7 +549,6 @@ def compile_to_bytecode(source_code, compile_filename=None):
         bytecode = imp.get_magic() + struct.pack("<ii", 0, 0)
         bytecode += marshal.dumps(compile(source_code, compile_filename, "exec"))
     else:
-        import importlib._bootstrap
         loader = importlib._bootstrap.SourceLoader()    
         code = loader.source_to_code(source_code, '<string>')
         bytecode = importlib._bootstrap._code_to_bytecode(code)
