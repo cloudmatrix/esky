@@ -551,6 +551,6 @@ def compile_to_bytecode(source_code, compile_filename=None):
     else:
         loader = importlib._bootstrap.SourceLoader()    
         code = loader.source_to_code(source_code, '<string>')
-        bytecode = importlib._bootstrap._code_to_bytecode(code)
+        bytecode = importlib._bootstrap._code_to_bytecode(code, mtime=0, source_size=0)
         
     return bytecode
