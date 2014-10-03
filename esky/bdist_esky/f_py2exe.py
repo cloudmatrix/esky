@@ -226,7 +226,7 @@ def freeze(dist):
                          optmz, # optimization level to enable
                          unbfrd,  # whether to use unbuffered output
                          len(code),
-                      ) + "\x00" + code + "\x00\x00"
+                      ) + b"\x00" + code + b"\x00\x00"
             winres.add_resource(exepath,coderes,u"PYTHONSCRIPT",1,0)
         #  If the python dll hasn't been copied into the bootstrap env,
         #  make sure it's stored in each bootstrap dll as a resource.
