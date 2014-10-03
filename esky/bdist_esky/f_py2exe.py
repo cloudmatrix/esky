@@ -373,7 +373,7 @@ def _chainload(target_dir):
       d_locals = d_globals = sys.modules["__main__"].__dict__
       d_locals["__name__"] = "__main__"
       for code in codelist:
-          exec code in d_globals, d_locals
+          exec(code, d_globals, d_locals)
       raise SystemExit(0)
 """ % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*4),)
 
