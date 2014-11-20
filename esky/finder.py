@@ -473,7 +473,7 @@ class S3VersionFinder(DefaultVersionFinder):
             dwl_url = self.download_url[0:self.download_url.find("?")]
         for match in re.finditer(link_re, downloads, re.I):
             version = match.group("version")
-            href = match.group("href")
+            href = urllib.quote(match.group("href"))
             from_version = match.group("from_version")
             # TODO: try to assign costs based on file size.
             if from_version is None:
