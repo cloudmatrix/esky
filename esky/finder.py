@@ -180,7 +180,7 @@ class DefaultVersionFinder(VersionFinder):
         appname_re = join_app_version(name_re,appname_re,app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
         filename_re = filename_re % (appname_re,version_re,)
-        link_re = "href=['\"](?P<href>([^'\"]*/)?%s)['\"]" % (filename_re,)
+        link_re = "href=['\"]?(?P<href>([^'\"]*/)?%s)['\"]?" % (filename_re,)
         # Read the URL.  If this followed any redirects, update the
         # recorded URL to match the final endpoint.
         df = self.open_url(self.download_url)
