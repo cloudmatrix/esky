@@ -44,7 +44,7 @@ of a simple setup.py script using esky
           options={"bdist_esky":{"includes":["mylib"]}},
          )
 
-Invoking this setup script would create an esky for "appname" version 1.2.3
+Invoking this setup script would create an esky for "appname" version 1.2.3::
 
     #>  python setup.py bdist_esky
     ...
