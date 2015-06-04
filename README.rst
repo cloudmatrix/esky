@@ -1,7 +1,7 @@
 
 
-  esky:  keep frozen apps fresh
-===============================
+Esky  keep frozen apps fresh
+============================
 
 Esky is an auto-update framework for frozen Python applications.  It provides
 a simple API through which apps can find, fetch and install updates, and a
