@@ -46,8 +46,6 @@ of a simple setup.py script using esky
 
 Invoking this setup script would create an esky for "appname" version 1.2.3
 
-.. code-block:: bash
-
     #>  python setup.py bdist_esky
     ...
     ...
