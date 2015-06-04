@@ -28,7 +28,9 @@ subclass to meet your specific needs.
 The real trick is freezing your app in a format sutiable for use with esky.
 You'll almost certainly want to use the "bdist_esky" distutils command, and
 should consult its docstring for full details; the following is an example
-of a simple setup.py script using esky::
+of a simple setup.py script using esky
+
+.. code-block:: python
 
     from esky import bdist_esky
     from distutils.core import setup
@@ -39,8 +41,9 @@ of a simple setup.py script using esky::
           options={"bdist_esky":{"includes":["mylib"]}},
          )
 
-Invoking this setup script would create an esky for "appname" version 1.2.3::
+Invoking this setup script would create an esky for "appname" version 1.2.3
 
+.. code-block:: python
     #>  python setup.py bdist_esky
     ...
     ...
