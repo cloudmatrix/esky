@@ -1,5 +1,4 @@
 
-
 Esky  - keep frozen apps fresh
 ==============================
 
@@ -133,4 +132,3 @@ unfortunate situation arise.
 To clean up after failed or partial updates, applications should periodically
 call the "cleanup" method on their esky.  This removes uninstalled versions
 and generally tries to tidy up in the main application directory.
-
