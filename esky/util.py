@@ -499,7 +499,7 @@ def really_rmtree(path):
         if not os.path.exists(path):
             shutil.rmtree(path)
         #  This is a little retry loop that catches troublesome errors.
-        for _ in xrange(10):
+        for _ in xrange(100):
             try:
                 shutil.rmtree(path)
             except WindowsError, e:

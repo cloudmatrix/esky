@@ -244,11 +244,11 @@ class TestEsky(unittest.TestCase):
         deep_extract_zipfile(os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,)),uzdir)
         with open(os.path.join(tdir,"dist","eskytester-0.3.%s.from-0.1.patch"%(platform,)),"rb") as f:
             esky.patch.apply_patch(uzdir,f)
-        shutil.rmtree(uzdir)
+        really_rmtree(uzdir)
         deep_extract_zipfile(os.path.join(tdir,"dist","eskytester-0.2.%s.zip"%(platform,)),uzdir)
         with open(os.path.join(tdir,"dist","eskytester-0.3.%s.from-0.2.patch"%(platform,)),"rb") as f:
             esky.patch.apply_patch(uzdir,f)
-        shutil.rmtree(uzdir)
+        really_rmtree(uzdir)
         #  Serve the updates at http://localhost:8000/dist/
         print "running local update server"
         server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
@@ -341,7 +341,7 @@ class TestEsky(unittest.TestCase):
         assert len(errors) == 1
         assert isinstance(errors[0],esky.EskyLockedError)
     finally:
-        shutil.rmtree(appdir)
+        really_rmtree(appdir)
 
  
   def test_esky_lock_breaking(self):
@@ -386,7 +386,7 @@ class TestEsky(unittest.TestCase):
         t2.join()
         assert len(errors) == 0, str(errors)
     finally:
-        shutil.rmtree(appdir)
+        really_rmtree(appdir)
 
 
   def test_README(self):
@@ -417,7 +417,7 @@ class TestFSTransact(unittest.TestCase):
         self.testdir = tempfile.mkdtemp()
 
     def tearDown(self):
-        shutil.rmtree(self.testdir)
+        really_rmtree(self.testdir)
 
     def path(self,path):
         return os.path.join(self.testdir,path)
@@ -646,7 +646,7 @@ class TestPatch(unittest.TestCase):
                     f.write(data)
 
     def tearDown(self):
-        shutil.rmtree(self.workdir)
+        really_rmtree(self.workdir)
 
     def test_patch_bigfile(self):
         tdir = tempfile.mkdtemp()
@@ -668,7 +668,7 @@ class TestPatch(unittest.TestCase):
             dgst3 = esky.patch.calculate_digest(os.path.join(tdir,"source"))
             self.assertEquals(dgst1,dgst3)
         finally:
-            shutil.rmtree(tdir)
+            really_rmtree(tdir)
 
     def test_diffing_back_and_forth(self):
         for (tf1,_) in self._TEST_FILES:
@@ -790,5 +790,5 @@ class TestFilesDiffer(unittest.TestCase):
         assert self._differs("onethreetwo","twothreeone",3,-2)
 
     def tearDown(self):
-        shutil.rmtree(self.tdir)
+        really_rmtree(self.tdir)
 
