@@ -22,7 +22,7 @@ import zipfile
 import ctypes
 
 
-from py2exe.build_exe import py2exe
+from py2exe.distutils_build_exe import py2exe
 
 import esky
 from esky.util import is_core_dependency, ESKY_CONTROL_DIR
@@ -226,7 +226,7 @@ def freeze(dist):
                          optmz, # optimization level to enable
                          unbfrd,  # whether to use unbuffered output
                          len(code),
-                      ) + "\x00" + code + "\x00\x00"
+                      ) + b"\x00" + code + b"\x00\x00"
             winres.add_resource(exepath,coderes,u"PYTHONSCRIPT",1,0)
         #  If the python dll hasn't been copied into the bootstrap env,
         #  make sure it's stored in each bootstrap dll as a resource.
@@ -373,7 +373,7 @@ def _chainload(target_dir):
       d_locals = d_globals = sys.modules["__main__"].__dict__
       d_locals["__name__"] = "__main__"
       for code in codelist:
-          exec code in d_globals, d_locals
+          exec(code, d_globals, d_locals)
       raise SystemExit(0)
 """ % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*4),)
 
