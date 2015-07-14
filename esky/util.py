@@ -125,6 +125,29 @@ def distutils():
     import distutils.util
     return distutils
 
+# imports for compile_to_bytecode util function
+if sys.version_info[:2] < (3, 4):
+    importlib = None
+    @lazy_import
+    def imp():
+        import imp
+        return imp
+        
+    @lazy_import
+    def marshal():
+        import marshal
+        return marshal
+        
+    @lazy_import
+    def struct():
+        import struct
+        return struct
+else:
+    @lazy_import
+    def importlib():
+        import importlib._bootstrap
+        return importlib
+
 
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
 from esky.bootstrap import get_best_version, get_all_versions,\
@@ -517,3 +540,17 @@ def really_rmtree(path):
             shutil.rmtree(path)
 
 
+def compile_to_bytecode(source_code, compile_filename=None):
+    """Given source_code, return its compiled bytecode."""
+    if sys.version_info[:2] < (3, 1):
+        bytecode = imp.get_magic() + struct.pack("<i", 0)
+        bytecode += marshal.dumps(compile(source_code, compile_filename, "exec"))
+    elif sys.version_info[:2] < (3, 4):
+        bytecode = imp.get_magic() + struct.pack("<ii", 0, 0)
+        bytecode += marshal.dumps(compile(source_code, compile_filename, "exec"))
+    else:
+        loader = importlib._bootstrap.SourceLoader()    
+        code = loader.source_to_code(source_code, '<string>')
+        bytecode = importlib._bootstrap._code_to_bytecode(code, mtime=0, source_size=0)
+        
+    return bytecode

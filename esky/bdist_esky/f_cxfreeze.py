@@ -28,7 +28,7 @@ import cx_Freeze.hooks
 INITNAME = "cx_Freeze__init__"
 
 import esky
-from esky.util import is_core_dependency
+from esky.util import is_core_dependency, compile_to_bytecode
 
 
 def freeze(dist):
@@ -130,21 +130,9 @@ def freeze(dist):
         code_source.append("bootstrap()")
         code_source = "\n".join(code_source)
         
-        #  Since Python 3.3 the .pyc file format contains the source size.
-        #  It's not used for anything at all except to check if the file is up to date.
-        #  We can set this value to zero to make Esky also work for Python 3.3
-        if sys.version_info[:2] < (3, 3):
-            maincode = imp.get_magic() + struct.pack("<i",0)
-            eskycode = imp.get_magic() + struct.pack("<i",0)
-            eskybscode = imp.get_magic() + struct.pack("<i",0)
-        else:
-            maincode = imp.get_magic() + struct.pack("<ii",0,0)
-            eskycode = imp.get_magic() + struct.pack("<ii",0,0)
-            eskybscode = eskycode = imp.get_magic() + struct.pack("<ii",0,0)
-        
-        maincode += marshal.dumps(compile(code_source,INITNAME+".py","exec"))    
-        eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
-        eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
+        maincode = compile_to_bytecode(code_source)
+        eskycode = compile_to_bytecode("", "esky/__init__.py")
+        eskybscode = compile_to_bytecode("", "esky/bootstrap.py")
         
         #  Copy any core dependencies
         if "fcntl" not in sys.builtin_module_names:
