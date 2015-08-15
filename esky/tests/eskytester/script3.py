@@ -6,6 +6,7 @@ import sys
 import time
 import esky
 import esky.util
+from esky.util import LOCAL_HTTP_PORT
 import esky.tests
 
 platform = esky.util.get_platform()
@@ -18,7 +19,7 @@ eskytester.yes_my_data_is_installed()
 
 #  Test that we're at the best possible version
 assert sys.frozen
-app = esky.tests.TestableEsky(sys.executable,"http://localhost:8000/dist/")
+app = esky.tests.TestableEsky(sys.executable,"http://localhost:{0}/dist/".format(LOCAL_HTTP_PORT))
 assert app.name == "eskytester"
 assert app.active_version == app.version == "0.3"
 assert app.find_update() is None

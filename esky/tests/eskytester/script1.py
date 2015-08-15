@@ -10,6 +10,7 @@ import errno
 import esky
 import esky.tests
 import esky.util
+from esky.util import LOCAL_HTTP_PORT
 
 ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
 ESKY_APPDATA_DIR = esky.util.ESKY_APPDATA_DIR
@@ -22,7 +23,7 @@ eskytester.yes_my_data_is_installed()
 
 assert sys.frozen
 assert __name__ == "__main__"
-app = esky.tests.TestableEsky(sys.executable,"http://localhost:8000/dist/")
+app = esky.tests.TestableEsky(sys.executable,"http://localhost:{0}/dist/".format(LOCAL_HTTP_PORT))
 assert app.name == "eskytester"
 assert app.active_version == "0.1"
 assert app.version == "0.1"

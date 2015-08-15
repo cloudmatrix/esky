@@ -2,11 +2,17 @@
 *.pyo
 *~
 *.swp
+*.log
+*.bat
 esky/tests/dist
 esky/tests/build
 esky/tests/deploy*
 esky/tests/patch-test-temp
 esky/tests/eskytester.egg-info
+esky/eskytester.egg-info
 build/
 tutorial/*/dist
 esky/bdist_esky/bootstrap_*
+.idea/
+esky.egg-info
+.rst
