@@ -130,7 +130,7 @@ def freeze(dist):
         code_source.append("bootstrap()")
         code_source = "\n".join(code_source)
         
-        maincode = compile_to_bytecode(code_source)
+        maincode = compile_to_bytecode(code_source, INITNAME+".py")
         eskycode = compile_to_bytecode("", "esky/__init__.py")
         eskybscode = compile_to_bytecode("", "esky/bootstrap.py")
         
