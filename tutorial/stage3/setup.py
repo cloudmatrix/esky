@@ -1,31 +1,40 @@
 import sys
 from esky import bdist_esky
 from distutils.core import setup
-
-# for windows
+    
+# for freezing with esky
+# uncomment the block you want to run depending on your freezer
 # > python setup.py bdist_esky
-if sys.platform in ['win32','cygwin','win64']:
 
-    # Use bdist_esky instead of py2exe
+# Using py2exe
+#setup(
+#    name = "example-app",
+#    version = "0.3",
+#    scripts = ["example.py"],
+#    options = {"bdist_esky": {
+#              "freezer_module":"py2exe",
+#            }}
+#)
 
-    setup(
-        name = "example-app",
-        version = "0.3",
-        #  All executables are listed in the "scripts" argument
-        scripts = ["example.py"],
-        options = {"bdist_esky": {
-                  "freezer_module":"py2exe",
-                }}
-    )
+# Using py2app
+#setup(
+#    name = "example-app",
+#    version = "0.3",
+#    scripts = ["example.py"],
+#    options = {"bdist_esky": {
+#                "freezer_module":"py2app"
+#             }}
+#    )
 
-# for mac
-# > python setup.py bdist_esky
-elif sys.platform == 'darwin':
-    setup(
-        name = "example-app",
-        version = "0.3",
-        scripts = ["example.py"],
-        options = {"bdist_esky": {
-                    "freezer_module":"py2app"
-                 }}
-    )
+# cx freeze
+from esky.bdist_esky import Executable
+setup(
+    name = 'example-app',
+    version = '0.3',
+   #executables=[Executable('example.py')],
+    options = {"bdist_esky": {
+                "freezer_module":"cxfreeze"
+	      }},
+    scripts = [Executable('example.py')],
+)
+
