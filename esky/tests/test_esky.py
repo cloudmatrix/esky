@@ -413,27 +413,6 @@ class TestEsky(unittest.TestCase):
         really_rmtree(appdir)
 
 
-  def test_README(self):
-    """Ensure that the README is in sync with the docstring.
-
-    This test should always pass; if the README is out of sync it just updates
-    it with the contents of esky.__doc__.
-    """
-    dirname = os.path.dirname
-    readme = os.path.join(dirname(dirname(dirname(__file__))),"README.rst")
-    if not os.path.isfile(readme):
-        f = open(readme,"wb")
-        f.write(esky.__doc__.encode())
-        f.close()
-    else:
-        f = open(readme,"rb")
-        if f.read() != esky.__doc__:
-            f.close()
-            f = open(readme,"wb")
-            f.write(esky.__doc__.encode())
-            f.close()
-
-
 class TestFSTransact(unittest.TestCase):
     """Testcases for FSTransact."""
 
