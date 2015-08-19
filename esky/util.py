@@ -11,6 +11,7 @@ from __future__ import absolute_import
 
 import sys
 import errno
+LOCAL_HTTP_PORT = 8000
 
 #  Since esky apps are required to call the esky.run_startup_hooks() method on
 #  every invocation, we want as little overhead as possible when importing

@@ -30,8 +30,9 @@ from esky import bdist_esky
 from esky.bdist_esky import Executable
 from esky.util import extract_zipfile, deep_extract_zipfile, get_platform, \
                       ESKY_CONTROL_DIR, files_differ, ESKY_APPDATA_DIR, \
-                      really_rmtree
+                      really_rmtree, LOCAL_HTTP_PORT
 from esky.fstransact import FSTransaction
+import pytest
 
 try:
     import py2exe
@@ -85,35 +86,41 @@ def setenv(key,value):
 class TestEsky(unittest.TestCase):
 
   if py2exe is not None:
-
+    @pytest.mark.py2exe
     def test_esky_py2exe(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
+    @pytest.mark.py2exe
     def test_esky_py2exe_bundle1(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "bundle_files": 1}}})
 
+    @pytest.mark.py2exe
     def test_esky_py2exe_bundle2(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "bundle_files": 2}}})
 
+    @pytest.mark.py2exe
     def test_esky_py2exe_bundle3(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "bundle_files": 3}}})
 
+    @pytest.mark.py2exe
     def test_esky_py2exe_skiparchive(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "skip_archive": True}}})
 
+    @pytest.mark.py2exe
     def test_esky_py2exe_unbuffered(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                             "freezer_options": {
                                               "unbuffered": True}}})
 
+    @pytest.mark.py2exe
     def test_esky_py2exe_nocustomchainload(self):
         with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
            bscode = "_chainload = _orig_chainload\nbootstrap()"
@@ -121,14 +128,17 @@ class TestEsky(unittest.TestCase):
                                                "bootstrap_code":bscode}})
 
     if esky.sudo.can_get_root():
+        @pytest.mark.py2exe
         def test_esky_py2exe_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe"}})
 
     if pypy is not None:
+        @pytest.mark.py2exe
         def test_esky_py2exe_pypy(self):
             self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                                 "compile_bootstrap_exes":1}})
+        @pytest.mark.py2exe
         def test_esky_py2exe_unbuffered_pypy(self):
             self._run_eskytester({"bdist_esky":{"freezer_module":"py2exe",
                                                 "compile_bootstrap_exes":1,
@@ -137,47 +147,53 @@ class TestEsky(unittest.TestCase):
 
 
   if py2app is not None:
-
+    @pytest.mark.py2app
     def test_esky_py2app(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
 
     if esky.sudo.can_get_root():
+        @pytest.mark.py2app
         def test_esky_py2app_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"py2app"}})
 
     if pypy is not None:
+        @pytest.mark.py2app
         def test_esky_py2app_pypy(self):
             self._run_eskytester({"bdist_esky":{"freezer_module":"py2app",
                                                 "compile_bootstrap_exes":1}})
 
   if bbfreeze is not None:
-
+    @pytest.mark.bbfreeze
     def test_esky_bbfreeze(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
 
     if sys.platform == "win32":
+        @pytest.mark.bbfreeze
         def test_esky_bbfreeze_nocustomchainload(self):
             with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
                bscode = "_chainload = _orig_chainload\nbootstrap()"
                self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze",
                                                    "bootstrap_code":bscode}})
     if esky.sudo.can_get_root():
+        @pytest.mark.bbfreeze
         def test_esky_bbfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
 
     if pypy is not None:
+        @pytest.mark.bbfreeze
         def test_esky_bbfreeze_pypy(self):
             self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze",
                                                 "compile_bootstrap_exes":1}})
 
   if cx_Freeze is not None:
-
+    @pytest.mark.cxfreeze
     def test_esky_cxfreeze(self):
         self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
 
     if sys.platform == "win32":
+        @pytest.mark.cxfreeze
         def test_esky_cxfreeze_nocustomchainload(self):
             with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
                bscode = ["_chainload = _orig_chainload",None]
@@ -185,16 +201,18 @@ class TestEsky(unittest.TestCase):
                                                    "bootstrap_code":bscode}})
 
     if esky.sudo.can_get_root():
+        @pytest.mark.cxfreeze
         def test_esky_cxfreeze_needsroot(self):
             with setenv("ESKY_NEEDSROOT","1"):
                 self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze"}})
 
     if pypy is not None:
+        @pytest.mark.cxfreeze
         def test_esky_cxfreeze_pypy(self):
             with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
               self._run_eskytester({"bdist_esky":{"freezer_module":"cxfreeze",
                                                  "compile_bootstrap_exes":1}})
- 
+
 
   def _run_eskytester(self,options):
     """Build and run the eskytester app using the given distutils options.
@@ -216,6 +234,7 @@ class TestEsky(unittest.TestCase):
         #  Set some callbacks to test that they work correctly
         options.setdefault("bdist_esky",{}).setdefault("pre_freeze_callback","esky.tests.test_esky.assert_freezedir_exists")
         options.setdefault("bdist_esky",{}).setdefault("pre_zip_callback",assert_freezedir_exists)
+        # options["bdist_esky"].setdefault("excludes",[]).extend(["Tkinter", "tkinter"])
         platform = get_platform()
         deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
@@ -249,12 +268,17 @@ class TestEsky(unittest.TestCase):
         with open(os.path.join(tdir,"dist","eskytester-0.3.%s.from-0.2.patch"%(platform,)),"rb") as f:
             esky.patch.apply_patch(uzdir,f)
         really_rmtree(uzdir)
-        #  Serve the updates at http://localhost:8000/dist/
+        #  Serve the updates at LOCAL_HTTP_PORT set in esky.util
         print "running local update server"
-        server = HTTPServer(("localhost",8000),SimpleHTTPRequestHandler)
-        server_thread = threading.Thread(target=server.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
+        try:
+            server = HTTPServer(("localhost",LOCAL_HTTP_PORT),SimpleHTTPRequestHandler)
+        except Exception:
+           # in travis ci we start our own server
+           pass
+        else:
+            server_thread = threading.Thread(target=server.serve_forever)
+            server_thread.daemon = True
+            server_thread.start()
         #  Set up the deployed esky environment for the initial version
         zfname = os.path.join(tdir,"dist","eskytester-0.1.%s.zip"%(platform,))
         os.mkdir(deploydir)
@@ -299,12 +323,12 @@ class TestEsky(unittest.TestCase):
         really_rmtree(tdir)
         if server:
             server.shutdown()
- 
+
   def test_esky_locking(self):
     """Test that locking an Esky works correctly."""
     platform = get_platform()
     appdir = tempfile.mkdtemp()
-    try: 
+    try:
         vdir = os.path.join(appdir,ESKY_APPDATA_DIR,"testapp-0.1.%s" % (platform,))
         os.makedirs(vdir)
         os.mkdir(os.path.join(vdir,ESKY_CONTROL_DIR))
@@ -343,11 +367,11 @@ class TestEsky(unittest.TestCase):
     finally:
         really_rmtree(appdir)
 
- 
+
   def test_esky_lock_breaking(self):
     """Test that breaking the lock on an Esky works correctly."""
     appdir = tempfile.mkdtemp()
-    try: 
+    try:
         os.makedirs(os.path.join(appdir,ESKY_APPDATA_DIR,"testapp-0.1",ESKY_CONTROL_DIR))
         open(os.path.join(appdir,ESKY_APPDATA_DIR,"testapp-0.1",ESKY_CONTROL_DIR,"bootstrap-manifest.txt"),"wb").close()
         e1 = esky.Esky(appdir,"http://example.com/downloads/")
