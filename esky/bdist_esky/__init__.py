@@ -8,9 +8,9 @@ Importing this module makes "bdist_esky" available as a distutils command.
 This command will freeze the given scripts and package them into a zipfile
 named with the application name, version and platform.
 
-The resulting zipfile is conveniently in the format expected by the class
-DefaultVersionFinder.  It will be named "appname-version.platform.zip"
-
+The main interface is the 'Esky' class, which represents a frozen app.  An Esky
+must be given the path to the top-level directory of the frozen app, and a
+'VersionFinder' object that it will use to search for updates.
 """
 
 from __future__ import with_statement
