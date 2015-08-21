@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import os
 import esky
@@ -10,9 +11,9 @@ if getattr(sys,"frozen",False):
             app.auto_update()
             appexe = esky.util.appexe_from_executable(sys.executable)
             os.execv(appexe,[appexe] + sys.argv[1:])
-    except Exception, e:
-        print "ERROR UPDATING APP:", e
+    except Exception as e:
+        print("ERROR UPDATING APP:", e)
     app.cleanup()
 
-print "HELLO WORLD"
+print("HELLO WORLD")
 
