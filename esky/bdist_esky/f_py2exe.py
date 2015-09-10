@@ -24,7 +24,7 @@ import ctypes
 
 try:
   from py2exe.build_exe import py2exe
-except:
+except ImportError:
   from py2exe.distutils_build_exe import py2exe
   
 
