@@ -21,7 +21,6 @@ patches will be gratefully accepted.
 
  - Python2.6 support may be depreciated (as moving codebase to python3)
  - Bbfreeze will be depreciated
- - Py2exe is bugged and doesn't really work..
 
 #### Screencast
 
@@ -37,15 +36,14 @@ The simplest way to install esky is
 
 `pip install esky`
 
-however esky on pypi is bugged and will most likely spit errors. Until we 
-get this fixed just do:
+To install the latest development branch you can install directly from github with
 
 ```
 git clone git@github.com:cloudmatrix/esky.git
 pip install -e esky
 ```
 
-**To uninstall** `python setup.py develop --uninstall`
+**To uninstall the development version do** `python setup.py develop --uninstall`
 
 
 Usage
