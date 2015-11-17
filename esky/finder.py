@@ -439,6 +439,52 @@ class DefaultVersionFinder(VersionFinder):
         return os.path.join(self._workdir(app,"ready"),version)
 
 
+class S3VersionFinder(DefaultVersionFinder):
+    """VersionFinder that looks in a S3 bucket.
+
+    bucket.s3.amazonaws.com/?prefix=xxx/xxx
+
+    This VersionFinder subclass looks for updates in a specific S3
+    bucket.
+    """
+    def find_versions(self, app):
+        version_re = "[a-zA-Z0-9\\.-_]+"
+        appname_re = "(?P<version>%s)" % (version_re,)
+        name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
+        appname_re = join_app_version(name_re, appname_re, app.platform)
+        filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
+        filename_re = filename_re % (appname_re, version_re,)
+        link_re = "Key>(?P<href>([^<]*/)?%s)<" % (filename_re,)
+        # Read the URL.  If this followed any redirects, update the
+        # recorded URL to match the final endpoint.
+        df = self.open_url(self.download_url)
+        try:
+            if df.url != self.download_url:
+                self.download_url = df.url
+        except AttributeError:
+            pass
+        # TODO: would be nice not to have to guess encoding here.
+        try:
+            downloads = df.read().decode("utf-8")
+        finally:
+            df.close()
+        dwl_url = self.download_url
+        if "?" in self.download_url:
+            dwl_url = self.download_url[0:self.download_url.find("?")]
+        for match in re.finditer(link_re, downloads, re.I):
+            version = match.group("version")
+            href = urllib.quote(match.group("href"))
+            from_version = match.group("from_version")
+            # TODO: try to assign costs based on file size.
+            if from_version is None:
+                cost = 40
+            else:
+                cost = 1
+            self.version_graph.add_link(from_version or "", version,
+                                            dwl_url + href, cost)
+        return self.version_graph.get_versions(app.version)
+
+
 class LocalVersionFinder(DefaultVersionFinder):
     """VersionFinder that looks only in a local directory.
 
