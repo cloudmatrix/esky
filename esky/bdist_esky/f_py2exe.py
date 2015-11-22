@@ -376,8 +376,12 @@ def _chainload(target_dir):
       # Execute all code in the context of __main__ module.
       d_locals = d_globals = sys.modules["__main__"].__dict__
       d_locals["__name__"] = "__main__"
+
       for code in codelist:
-          exec(code, d_globals, d_locals)
+          if sys.version[0] < 3:
+              exec code in d_globals, d_locals
+          else:
+              exec(code, d_globals, d_locals)
       raise SystemExit(0)
 """ % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*4),)
 
