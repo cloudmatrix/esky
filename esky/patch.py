@@ -235,7 +235,7 @@ PATCH_HEADER = "ESKYPTCH".encode("ascii")
 
 #  Filename of the esky_filelist manifest file.
 #  esky_filelist lists all the files in the project
-ESKY_FILELIST_NAME = "esky_filelist.txt"
+ESKY_FILELIST = "esky_filelist.txt"
 
 
 from esky.errors import Error
@@ -442,7 +442,7 @@ def load_filelist(root):
     '''locates the esky file list, reads it and returns it as a sorted list'''
     for path, dirs, files in os.walk(root):
         for f in files:
-            if f == ESKY_FILELIST_NAME:
+            if f == ESKY_FILELIST:
                 file_path = os.path.join(path, f)
                 with open(file_path) as list_file:
                     filelist = json.loads(list_file.read())
@@ -589,6 +589,7 @@ class Patcher(object):
         change a module into a folder instead of a single file.
         '''
         filelist = load_filelist(self.target)
+        remove = ['.pyc', '.pyo']
         if filelist is None:
             return
         else:
@@ -600,13 +601,13 @@ class Patcher(object):
             for root, dirs, files in os.walk(self.target):
                 dirname = os.path.join(dirname, root)
                 for f in files:
-                    if f == ESKY_FILELIST_NAME:
-                        #the filelist doesn't include itself but should be ignored.
+                    if f == ESKY_FILELIST:
                         continue
                     filepath = os.path.join(dirname, f)
                     relpath = os.path.relpath(filepath, self.target)
-                    if os.path.normpath(relpath)  not in fileset:
-                        os.unlink(filepath)
+                    if os.path.normpath(relpath) not in fileset:
+                        if os.path.splitext(relpath)[-1] in remove:
+                            os.unlink(filepath)
 
     def patch(self):
         """Interpret and apply patch commands to the target.

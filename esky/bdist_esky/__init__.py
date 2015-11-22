@@ -321,7 +321,7 @@ class bdist_esky(Command):
         self._run_freeze_scripts()
         if self.pre_zip_callback is not None:
             self.pre_zip_callback(self)
-        self._generate_file_manifest()
+        self._generate_filelist_manifest()
         self._run_create_zipfile()
 
     def _run_initialise_dirs(self):
@@ -350,18 +350,16 @@ class bdist_esky(Command):
             with open(lockfile,"w") as lf:
                 lf.write("this file is used by esky to lock the version dir\n")
 
-    def _list_files(self, directory):
-        for root, dirs, files in os.walk(directory):
-            for f in files:
-                yield os.path.join(os.path.relpath(root, directory), f)
 
-    def _generate_file_manifest(self):
+    def _generate_filelist_manifest(self):
         """Create a list of all the files in application"""
-        print "generating file manifest"
-        filelist_file = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR, esky.patch.ESKY_FILELIST_NAME)
-        filelist = [f for f in self._list_files(self.bootstrap_dir)]
+        filelist_file = os.path.join(self.freeze_dir,ESKY_CONTROL_DIR, esky.patch.ESKY_FILELIST)
+        esky_files  = []
+        for root, dirs, files in os.walk(self.bootstrap_dir):
+            for f in files:
+                esky_files.append(os.path.join(os.path.relpath(root, self.bootstrap_dir), f))
         with open(filelist_file, 'w') as f:
-            f.write(json.dumps(filelist))
+            f.write(json.dumps(esky_files))
 
 
     def _run_create_zipfile(self):
