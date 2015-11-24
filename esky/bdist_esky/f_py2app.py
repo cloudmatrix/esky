@@ -115,7 +115,8 @@ def freeze(dist):
                 #  guard will be more conservative.
                 pass
         copy_to_bootstrap_env("Contents/Resources/include")
-        copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
+        copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config-%d.%dm"
+                               % sys.version_info[:2])
         if "fcntl" not in sys.builtin_module_names:
             dynload = "Contents/Resources/lib/"+pydir+"/lib-dynload"
             for nm in os.listdir(os.path.join(app_dir,dynload)):
