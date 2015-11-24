@@ -123,6 +123,12 @@ class DefaultVersionFinder(VersionFinder):
         updir = app._get_update_dir()
         workdir = os.path.join(updir,nm)
         if create:
+            # the failure of this may raise an error which notifies us to try root access
+            if os.path.exists(workdir) and len(os.listdir(workdir)) == 0:
+                try:
+                    os.rmdir(workdir)
+                except OSError:
+                    raise
             for target in (updir,workdir):
                 try:
                     os.mkdir(target)
