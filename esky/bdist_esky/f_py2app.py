@@ -116,7 +116,7 @@ def freeze(dist):
                 pass
         copy_to_bootstrap_env("Contents/Resources/include")
         if sys.version_info[:2] < (3, 3):
-            copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config"
+            copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
         else:
             copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config-%d.%dm"
                                    % sys.version_info[:2])
