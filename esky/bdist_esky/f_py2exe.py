@@ -268,6 +268,11 @@ sys.modules["esky.bootstrap"] = __fake()
 #  only works if we can bootstrap a working ctypes module.  We then insert
 #  the source code from esky.winres.load_resource directly into this function.
 #
+if sys.version_info[0] < 3:
+    EXEC_STATEMENT = "exec code in globals()"
+else:
+    EXEC_STATEMENT = "exec(code,globals())"
+
 _CUSTOM_WIN32_CHAINLOADER = """
 
 _orig_chainload = _chainload
@@ -378,12 +383,9 @@ def _chainload(target_dir):
       d_locals["__name__"] = "__main__"
 
       for code in codelist:
-          if sys.version[0] < 3:
-              exec code in d_globals, d_locals
-          else:
-              exec(code, d_globals, d_locals)
+        %s
       raise SystemExit(0)
-""" % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*4),)
+""" % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*4), EXEC_STATEMENT)
 
 
 #  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
