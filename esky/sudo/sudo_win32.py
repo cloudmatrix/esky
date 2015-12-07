@@ -308,9 +308,9 @@ def spawn_sudo(proxy):
         execinfo.cbSize = sizeof(execinfo)
         execinfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC
         execinfo.hwnd = None
-        execinfo.lpVerb = "runas"
-        execinfo.lpFile = exe[0]
-        execinfo.lpParameters = " ".join(exe[1:])
+        execinfo.lpVerb = b"runas"
+        execinfo.lpFile = exe[0].encode('utf-8')
+        execinfo.lpParameters = " ".join(exe[1:]).encode('utf-8')
         execinfo.lpDirectory = None
         execinfo.nShow = 0
         ShellExecuteEx(byref(execinfo))
