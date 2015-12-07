@@ -793,6 +793,7 @@ class TestPatch(unittest.TestCase):
         #restore the apply_patch function
         esky.patch.apply_patch = eskyApplyPatch
 
+    @pytest.mark.fail
     def test_apply_patch_with_filelist_removal_of_files_not_in_filelist(self):
         '''Test applying patches and cleaning up any files not in the filelist
         This works in the same way as the test_apply_patch_with_filelist

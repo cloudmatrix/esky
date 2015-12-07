@@ -3,23 +3,23 @@ Esky  - keep frozen apps fresh
 ==============================
 
 [![Join the chat at https://gitter.im/cloudmatrix/esky](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/cloudmatrix/esky?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-
 [![Build Status](https://travis-ci.org/cloudmatrix/esky.svg)](https://travis-ci.org/cloudmatrix/esky)
+[![Build status](https://ci.appveyor.com/api/projects/status/qsl966pqssff9lpt?svg=true&pendingText=Windows%20Pending&failingText=Windows%20Failing&passingText=Windows%20Passing)](https://ci.appveyor.com/project/tim83455/esky-r8uvn)
 [![Code Climate](https://codeclimate.com/github/cloudmatrix/esky/badges/gpa.svg)](https://codeclimate.com/github/cloudmatrix/esky)
-[![Test Coverage](https://codeclimate.com/github/cloudmatrix/esky/badges/coverage.svg)](https://codeclimate.com/github/cloudmatrix/esky/coverage)
 
 Esky is an auto-update framework for frozen Python applications.  It provides
 a simple API through which apps can find, fetch and install updates, and a
 bootstrapping mechanism that keeps the app safe in the face of failed or
-partial updates. Updates can also be sent as patches.
+partial updates. Updates can also be sent as differential patches.
 
 Esky is currently capable of freezing apps with py2exe, py2app, cxfreeze and
 bbfreeze. Adding support for other freezer programs should be easy;
 patches will be gratefully accepted.
 
-#### Limitations
+
+#### Current Limitations
  - Cannot sign the bootstrap executable
+ - Doesn't work with windows resources
 
 
 #### News
@@ -79,6 +79,7 @@ There is also a wrapper for esky in for the gui library wxpthon, see [blog post]
 Development / Contributing
 --------------------------
 
+We welcome all contributors.
 See the [Contributing Guide] (https://github.com/cloudmatrix/esky/wiki/Contributing)
 
 #### Author
