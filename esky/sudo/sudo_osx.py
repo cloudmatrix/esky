@@ -17,10 +17,8 @@ if sys.platform != "darwin":
 import os
 import errno
 import struct
-import signal
 import subprocess
-from base64 import b64encode, b64decode
-from functools import wraps
+from base64 import b64decode
 
 from esky.sudo import sudo_base as base
 import esky.slaveproc

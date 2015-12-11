@@ -9,12 +9,6 @@
 
 import os
 import sys
-import imp
-import time
-import zipfile
-import marshal
-import struct
-import shutil
 import inspect
 import zipfile
 import distutils

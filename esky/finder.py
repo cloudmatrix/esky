@@ -15,7 +15,6 @@ from __future__ import with_statement
 
 import os
 import re
-import stat
 import urllib
 import urllib2
 import zipfile
@@ -24,7 +23,7 @@ import tempfile
 import errno
 from urlparse import urlparse, urljoin
 
-from esky.bootstrap import parse_version, join_app_version
+from esky.bootstrap import join_app_version
 from esky.errors import *
 from esky.util import deep_extract_zipfile, copy_ownership_info, \
                       ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, \

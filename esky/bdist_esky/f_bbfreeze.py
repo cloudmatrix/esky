@@ -10,8 +10,6 @@
 import os
 import sys
 import imp
-import time
-import zipfile
 import tempfile
 import marshal
 import struct

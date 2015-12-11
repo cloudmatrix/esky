@@ -11,9 +11,7 @@ launch a process with administrative rights on Windows Vista and above.
 
 """
 
-import os
 import sys
-import struct
 import uuid
 import ctypes
 import ctypes.wintypes

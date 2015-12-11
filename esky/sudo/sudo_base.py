@@ -8,14 +8,9 @@
 
 import os
 import sys
-import errno
 import base64
 import struct
-import signal
-import subprocess
-import tempfile
 import hmac
-from functools import wraps
 
 try:
     import cPickle as pickle

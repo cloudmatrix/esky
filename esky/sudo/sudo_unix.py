@@ -9,11 +9,8 @@
 import os
 import sys
 import errno
-import struct
-import signal
 import subprocess
 import tempfile
-from functools import wraps
 
 from esky.sudo import sudo_base as base
 import esky.slaveproc

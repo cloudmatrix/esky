@@ -12,21 +12,17 @@ from __future__ import with_statement
 import os
 import sys
 import imp
-import time
-import errno
 import zipfile
 import shutil
-import tempfile
 import inspect
 import struct
 import marshal
-from StringIO import StringIO
 
 
 from py2app.build_app import py2app, get_zipfile, Target
 
 import esky
-from esky.util import is_core_dependency, create_zipfile
+from esky.util import create_zipfile
 
 
 def freeze(dist):

@@ -67,7 +67,6 @@ if "posix" in sys.builtin_module_names:
     import fcntl
     from posix import listdir, stat, unlink, rename, execv, getcwd, environ
     from posix import open as os_open
-    from posix import read as os_read
     from posix import close as os_close
     SEP = "/"
     def isabs(path):
@@ -90,7 +89,6 @@ elif "nt" in sys.builtin_module_names:
     from nt import listdir, stat, unlink, rename, spawnv
     from nt import getcwd, P_WAIT, environ
     from nt import open as os_open
-    from nt import read as os_read
     from nt import close as os_close
     SEP = "\\"
     def isabs(path):

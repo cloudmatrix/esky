@@ -17,10 +17,8 @@ from __future__ import with_statement
 
 
 import os
-import re
 import sys
 import shutil
-import zipfile
 import tempfile
 import hashlib
 import inspect
@@ -32,7 +30,7 @@ from distutils.core import Command
 from distutils.util import convert_path
 
 import esky.patch
-from esky.util import get_platform, is_core_dependency, create_zipfile, \
+from esky.util import get_platform, create_zipfile, \
                       split_app_version, join_app_version, ESKY_CONTROL_DIR, \
                       ESKY_APPDATA_DIR, really_rmtree
 

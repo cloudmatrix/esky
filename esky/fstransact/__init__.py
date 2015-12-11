@@ -20,9 +20,7 @@ as long as you can atomically replace a file.
 
 """
 
-import os
 import sys
-import shutil
 
 from esky.util import lazy_import
 

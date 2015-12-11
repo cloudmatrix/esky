@@ -10,7 +10,6 @@
 import os
 import sys
 import errno
-import shutil
 
 from esky.util import get_backup_filename, files_differ
 
