@@ -32,7 +32,7 @@ try:
     CommitTransaction = check_call(ktmw32.CommitTransaction)
     RollbackTransaction = check_call(ktmw32.RollbackTransaction)
     kernel32 = ctypes.windll.kernel32
-    MoveFileTransacted = check_call(kernel32.MoveFileTransactedW)
+    MoveFileTransacted = check_call(kernel32.MoveFileTransacted)
     CopyFileTransacted = check_call(kernel32.CopyFileTransactedW)
     DeleteFileTransacted = check_call(kernel32.DeleteFileTransactedW)
     RemoveDirectoryTransacted = check_call(kernel32.RemoveDirectoryTransactedW)
