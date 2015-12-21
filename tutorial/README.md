@@ -28,16 +28,13 @@ On Mac cxfreeze doesn't output a .app file. If you plan on packaging your
 executable with a program that requires a .app you are better off using py2app.
 
 To install cxfreze on ubuntu 14.04, 
-**python 2**  
-`sudo apt-get install cx-freeze`
+- `wget https://pypi.python.org/packages/source/c/cx_Freeze/cx_Freeze-4.3.4.tar.gz#md5=5bd662af9aa36e5432e9144da51c6378`
+- `tar -xzvf cx_Freeze-4.3.4.tar.gz`
+- Change `if not vars.get("Py_ENABLE_SHARED", 0):` to `if True:` in setup.py
+- `sudo python setup.py install`
 
-**python 3**  
-`wget https://pypi.python.org/packages/source/c/cx_Freeze/cx_Freeze-4.3.4.tar.gz#md5=5bd662af9aa36e5432e9144da51c6378`
-`tar -xzvf cx_Freeze-4.3.4.tar.gz`
-`mv cx_Freeze-4.3.4 YOUR_DIR_OF_CHOICE/`
-
-Change `if not vars.get("Py_ENABLE_SHARED", 0):` to `if True:` in setup.py
-`sudo setup.py install`
+If you are having problems try installing the following
+- `sudo apt-get install zlib1g-dev lib32z1-dev`
 
 ### Tutorial Stage0 - Freezing an app
 
@@ -62,10 +59,10 @@ to edit and uncomment the block of code depending on your freezer.
 
 The "dist" directory will now contain a file named "example-app-0.1.win32.zip".
 
-`mkdir ../app`
-`unzip dist/example-app-0.1.win32.zip -d ../app/`
-`cd ..`
-`./app/example
+- `mkdir ../app`
+- `unzip dist/example-app-0.1.win32.zip -d ../app/`
+- `cd ..`
+- `./app/example`
         
 The top-level "example.exe" is a bootstrapping executable produced by esky.
 The bootstrapping file is the one that needs to open for updating to
@@ -83,11 +80,10 @@ a container for your frozen application.
 The Esky must be given its location on disk, and a url at which to look for
 updated versions. 
 
-`cd stage2`
-
-`python setup.py bdist_esky`
-`rm -r ../app/*`
-`unzip dist/example-app-0.2.win32.zip -d ../app/`
+- `cd stage2`
+- `python setup.py bdist_esky`
+- `rm -r ../app/*`
+- `unzip dist/example-app-0.2.win32.zip -d ../app/`
 
 We will now start a python webserver to host our files.The server
 will serve the folder from whose current working directory we started it in.
@@ -105,9 +101,8 @@ When you execute example.exe you will see a GET reponse on the server.
 
 Ok lets make something to update!
 
- - `cd stage3`
-
- - `python setup.py bdist_esky`
+- `cd stage3`
+- `python setup.py bdist_esky`
 
 Ravigate to "stage3/dist/" and start the server.
 
@@ -125,8 +120,8 @@ Notice the new print message!
 Esky supports distributing your updates as a patch instead of (or as well
 as) a full zipfile download. To see this in action:
 
-`rm -r app/*`
-`unzip stage2/dist/example-app-0.2.win32.zip -d app/`
+- `rm -r app/*`
+- `unzip stage2/dist/example-app-0.2.win32.zip -d app/`
 
 Our app is back to version 0.2. 
 
@@ -158,7 +153,7 @@ It's also possible to generate patches between two existing zipfiles, without
 going through the setup.py script.  Simply invoke the "esky.patch" module
 directly as follows:
 
-'python -m esky.patch -Z diff ../stage1/dist/example-0.1.win32.zip ./dist/example-0.2.win32.zip ./dist/example-0.2.win32.from-0.1.patch`
+- `python -m esky.patch -Z diff ../stage1/dist/example-0.1.win32.zip ./dist/example-0.2.win32.zip ./dist/example-0.2.win32.from-0.1.patch`
 
 Don't forget the "-Z" argument - it tells the patcher to unzip the source files
 before starting work.  You should now have:
