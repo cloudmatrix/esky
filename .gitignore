@@ -1,4 +1,4 @@
-.cache
+.cache/
 *.pyc
 *.pyo
 *~
