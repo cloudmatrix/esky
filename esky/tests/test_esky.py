@@ -233,7 +233,7 @@ class TestEsky(unittest.TestCase):
         #  Set some callbacks to test that they work correctly
         options.setdefault("bdist_esky",{}).setdefault("pre_freeze_callback","esky.tests.test_esky.assert_freezedir_exists")
         options.setdefault("bdist_esky",{}).setdefault("pre_zip_callback",assert_freezedir_exists)
-        # options["bdist_esky"].setdefault("excludes",[]).extend(["Tkinter", "tkinter"])
+        options["bdist_esky"].setdefault("excludes",[]).extend(["Tkinter", "tkinter"])
         platform = get_platform()
         deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
