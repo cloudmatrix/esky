@@ -1012,7 +1012,7 @@ class Differ(object):
             s_nm = os.path.join(source,nm)
             if not os.path.exists(s_nm):
                 sibnm = self._find_similar_sibling(source,target,nm)
-                if sibnm is not None:
+                if sibnm:
                     nm_sibnm_map[nm] = sibnm
                     try:
                         sibnm_nm_map[sibnm].append(nm)
@@ -1234,7 +1234,7 @@ class Differ(object):
             if not os.path.isdir(source):
                 return None
             t_names = set(os.listdir(t_nm))
-            best = (2,None)
+            best = (2,'')
             for sibnm in os.listdir(source):
                 if not os.path.isdir(os.path.join(source,sibnm)):
                     continue
