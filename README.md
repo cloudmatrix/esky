@@ -16,6 +16,8 @@ Esky is currently capable of freezing apps with py2exe, py2app, cxfreeze and
 bbfreeze. Adding support for other freezer programs should be easy;
 patches will be gratefully accepted.
 
+We are tested and running on Python 2.7, 3.3 and 3.4
+
 
 #### Current Limitations
  - Cannot sign the bootstrap executable
@@ -27,11 +29,6 @@ patches will be gratefully accepted.
  - Python2.6 support may be depreciated (as moving codebase to python3)
  - Bbfreeze will be depreciated
 
-#### Screencast
-
-Ryan has done a talk at pycon to help you get started:
-
-* [Keep your frozen app fresh](http://pyvideo.org/video/470/pyconau-2010--esky--keep-your-frozen-apps-fresh)
 
 
 Installation
@@ -43,10 +40,9 @@ The simplest way to install esky is
 
 To install the latest development branch you can install directly from github with
 
-```
-git clone git@github.com:cloudmatrix/esky.git
-pip install -e esky
-```
+`git clone git@github.com:cloudmatrix/esky.git`
+
+`pip install -e esky`
 
 **To uninstall the development version do** `python setup.py develop --uninstall`
 
@@ -54,33 +50,44 @@ pip install -e esky
 Usage
 -----
 
-Freezing your app with esky requires the setup file to be modified,
-you are then able to run
+Freezing your app with esky requires small some modification to a setup.py file and then adding the Esky class to your program.
+When you are ready just run `python setup.py bdist_esky`
+This will produce a zip file which can automatically update as long as the structure is kept in tact.
 
-`python setup.py bdist_esky`
+- The [tutorial](https://github.com/cloudmatrix/esky/tree/master/tutorial) will guide you through setting up and freezing with esky. (get the files by cloning)
 
-which will setup the correct directory structure for esky to work
+- We have an F.A.Q as well as Documentation in our [wiki](https://github.com/cloudmatrix/esky/wiki)
 
-- see the [tutorial](https://github.com/cloudmatrix/esky/tree/master/tutorial) which will guide you through setting up and freezing with esky.
+- Ryan has done a talk at Pycon to help you get started: [Keep your frozen app fresh](http://pyvideo.org/video/470/pyconau-2010--esky--keep-your-frozen-apps-fresh)
 
-- for more information on the setup file
-see [Setup file Options](https://github.com/cloudmatrix/esky/wiki/Setup-file-Options) 
+- There is also a wrapper for esky in the gui library wxpthon, see [blog post](http://www.blog.pythonlibrary.org/2013/07/12/wxpython-updating-your-application-with-esky/) 
 
-The main interface is the 'Esky' class, which represents a frozen app.   
-A simple example of using the esky class to automatically update is given
-in the tutorial.
 
-Check [Using the Esky Class](https://github.com/cloudmatrix/esky/wiki/Using-the-Esky-Class) on customizing the process.
-Esky is currently capable of hitting a http server and there is a patch
-for amazon s3 which should be merged soon.
+Features
+--------
 
-There is also a wrapper for esky in for the gui library wxpthon, see [blog post](http://www.blog.pythonlibrary.org/2013/07/12/wxpython-updating-your-application-with-esky/) 
+- Pull updates from a http server or amazon s3 bucket (easily extendable)
+
+- Bootstrap Executable to prevent corruption in failed updates (can be compiled to ~1mb using Rpython)
+
+- Differential Patching (minor updates and fixes can be < 10kb)
+
+- py2exe, py2app, cxfreeze
+
+
+Getting in Contact
+------------------
+
+* Questions about usage can be posted on stackoverflow.
+* Bugs and problems can be posted at our github issue tracker.
+* Chats and so on can be done through gitter.
+
 
 Development / Contributing
 --------------------------
 
 We welcome all contributors.
-See the [Contributing Guide] (https://github.com/cloudmatrix/esky/wiki/Contributing)
+See the [Contributing Guide](https://github.com/cloudmatrix/esky/wiki/Contributing)
 
 #### Author
 
@@ -92,5 +99,8 @@ See the [Contributing Guide] (https://github.com/cloudmatrix/esky/wiki/Contribut
 
 #### Contributors
 
-https://github.com/cloudmatrix/esky/graphs/contributors
+[Thanks all Contributors](https://github.com/cloudmatrix/esky/graphs/contributors)
 
+The above list isn't complete, some people seem to be missing or contribute in other ways.
+
+* JPFrancoia
