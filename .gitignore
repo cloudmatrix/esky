@@ -4,6 +4,7 @@
 *.swp
 *.log
 *.bat
+*.txt
 esky/tests/dist
 esky/tests/build
 esky/tests/deploy*

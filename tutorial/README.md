@@ -24,6 +24,21 @@ We suggest that you use **cx_freeze** because it is/supports:
  - mac 
  - windows
 
+On Mac cxfreeze doesn't output a .app file. If you plan on packaging your
+executable with a program that requires a .app you are better off using py2app.
+
+To install cxfreze on ubuntu 14.04, 
+**python 2**  
+`sudo apt-get install cx-freeze`
+
+**python 3**  
+`wget https://pypi.python.org/packages/source/c/cx_Freeze/cx_Freeze-4.3.4.tar.gz#md5=5bd662af9aa36e5432e9144da51c6378`
+`tar -xzvf cx_Freeze-4.3.4.tar.gz`
+`mv cx_Freeze-4.3.4 YOUR_DIR_OF_CHOICE/`
+
+Change `if not vars.get("Py_ENABLE_SHARED", 0):` to `if True:` in setup.py
+`sudo setup.py install`
+
 ### Tutorial Stage0 - Freezing an app
 
 Its probably better to read the official documentation for your freezer but
@@ -47,7 +62,10 @@ to edit and uncomment the block of code depending on your freezer.
 
 The "dist" directory will now contain a file named "example-app-0.1.win32.zip".
 
-Now unzip and run example.exe
+`mkdir ../app`
+`unzip dist/example-app-0.1.win32.zip -d ../app/`
+`cd ..`
+`./app/example
         
 The top-level "example.exe" is a bootstrapping executable produced by esky.
 The bootstrapping file is the one that needs to open for updating to
@@ -59,7 +77,6 @@ work.
 Next, we must add code to our application to make it update. 
 The interface for doing so is the "Esky" class, which represents 
 a container for your frozen application.
-We create one like so:
 
     app = esky.Esky(sys.executable,"http://localhost:8000")
 
@@ -69,16 +86,17 @@ updated versions.
 `cd stage2`
 
 `python setup.py bdist_esky`
+`rm -r ../app/*`
+`unzip dist/example-app-0.2.win32.zip -d ../app/`
 
-again unzip
-
-Start up a little http server by running the following command
+We will now start a python webserver to host our files.The server
+will serve the folder from whose current working directory we started it in.
 
 `python2 -m SimpleHTTPServer 8000`
 
 or for python3
 
-`python -m http.server 8000`
+`python3 -m http.server 8000`
 
 When you execute example.exe you will see a GET reponse on the server.
 
@@ -91,15 +109,14 @@ Ok lets make something to update!
 
  - `python setup.py bdist_esky`
 
-The python webserver will serve the folder from whose current working
-directory we started it in so navigate to "stage3/dist/" and start the server.
-Lets go ahead and see if we can update stage2/dist/example.exe.
+Ravigate to "stage3/dist/" and start the server.
 
+go ahead and run the app 
 
 After running the exe you will now see a GET request followed shortly by
-a second one for fetching the new update.
+a second one which fetches the new update.
 
-Now run "stage2/dist/example.exe"
+run the app again
 
 Notice the new print message!
 
@@ -108,11 +125,10 @@ Notice the new print message!
 Esky supports distributing your updates as a patch instead of (or as well
 as) a full zipfile download. To see this in action:
 
- - delete all the files from "stage2/dist/" besides the example-0.2.zip
+`rm -r app/*`
+`unzip stage2/dist/example-app-0.2.win32.zip -d app/`
 
- - unzip
-
-Our app is back to version 2. 
+Our app is back to version 0.2. 
 
  - Copy the dist folder you built in stage 2 into the "stage3" folder. 
 
@@ -121,6 +137,7 @@ You should have the following files:
     stage3/example.py
     stage3/setup.py
     stage3/dist/example-0.2.win32.zip
+    stage3/dist/example-0.3.win32.zip
 
  - `cd stage3`
  - `python setup.py bdist_esky_patch` 
@@ -176,10 +193,5 @@ bdist_esky command - it automatically detects any available freezer modules
 If necessary, however, you can pass options either on the setup.py command line,
 or using the "options" argument to the setup() function.
 
-The code in the "stage4" directory shows an example of how to customize the
-freeze process.  Here we specify a custom icon for the executable, list some
-modules to explicitly include and exclude from the freeze, and give additional
-options that are passed through to py2exe.
+Take a look at the wiki section on our github page.
 
-**Unfortunately the example is with py2exe which is having problems at the
-moment!**

@@ -10,11 +10,14 @@ Esky  - keep frozen apps fresh
 Esky is an auto-update framework for frozen Python applications.  It provides
 a simple API through which apps can find, fetch and install updates, and a
 bootstrapping mechanism that keeps the app safe in the face of failed or
-partial updates.
+partial updates. Updates can also be sent as patches.
 
 Esky is currently capable of freezing apps with py2exe, py2app, cxfreeze and
-bbfreeze. Adding support for other freezer programs should be straightforward;
+bbfreeze. Adding support for other freezer programs should be easy;
 patches will be gratefully accepted.
+
+#### Limitations
+ - Cannot sign the bootstrap executable
 
 
 #### News
