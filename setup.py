@@ -40,12 +40,16 @@ AUTHOR = "Ryan Kelly"
 AUTHOR_EMAIL = "rfk@cloudmatrix.com.au"
 URL = "http://github.com/cloudmatrix/esky/"
 LICENSE = "BSD"
-KEYWORDS = "update auto-update freeze"
+KEYWORDS = "update auto-update freeze patch py2exe py2app cxfreeze diff"
 CLASSIFIERS = [
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 3",
-    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 2.6",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3.1",
+    "Programming Language :: Python :: 3.2",
+    "Programming Language :: Python :: 3.3",
+    "Programming Language :: Python :: 3.4",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: BSD License"
 ]
 
