@@ -14,6 +14,9 @@ from past.builtins import basestring
 
 import sys
 import errno
+import contextlib
+import io
+
 LOCAL_HTTP_PORT = 8000
 
 if sys.version_info[0] > 2:
@@ -587,3 +590,20 @@ def compile_to_bytecode(source_code, compile_filename=None):
             source_size=0)
 
     return bytecode
+
+
+@contextlib.contextmanager
+def silence():
+    ''''
+    stop printint to stdout and stderr, was bugging on py2 so does nothing there..
+    '''
+    if sys.version_info[0] > 2:
+        save_stdout = sys.stdout
+        save_stderr = sys.stderr
+        sys.stdout = io.StringIO()
+        sys.stderr = io.StringIO()
+        yield
+        sys.stdout = save_stdout
+        sys.stderr = save_stderr
+    else:
+        yield

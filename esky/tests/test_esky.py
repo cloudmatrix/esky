@@ -31,7 +31,7 @@ from esky.bdist_esky import Executable
 import esky.bdist_esky
 from esky.util import extract_zipfile, deep_extract_zipfile, get_platform
 from esky.util import ESKY_CONTROL_DIR, files_differ, ESKY_APPDATA_DIR
-from esky.util import really_rmtree, LOCAL_HTTP_PORT
+from esky.util import really_rmtree, LOCAL_HTTP_PORT, silence
 from esky.fstransact import FSTransaction
 import pytest
 
@@ -260,10 +260,11 @@ class TestEsky(unittest.TestCase):
             script1 = "eskytester/script1.py"
             script2 = Executable( [None, open("eskytester/script2.py")], name="script2")
             script3 = "eskytester/script3.py"
-            dist_setup(version="0.1", scripts=[script1], options=options, script_args=[ "bdist_esky" ], **metadata)
-            dist_setup(version="0.2", scripts=[ script1, script2 ], options=options2, script_args=["bdist_esky"], **metadata)
-            dist_setup(version="0.3", scripts=[script2, script3], options=options, script_args=[ "bdist_esky_patch" ], **metadata)
-            os.unlink(os.path.join(tdir, "dist", "eskytester-0.3.%s.zip" % ( platform, )))
+            with silence():
+                dist_setup(version="0.1", scripts=[script1], options=options, script_args=[ "bdist_esky" ], **metadata)
+                dist_setup(version="0.2", scripts=[ script1, script2 ], options=options2, script_args=["bdist_esky"], **metadata)
+                dist_setup(version="0.3", scripts=[script2, script3], options=options, script_args=[ "bdist_esky_patch" ], **metadata)
+                os.unlink(os.path.join(tdir, "dist", "eskytester-0.3.%s.zip" % ( platform, )))
             #  Check that the patches apply cleanly
             uzdir = os.path.join(tdir, "unzip")
 
@@ -314,18 +315,27 @@ class TestEsky(unittest.TestCase):
             os.unlink(os.path.join(tdir, "dist", "eskytester-0.1.%s.zip" % (
                 platform, )))
             p = subprocess.Popen(cmd1)
-            assert p.wait() == 0
-            os.unlink(os.path.join(appdir, "tests-completed"))
+            if p.wait():
+                print(p.stdout)
+                print(p.stderr)
+                assert False
+            os.unlink(os.path.join(appdir,"tests-completed"))
             print("spawning eskytester script2")
             os.unlink(os.path.join(tdir, "dist", "eskytester-0.2.%s.zip" % (
                 platform, )))
             p = subprocess.Popen(cmd2)
-            assert p.wait() == 0
-            os.unlink(os.path.join(appdir, "tests-completed"))
+            if p.wait():
+                print(p.stdout)
+                print(p.stderr)
+                assert False
+            os.unlink(os.path.join(appdir,"tests-completed"))
             print("spawning eskytester script3")
             p = subprocess.Popen(cmd3)
-            assert p.wait() == 0
-            os.unlink(os.path.join(appdir, "tests-completed"))
+            if p.wait():
+                print(p.stdout)
+                print(p.stderr)
+                assert False
+            os.unlink(os.path.join(appdir,"tests-completed"))
         finally:
             if script2:
                 script2.script[1].close()
@@ -833,7 +843,6 @@ class TestPatch(unittest.TestCase):
         # restore the apply_patch function
         esky.patch.apply_patch = eskyApplyPatch
 
-    @pytest.mark.fail
     def test_apply_patch_with_filelist_removal_of_files_not_in_filelist(self):
         '''Test applying patches and cleaning up any files not in the filelist
         This works in the same way as the test_apply_patch_with_filelist
