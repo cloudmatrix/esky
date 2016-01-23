@@ -520,7 +520,7 @@ def really_rename(source,target):
     if sys.platform != "win32":
         os.rename(source,target)
     else:
-        for _ in xrange(10):
+        for _ in xrange(100):
             try:
                 os.rename(source,target)
             except WindowsError, e:
@@ -574,13 +574,13 @@ def compile_to_bytecode(source_code, compile_filename=None):
     elif sys.version_info[:2] < (3, 4):
         bytecode = imp.get_magic() + struct.pack("<ii", 0, 0)
         bytecode += marshal.dumps(compile(source_code, compile_filename, "exec"))
-    elif sys.version_info[:2] >= (3, 5):
+    elif sys.version_info[:2] < (3, 5):
+        loader = importlib._bootstrap.SourceLoader()
+        code = loader.source_to_code(source_code, '<string>')
+        bytecode = importlib._bootstrap._code_to_bytecode(code, mtime=0, source_size=0)
+    else:
         loader = importlib._bootstrap_external.SourceLoader()    
         code = loader.source_to_code(source_code, '<string>')
         bytecode = importlib._bootstrap_external._code_to_bytecode(code, mtime=0, source_size=0)
-    else:
-        loader = importlib._bootstrap.SourceLoader()    
-        code = loader.source_to_code(source_code, '<string>')
-        bytecode = importlib._bootstrap._code_to_bytecode(code, mtime=0, source_size=0)
-        
+
     return bytecode
