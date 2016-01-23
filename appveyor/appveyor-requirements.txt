@@ -2,4 +2,5 @@ wheel
 nose
 pytest
 cx_Freeze
-http://sourceforge.net/projects/py2exe/files/latest/download?source=files
+future
+py2exe

@@ -1,0 +1,6 @@
+wheel
+nose
+pytest
+cx_Freeze
+future
+http://sourceforge.net/projects/py2exe/files/latest/download?source=files

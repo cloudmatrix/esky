@@ -11,6 +11,5 @@ install:
 
 script:
         - python -m pytest --verbose
-
 notifications:
         - email: false
