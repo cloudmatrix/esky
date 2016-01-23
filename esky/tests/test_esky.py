@@ -861,7 +861,8 @@ class TestPatch(unittest.TestCase):
 
 
     def test_apply_patch_fail_when_sourcefile_has_been_deleted(self):
-        self.assertRaises(self._test_apply_patch_fail_when_sourcefile_has_been_deleted)
+        with pytest.raises(Exception):
+            self._test_apply_patch_fail_when_sourcefile_has_been_deleted()
 
 
 
