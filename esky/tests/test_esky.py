@@ -246,7 +246,8 @@ class TestEsky(unittest.TestCase):
         metadata = dict(name="eskytester",packages=["eskytester"],author="rfk",
                         description="the esky test package",
                         data_files=[("data",["eskytester/datafile.txt"])],
-                        package_data={"eskytester":["pkgdata.txt"]},)
+                        package_data={"eskytester":["pkgdata.txt"]},
+                        compress="ZIP")
         options2 = options.copy()
         options2["bdist_esky"] = options["bdist_esky"].copy()
         options2["bdist_esky"]["bundle_msvcrt"] = True
