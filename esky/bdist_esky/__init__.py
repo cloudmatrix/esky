@@ -51,7 +51,7 @@ else:
 
 
 
-#  setuptools likes to be imported before anything else that
+# setuptools likes to be imported before anything else that
 #  might monkey-patch distutils.  We don't actually use it,
 #  this is just to avoid errors with cx_Freeze.
 try:
@@ -245,7 +245,7 @@ class bdist_esky(Command):
          "enable new 'appdata' directory layout (will go away after the 0.9.X series)"),
         ('detached-bootstrap-library=', None,
          "By default Esky appends the library.zip to the bootstrap executable when using CX_Freeze, this will tell esky to not do that, but create a separate library.zip instead"),
-        ('compress', 'c',
+        ('compress=', 'c',
          "Compression options of the Esky, use lower case for compressed or upper case for uncompressed, currently only support zip files"),
     ]
 
@@ -270,7 +270,8 @@ class bdist_esky(Command):
         self.compress = 'zip'
 
     def finalize_options(self):
-        assert self.compress in (False, 'zip', 'ZIP'), 'Bad options passed to compress'
+        assert self.compress in (False, None, 'false', 'none', 'zip', 'ZIP'), 'Bad options passed to compress'
+
         self.set_undefined_options('bdist',('dist_dir', 'dist_dir'))
         if self.compile_bootstrap_exes and pypyc is None:
             raise PYPYC_ERROR
@@ -376,11 +377,13 @@ class bdist_esky(Command):
                 if self.compress == 'zip':
                     print "zipping up the esky with compression"
                     create_zipfile(self.bootstrap_dir,zfname,compress=True)
+                    really_rmtree(self.bootstrap_dir)
                 elif self.compress == 'ZIP':
                     print "zipping up the esky without compression"
                     create_zipfile(self.bootstrap_dir,zfname,compress=False)
-            # TODO should this always be deleted?? i.e not only on compression
-            really_rmtree(self.bootstrap_dir)
+                    really_rmtree(self.bootstrap_dir)
+                else:
+                    print("To zip the esky use compress or c set to ZIP or zip")
 
     def _obj2code(self,obj):
         """Convert an object to some python source code.

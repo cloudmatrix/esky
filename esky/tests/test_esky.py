@@ -234,6 +234,7 @@ class TestEsky(unittest.TestCase):
         options.setdefault("bdist_esky",{}).setdefault("pre_freeze_callback","esky.tests.test_esky.assert_freezedir_exists")
         options.setdefault("bdist_esky",{}).setdefault("pre_zip_callback",assert_freezedir_exists)
         options["bdist_esky"].setdefault("excludes",[]).extend(["Tkinter", "tkinter"])
+        options["bdist_esky"]["compress"] = "ZIP"
         platform = get_platform()
         deploydir = "deploy.%s" % (platform,)
         esky_root = dirname(dirname(dirname(__file__)))
@@ -246,8 +247,7 @@ class TestEsky(unittest.TestCase):
         metadata = dict(name="eskytester",packages=["eskytester"],author="rfk",
                         description="the esky test package",
                         data_files=[("data",["eskytester/datafile.txt"])],
-                        package_data={"eskytester":["pkgdata.txt"]},
-                        compress="ZIP")
+                        package_data={"eskytester":["pkgdata.txt"]})
         options2 = options.copy()
         options2["bdist_esky"] = options["bdist_esky"].copy()
         options2["bdist_esky"]["bundle_msvcrt"] = True
