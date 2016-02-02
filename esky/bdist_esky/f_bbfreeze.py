@@ -6,7 +6,6 @@
 
 """
 
-
 import os
 import sys
 import imp
@@ -19,7 +18,6 @@ import zipfile
 
 if sys.platform == "win32":
     from esky import winres
-
 
 import bbfreeze
 
@@ -74,7 +72,7 @@ def freeze(dist):
     #  version into the running process rather than spawn a new proc.
     code_source = ["__name__ = '__main__'"]
     esky_name = dist.distribution.get_name()
-    code_source.append("__esky_name__ = %r" % (esky_name,))
+    code_source.append("__esky_name__ = %r" % (esky_name, ))
     code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
         if sys.platform == "win32":
@@ -86,13 +84,13 @@ def freeze(dist):
             take2_code = compile("\n".join(take2_code), "<string>", "exec")
             take2_code = marshal.dumps(take2_code)
             clscript = "import marshal; "
-            clscript += "exec marshal.loads(%r); " % (take2_code,)
+            clscript += "exec marshal.loads(%r); " % (take2_code, )
             clscript = clscript.replace("%", "%%")
             clscript += "chainload(\"%s\")"
             #  Here's the actual source for the compiled bootstrap exe.
             from esky.bdist_esky import pypy_libpython
             code_source.append(inspect.getsource(pypy_libpython))
-            code_source.append("_PYPY_CHAINLOADER_SCRIPT = %r" % (clscript,))
+            code_source.append("_PYPY_CHAINLOADER_SCRIPT = %r" % (clscript, ))
             code_source.append(_CUSTOM_PYPY_CHAINLOADER)
         code_source.append(dist.get_bootstrap_code())
         code_source = "\n".join(code_source)
@@ -132,10 +130,7 @@ def freeze(dist):
         bslib.writestr(zipfile.ZipInfo("__main__.pyc", cdate), maincode)
         bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc", cdate), eskycode)
         bslib.writestr(
-            zipfile.ZipInfo(
-                "esky/bootstrap.pyc",
-                cdate),
-            eskybscode)
+            zipfile.ZipInfo("esky/bootstrap.pyc", cdate), eskybscode)
         bslib.close()
         #  Copy any core dependencies
         if "fcntl" not in sys.builtin_module_names:
@@ -159,7 +154,6 @@ def freeze(dist):
                 continue
             exepath = dist.copy_to_bootstrap_env(exe.name)
             f.stripBinary(exepath)
-
 
 #  On Windows, execv is flaky and expensive.  If the chainloader is the same
 #  python version as the target exe, we can munge sys.path to bootstrap it

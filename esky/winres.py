@@ -25,13 +25,11 @@ if sys.platform != "win32":
 
 from esky.util import pairwise, files_differ
 
-
 LOAD_LIBRARY_AS_DATAFILE = 0x00000002
 RT_ICON = 3
 RT_GROUP_ICON = 14
 RT_VERSION = 16
 RT_MANIFEST = 24
-
 
 k32 = windll.kernel32
 
@@ -44,7 +42,6 @@ k32.GetModuleFileNameA.argtypes = [HMODULE, c_void_p, DWORD]
 # AFAIK 1033 is some sort of "default" language.
 # Is it (LANG_NEUTRAL,SUBLANG_NEUTRAL)?
 _DEFAULT_RESLANG = 1033
-
 
 try:
     EnumProcessModules = k32.EnumProcessModules
@@ -66,8 +63,8 @@ def get_loaded_modules():
         while needed.value > sz:
             sz = needed.value + 32
             buf = (ctypes.wintypes.HMODULE * sz)()
-            if not EnumProcessModules(
-                    proc, byref(buf), sz * msz, byref(needed)):
+            if not EnumProcessModules(proc, byref(buf), sz * msz,
+                                      byref(needed)):
                 raise ctypes.WinError()
         nmbuf = ctypes.create_unicode_buffer(300)
         i = 0
@@ -112,8 +109,8 @@ def find_resource(filename_or_handle, res_type, res_id, res_lang=None):
                         with open(filename, "wb") as outF:
                             outF.write(inF.read())
                     break
-            l_handle = k32.LoadLibraryExW(
-                filename, None, LOAD_LIBRARY_AS_DATAFILE)
+            l_handle = k32.LoadLibraryExW(filename, None,
+                                          LOAD_LIBRARY_AS_DATAFILE)
             if not l_handle:
                 raise ctypes.WinError()
             free_library = True
@@ -141,11 +138,10 @@ def find_resource(filename_or_handle, res_type, res_id, res_lang=None):
             os.rmdir(tdir)
 
 
-def load_resource(
-        filename_or_handle,
-        res_type,
-        res_id,
-        res_lang=_DEFAULT_RESLANG):
+def load_resource(filename_or_handle,
+                  res_type,
+                  res_id,
+                  res_lang=_DEFAULT_RESLANG):
     """Load a resource from the given filename or module handle.
 
     The "res_type" and "res_id" arguments identify the particular resource
@@ -183,12 +179,11 @@ def load_resource(
             k32.FreeLibrary(l_handle)
 
 
-def add_resource(
-        filename,
-        resource,
-        res_type,
-        res_id,
-        res_lang=_DEFAULT_RESLANG):
+def add_resource(filename,
+                 resource,
+                 res_type,
+                 res_id,
+                 res_lang=_DEFAULT_RESLANG):
     """Add a resource to the given filename.
 
     The "res_type" and "res_id" arguments identify the particular resource
@@ -201,12 +196,8 @@ def add_resource(
     if not l_handle:
         raise ctypes.WinError()
     res_info = (resource, len(resource))
-    if not k32.UpdateResourceW(
-            l_handle,
-            res_type,
-            res_id,
-            res_lang,
-            *res_info):
+    if not k32.UpdateResourceW(l_handle, res_type, res_id, res_lang, *
+                               res_info):
         raise ctypes.WinError()
     if not k32.EndUpdateResourceW(l_handle, 0):
         raise ctypes.WinError()
@@ -225,8 +216,11 @@ def get_app_manifest(filename_or_handle=None):
     return load_resource(filename_or_handle, RT_MANIFEST, 1)
 
 
-COMMON_SAFE_RESOURCES = ((RT_VERSION, 1, 0), (RT_ICON, 0, 0), (RT_ICON, 1, 0),
-                         (RT_ICON, 2, 0), (RT_GROUP_ICON, 1, 0),)
+COMMON_SAFE_RESOURCES = ((RT_VERSION, 1, 0),
+                         (RT_ICON, 0, 0),
+                         (RT_ICON, 1, 0),
+                         (RT_ICON, 2, 0),
+                         (RT_GROUP_ICON, 1, 0), )
 
 
 def copy_safe_resources(source, target):

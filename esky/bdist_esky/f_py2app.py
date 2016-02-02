@@ -8,7 +8,6 @@
 
 from __future__ import with_statement
 
-
 import os
 import sys
 import imp
@@ -17,7 +16,6 @@ import shutil
 import inspect
 import struct
 import marshal
-
 
 from py2app.build_app import py2app, get_zipfile, Target
 
@@ -79,7 +77,7 @@ def freeze(dist):
     lib.close()
     #  Create the bootstraping code, using custom code if specified.
     esky_name = dist.distribution.get_name()
-    code_source = ["__esky_name__ = %r" % (esky_name,)]
+    code_source = ["__esky_name__ = %r" % (esky_name, )]
     code_source.append(inspect.getsource(esky.bootstrap))
     if not dist.compile_bootstrap_exes:
         code_source.append(_FAKE_ESKY_BOOTSTRAP_MODULE)
@@ -94,6 +92,7 @@ def freeze(dist):
             dst = src
         src = os.path.join(appnm, src)
         dist.copy_to_bootstrap_env(src, dst)
+
     if dist.compile_bootstrap_exes:
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
@@ -103,7 +102,7 @@ def freeze(dist):
     else:
         #  Copy the core dependencies into the bootstrap env.
         pydir = "python%d.%d" % sys.version_info[:2]
-        for nm in ("Python.framework", "lib" + pydir + ".dylib",):
+        for nm in ("Python.framework", "lib" + pydir + ".dylib", ):
             try:
                 copy_to_bootstrap_env("Contents/Frameworks/" + nm)
             except Exception as e:
@@ -113,8 +112,8 @@ def freeze(dist):
                 pass
         copy_to_bootstrap_env("Contents/Resources/include")
         if sys.version_info[:2] < (3, 3):
-            copy_to_bootstrap_env(
-                "Contents/Resources/lib/" + pydir + "/config")
+            copy_to_bootstrap_env("Contents/Resources/lib/" + pydir +
+                                  "/config")
         else:
             copy_to_bootstrap_env(
                 "Contents/Resources/lib/" +
@@ -135,18 +134,14 @@ def freeze(dist):
             copy_to_bootstrap_env("Contents/Resources/site.py")
             with open(bsdir + "/Contents/Resources/site.py", "wt") as f:
                 pass
-        if os.path.exists(
-            os.path.join(
-                app_dir,
-                "Contents/Resources/site.pyc")):
+        if os.path.exists(os.path.join(app_dir,
+                                       "Contents/Resources/site.pyc")):
             copy_to_bootstrap_env("Contents/Resources/site.pyc")
             with open(bsdir + "/Contents/Resources/site.pyc", "wb") as f:
                 f.write(imp.get_magic() + struct.pack("<i", 0))
                 f.write(marshal.dumps(compile("", "site.py", "exec")))
-        if os.path.exists(
-            os.path.join(
-                app_dir,
-                "Contents/Resources/site.pyo")):
+        if os.path.exists(os.path.join(app_dir,
+                                       "Contents/Resources/site.pyo")):
             copy_to_bootstrap_env("Contents/Resources/site.pyo")
             with open(bsdir + "/Contents/Resources/site.pyo", "wb") as f:
                 f.write(imp.get_magic() + struct.pack("<i", 0))
@@ -169,7 +164,7 @@ def freeze(dist):
     with open(os.path.join(app_dir, "Contents", "Info.plist"), "rt") as f:
         infotxt = f.read()
     for nm in os.listdir(os.path.join(app_dir, "Contents", "Resources")):
-        if "<string>%s</string>" % (nm,) in infotxt:
+        if "<string>%s</string>" % (nm, ) in infotxt:
             copy_to_bootstrap_env("Contents/Resources/" + nm)
 
 
@@ -180,8 +175,10 @@ def zipit(dist, bsdir, zfname):
     toplevel "<appname>.app" directory.  This allows users to just extract
     the zipfile and have a proper application all set up and working.
     """
+
     def get_arcname(fpath):
         return os.path.join(dist.distribution.get_name() + ".app", fpath)
+
     return create_zipfile(bsdir, zfname, get_arcname, compress=True)
 
 
@@ -200,8 +197,8 @@ def _make_py2app_cmd(dist_dir, distribution, options, exes):
 
     def new_run():
         #  py2app munges the environment in ways that break things.
-        old_deployment_target = os.environ.get(
-            "MACOSX_DEPLOYMENT_TARGET", None)
+        old_deployment_target = os.environ.get("MACOSX_DEPLOYMENT_TARGET",
+                                               None)
         old_run()
         if old_deployment_target is None:
             os.environ.pop("MACOSX_DEPLOYMENT_TARGET", None)
@@ -209,19 +206,16 @@ def _make_py2app_cmd(dist_dir, distribution, options, exes):
             os.environ["MACOSX_DEPLOYMENT_TARGET"] = old_deployment_target
         #  We need to script file to have the same name as the exe, which
         #  it won't if they have changed it explicitly.
-        resdir = os.path.join(
-            dist_dir,
-            distribution.get_name() +
-            ".app",
-            "Contents/Resources")
+        resdir = os.path.join(dist_dir, distribution.get_name() + ".app",
+                              "Contents/Resources")
         scriptf = os.path.join(resdir, exe.name + ".py")
         if not os.path.exists(scriptf):
             old_scriptf = os.path.basename(exe.script)
             old_scriptf = os.path.join(resdir, old_scriptf)
             shutil.move(old_scriptf, scriptf)
+
     cmd.run = new_run
     return cmd
-
 
 #  Code to fake out any bootstrappers that try to import from esky.
 _FAKE_ESKY_BOOTSTRAP_MODULE = """

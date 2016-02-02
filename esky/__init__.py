@@ -36,9 +36,9 @@ if sys.platform != "win32":
 
 from esky.errors import *
 from esky.sudo import SudoProxy, has_root, allow_from_sudo
-from esky.util import (split_app_version, join_app_version,
-                       is_version_dir, is_uninstalled_version_dir,
-                       parse_version, get_best_version, appdir_from_executable,
+from esky.util import (split_app_version, join_app_version, is_version_dir,
+                       is_uninstalled_version_dir, parse_version,
+                       get_best_version, appdir_from_executable,
                        copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR,
                        files_differ, lazy_import, ESKY_APPDATA_DIR,
                        get_all_versions, is_locked_version_dir,
@@ -169,6 +169,7 @@ class Esky(object):
                 kwds = {"download_url": version_finder}
                 version_finder = esky.finder.DefaultVersionFinder(**kwds)
         self.__version_finder = version_finder
+
     version_finder = property(_get_version_finder, _set_version_finder)
 
     def _get_update_dir(self):
@@ -267,7 +268,7 @@ class Esky(object):
                 else:
                     raise EskyLockedError
             except OSError as e:
-                if e.errno not in (errno.ENOENT, errno.ENOTDIR,):
+                if e.errno not in (errno.ENOENT, errno.ENOTDIR, ):
                     raise
                 return self.lock(num_retries + 1)
         else:
@@ -399,7 +400,7 @@ class Esky(object):
         #  to accidentally delete their dependencies.
         if best_version != new_version:
             (_, v, _) = split_app_version(new_version)
-            yield (self.install_version, (v,))
+            yield (self.install_version, (v, ))
             best_version = new_version
         #  TODO: remove compatability hooks for ESKY_APPDATA_DIR=""
         if vsdir == appdir and ESKY_APPDATA_DIR:
@@ -409,7 +410,7 @@ class Esky(object):
                                                include_partial_installs=True)
                 if best_version != new_version:
                     (_, v, _) = split_app_version(new_version)
-                    yield (self.install_version, (v,))
+                    yield (self.install_version, (v, ))
                     best_version = new_version
         #  Now we can safely remove all the old versions.
         #  We except the currently-executing version, and silently
@@ -429,7 +430,7 @@ class Esky(object):
                     fullnm = os.path.join(tdir, nm)
                     if ".old." in nm or nm.endswith(".old"):
                         #  It's a temporary backup file; remove it.
-                        yield (self._try_remove, (tdir, nm, manifest,))
+                        yield (self._try_remove, (tdir, nm, manifest, ))
                     elif not os.path.isdir(fullnm):
                         #  It's an unaccounted-for file in the bootstrap env.
                         #  Leave it alone.
@@ -439,14 +440,14 @@ class Esky(object):
                         #  uninstall it so it will clean up the bootstrap env.
                         (_, v, _) = split_app_version(nm)
                         try:
-                            yield (self.uninstall_version, (v,))
+                            yield (self.uninstall_version, (v, ))
                         except VersionLockedError:
                             yield lambda: False
                         else:
-                            yield (self._try_remove, (tdir, nm, manifest,))
+                            yield (self._try_remove, (tdir, nm, manifest, ))
                     elif is_uninstalled_version_dir(fullnm):
                         # It's a partially-removed version; finish removing it.
-                        yield (self._try_remove, (tdir, nm, manifest,))
+                        yield (self._try_remove, (tdir, nm, manifest, ))
                     else:
                         for (_, _, filenms) in os.walk(fullnm):
                             if filenms:
@@ -456,7 +457,7 @@ class Esky(object):
                                 break
                         else:
                             #  It's an empty directory structure, remove it.
-                            yield (self._try_remove, (tdir, nm, manifest,))
+                            yield (self._try_remove, (tdir, nm, manifest, ))
         #  If there are pending overwrites, try to do them.
         ovrdir = os.path.join(vsdir, best_version, ESKY_CONTROL_DIR,
                               "overwrite")
@@ -466,15 +467,15 @@ class Esky(object):
                     for nm in filenms:
                         ovrsrc = os.path.join(dirnm, nm)
                         ovrdst = os.path.join(appdir, ovrsrc[len(ovrdir) + 1:])
-                        yield (self._overwrite, (ovrsrc, ovrdst,))
-                        yield (os.unlink, (ovrsrc,))
-                    yield (os.rmdir, (dirnm,))
+                        yield (self._overwrite, (ovrsrc, ovrdst, ))
+                        yield (os.unlink, (ovrsrc, ))
+                    yield (os.rmdir, (dirnm, ))
             except EnvironmentError:
                 yield lambda: False
         #  Get the VersionFinder to clean up after itself
         if self.version_finder is not None:
             if self.version_finder.needs_cleanup(self):
-                yield (self.version_finder.cleanup, (self,))
+                yield (self.version_finder.cleanup, (self, ))
 
     def _overwrite(self, src, dst):
         """Directly overwrite file 'dst' with the contents of file 'src'."""
@@ -540,7 +541,9 @@ class Esky(object):
                 else:
                     kwds = {}
             else:
-                kwds = dict(stdin=rnul, stdout=wnul, stderr=wnul,
+                kwds = dict(stdin=rnul,
+                            stdout=wnul,
+                            stderr=wnul,
                             close_fds=True)
             subprocess.Popen(exe, **kwds)
 
@@ -586,9 +589,14 @@ class Esky(object):
             return False
         else:
             return True
-    _errors_to_ignore = (errno.ENOENT, errno.EPERM, errno.EACCES,
-                         errno.ENOTDIR, errno.EISDIR, errno.EINVAL,
-                         errno.ENOTEMPTY,)
+
+    _errors_to_ignore = (errno.ENOENT,
+                         errno.EPERM,
+                         errno.EACCES,
+                         errno.ENOTDIR,
+                         errno.EISDIR,
+                         errno.EINVAL,
+                         errno.ENOTEMPTY, )
 
     def auto_update(self, callback=None):
         """Automatically install the latest version of the app.
@@ -773,7 +781,7 @@ class Esky(object):
             try:
                 os.mkdir(vsdir)
             except EnvironmentError as e:
-                if e.errno not in (errno.EEXIST,):
+                if e.errno not in (errno.EEXIST, ):
                     raise
             else:
                 copy_ownership_info(self.appdir, vsdir)
@@ -864,7 +872,8 @@ class Esky(object):
                     trn.commit()
             except EnvironmentError:
                 if is_locked_version_dir(target):
-                    raise VersionLockedError("version in use: %s" % (version,))
+                    raise VersionLockedError("version in use: %s" %
+                                             (version, ))
                 raise
             #  Disable the version by renaming its bootstrap-manifest.txt file.
             #  To avoid clobbering in-use version, respect locks on this file.
@@ -872,7 +881,8 @@ class Esky(object):
                 try:
                     really_rename(bsfile, bsfile_old)
                 except EnvironmentError:
-                    raise VersionLockedError("version in use: %s" % (version,))
+                    raise VersionLockedError("version in use: %s" %
+                                             (version, ))
             else:
                 try:
                     f = open(lockfile, "r")
@@ -883,9 +893,9 @@ class Esky(object):
                     try:
                         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     except EnvironmentError as e:
-                        if e.errno not in (errno.EACCES, errno.EAGAIN,):
+                        if e.errno not in (errno.EACCES, errno.EAGAIN, ):
                             raise
-                        msg = "version in use: %s" % (version,)
+                        msg = "version in use: %s" % (version, )
                         raise VersionLockedError(msg)
                     else:
                         really_rename(bsfile, bsfile_old)
@@ -971,10 +981,8 @@ def run_startup_hooks():
             vdir = sys.executable[len(appdir):].split(os.sep)[1]
             vdir = os.path.join(appdir, vdir)
             if not is_version_dir(vdir):
-                vdir = os.sep.join(
-                    sys.executable[
-                        len(appdir):].split(
-                        os.sep)[
+                vdir = os.sep.join(sys.executable[
+                    len(appdir):].split(os.sep)[
                         1:3])
                 vdir = os.path.join(appdir, vdir)
         lock_version_dir(vdir)

@@ -6,7 +6,6 @@
 
 """
 
-
 import os
 import sys
 import inspect
@@ -15,7 +14,6 @@ import distutils
 
 if sys.platform == "win32":
     from esky import winres
-
 
 import cx_Freeze
 import cx_Freeze.hooks
@@ -45,6 +43,7 @@ def freeze(dist):
     def load_distutils(finder, module):
         module.path = distutils.__path__ + module.path
         finder.IncludeModule("distutils.dist")
+
     cx_Freeze.hooks.load_distutils = load_distutils
     #  Build kwds arguments out of the given freezer opts.
     kwds = {}
@@ -60,13 +59,11 @@ def freeze(dist):
         base = None
         if exe.gui_only and sys.platform == "win32":
             base = "Win32GUI"
-        executables.append(
-            cx_Freeze.Executable(
-                exe.script,
-                base=base,
-                targetName=exe.name,
-                icon=exe.icon,
-                **exe._kwds))
+        executables.append(cx_Freeze.Executable(exe.script,
+                                                base=base,
+                                                targetName=exe.name,
+                                                icon=exe.icon,
+                                                **exe._kwds))
     #  Freeze up the executables
     f = cx_Freeze.Freezer(executables, **kwds)
     f.Freeze()
@@ -81,10 +78,7 @@ def freeze(dist):
     #  For now, this only works if there's a shared "library.zip" file.
     if f.createLibraryZip:
         lib = zipfile.ZipFile(
-            os.path.join(
-                dist.freeze_dir,
-                "library.zip"),
-            "a")
+            os.path.join(dist.freeze_dir, "library.zip"), "a")
         for (src, arcnm) in dist.get_package_data():
             lib.write(src, arcnm)
         lib.close()
@@ -95,7 +89,7 @@ def freeze(dist):
     #  Create the bootstrap code, using custom code if specified.
     code_source = ["__name__ = '__main__'"]
     esky_name = dist.distribution.get_name()
-    code_source.append("__esky_name__ = %r" % (esky_name,))
+    code_source.append("__esky_name__ = %r" % (esky_name, ))
     code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
         if sys.platform == "win32":
@@ -148,8 +142,8 @@ def freeze(dist):
             if is_core_dependency(nm):
                 dist.copy_to_bootstrap_env(nm)
 
-        #  Copy the loader program for each script into the bootstrap env, and
-        #  append the bootstrapping code to it as a zipfile.
+#  Copy the loader program for each script into the bootstrap env, and
+#  append the bootstrapping code to it as a zipfile.
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
@@ -166,15 +160,9 @@ def freeze(dist):
             cdate = (2000, 1, 1, 0, 0, 0)
             bslib.writestr(zipfile.ZipInfo(INITNAME + ".pyc", cdate), maincode)
             bslib.writestr(
-                zipfile.ZipInfo(
-                    "esky/__init__.pyc",
-                    cdate),
-                eskycode)
+                zipfile.ZipInfo("esky/__init__.pyc", cdate), eskycode)
             bslib.writestr(
-                zipfile.ZipInfo(
-                    "esky/bootstrap.pyc",
-                    cdate),
-                eskybscode)
+                zipfile.ZipInfo("esky/bootstrap.pyc", cdate), eskybscode)
             bslib.close()
 
 
@@ -189,7 +177,6 @@ def _normalise_opt_name(nm):
         if bits[i]:
             bits[i] = bits[i][0].upper() + bits[i][1:]
     return "".join(bits)
-
 
 #  On Windows, execv is flaky and expensive.  If the chainloader is the same
 #  python version as the target exe, we can munge sys.path to bootstrap it
@@ -257,7 +244,6 @@ def _chainload(target_dir):
       else:
           _orig_chainload(target_dir)
 """ % (INITNAME, EXEC_STATEMENT)
-
 
 #  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
 #  exe doesn't have a python runtime, it needs to chainload the one from the

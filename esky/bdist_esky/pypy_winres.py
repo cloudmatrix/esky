@@ -13,26 +13,24 @@ from pypy.rlib import clibffi
 from pypy.rpython.lltypesystem import rffi, lltype
 from pypy.rlib import rwin32
 
-
 LOAD_LIBRARY_AS_DATAFILE = 0x00000002
 
-
-k32_LoadLibraryExA = rwin32.winexternal(
-    "LoadLibraryExA", [
-        rffi.CCHARP, rwin32.HANDLE, rwin32.DWORD], rwin32.HANDLE)
-k32_FindResourceExA = rwin32.winexternal(
-    "FindResourceExA", [
-        rwin32.HANDLE, rffi.CCHARP, rwin32.DWORD, rwin32.DWORD], rwin32.HANDLE)
-k32_SizeofResource = rwin32.winexternal(
-    "SizeofResource", [
-        rwin32.HANDLE, rwin32.HANDLE], rwin32.DWORD)
-k32_LoadResource = rwin32.winexternal(
-    "LoadResource", [
-        rwin32.HANDLE, rwin32.HANDLE], rwin32.HANDLE)
-k32_LockResource = rwin32.winexternal(
-    "LockResource", [rwin32.HANDLE], rffi.CCHARP)
-k32_FreeLibrary = rwin32.winexternal(
-    "FreeLibrary", [rwin32.HANDLE], rwin32.BOOL)
+k32_LoadLibraryExA = rwin32.winexternal("LoadLibraryExA", [
+    rffi.CCHARP, rwin32.HANDLE, rwin32.DWORD
+], rwin32.HANDLE)
+k32_FindResourceExA = rwin32.winexternal("FindResourceExA", [
+    rwin32.HANDLE, rffi.CCHARP, rwin32.DWORD, rwin32.DWORD
+], rwin32.HANDLE)
+k32_SizeofResource = rwin32.winexternal("SizeofResource", [
+    rwin32.HANDLE, rwin32.HANDLE
+], rwin32.DWORD)
+k32_LoadResource = rwin32.winexternal("LoadResource", [
+    rwin32.HANDLE, rwin32.HANDLE
+], rwin32.HANDLE)
+k32_LockResource = rwin32.winexternal("LockResource", [rwin32.HANDLE],
+                                      rffi.CCHARP)
+k32_FreeLibrary = rwin32.winexternal("FreeLibrary", [rwin32.HANDLE],
+                                     rwin32.BOOL)
 
 
 def load_resource(filename, resname, resid, reslang):
@@ -41,8 +39,8 @@ def load_resource(filename, resname, resid, reslang):
     The filename and resource name must be ascii strings, and the resid and
     reslang must be integers.
     """
-    l_handle = k32_LoadLibraryExA(filename, rffi.cast(
-        rwin32.HANDLE, 0), LOAD_LIBRARY_AS_DATAFILE)
+    l_handle = k32_LoadLibraryExA(filename, rffi.cast(rwin32.HANDLE, 0),
+                                  LOAD_LIBRARY_AS_DATAFILE)
     if not l_handle:
         raise WindowsError(rwin32.GetLastError(), "LoadLibraryExW failed")
     try:
@@ -73,8 +71,8 @@ def load_resource_pystr(py, filename, resname, resid, reslang):
     This uses the given python dll object to load the data directly into
     a python string, saving a lot of copying and carrying on.
     """
-    l_handle = k32_LoadLibraryExA(filename, rffi.cast(
-        rwin32.HANDLE, 0), LOAD_LIBRARY_AS_DATAFILE)
+    l_handle = k32_LoadLibraryExA(filename, rffi.cast(rwin32.HANDLE, 0),
+                                  LOAD_LIBRARY_AS_DATAFILE)
     if not l_handle:
         raise WindowsError(rwin32.GetLastError(), "LoadLibraryExW failed")
     try:
@@ -100,14 +98,10 @@ def load_resource_pystr(py, filename, resname, resid, reslang):
 
 
 def memcpy(target, source, n):
-    impl = clibffi.CDLL(
-        clibffi.get_libc_name()).getpointer(
-        "memcpy",
-        [
-            clibffi.ffi_type_pointer,
-            clibffi.ffi_type_pointer,
-            clibffi.ffi_type_uint],
-        clibffi.ffi_type_void)
+    impl = clibffi.CDLL(clibffi.get_libc_name()).getpointer("memcpy", [
+        clibffi.ffi_type_pointer, clibffi.ffi_type_pointer,
+        clibffi.ffi_type_uint
+    ], clibffi.ffi_type_void)
     impl.push_arg(target)
     impl.push_arg(source)
     impl.push_arg(n)

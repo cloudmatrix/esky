@@ -20,7 +20,6 @@ import subprocess
 from esky.sudo import sudo_base as base
 import esky.slaveproc
 
-
 byref = ctypes.byref
 sizeof = ctypes.sizeof
 kernel32 = ctypes.windll.kernel32
@@ -50,23 +49,21 @@ def _errcheck_bool(value, func, args):
 
 
 class SHELLEXECUTEINFO(ctypes.Structure):
-    _fields_ = (
-        ("cbSize", ctypes.wintypes.DWORD),
-        ("fMask", ctypes.c_ulong),
-        ("hwnd", ctypes.wintypes.HANDLE),
-        ("lpVerb", ctypes.c_char_p),
-        ("lpFile", ctypes.c_char_p),
-        ("lpParameters", ctypes.c_char_p),
-        ("lpDirectory", ctypes.c_char_p),
-        ("nShow", ctypes.c_int),
-        ("hInstApp", ctypes.wintypes.HINSTANCE),
-        ("lpIDList", ctypes.c_void_p),
-        ("lpClass", ctypes.c_char_p),
-        ("hKeyClass", ctypes.wintypes.HKEY),
-        ("dwHotKey", ctypes.wintypes.DWORD),
-        ("hIconOrMonitor", ctypes.wintypes.HANDLE),
-        ("hProcess", ctypes.wintypes.HANDLE),
-    )
+    _fields_ = (("cbSize", ctypes.wintypes.DWORD),
+                ("fMask", ctypes.c_ulong),
+                ("hwnd", ctypes.wintypes.HANDLE),
+                ("lpVerb", ctypes.c_char_p),
+                ("lpFile", ctypes.c_char_p),
+                ("lpParameters", ctypes.c_char_p),
+                ("lpDirectory", ctypes.c_char_p),
+                ("nShow", ctypes.c_int),
+                ("hInstApp", ctypes.wintypes.HINSTANCE),
+                ("lpIDList", ctypes.c_void_p),
+                ("lpClass", ctypes.c_char_p),
+                ("hKeyClass", ctypes.wintypes.HKEY),
+                ("dwHotKey", ctypes.wintypes.DWORD),
+                ("hIconOrMonitor", ctypes.wintypes.HANDLE),
+                ("hProcess", ctypes.wintypes.HANDLE), )
 
 
 try:
@@ -76,9 +73,7 @@ except AttributeError:
 else:
     ShellExecuteEx.restype = ctypes.wintypes.BOOL
     ShellExecuteEx.errcheck = _errcheck_bool
-    ShellExecuteEx.argtypes = (
-        ctypes.POINTER(SHELLEXECUTEINFO),
-    )
+    ShellExecuteEx.argtypes = (ctypes.POINTER(SHELLEXECUTEINFO), )
 
 try:
     OpenProcessToken = advapi32.OpenProcessToken
@@ -87,11 +82,8 @@ except AttributeError:
 else:
     OpenProcessToken.restype = ctypes.wintypes.BOOL
     OpenProcessToken.errcheck = _errcheck_bool
-    OpenProcessToken.argtypes = (
-        ctypes.wintypes.HANDLE,
-        ctypes.wintypes.DWORD,
-        ctypes.POINTER(ctypes.wintypes.HANDLE)
-    )
+    OpenProcessToken.argtypes = (ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD,
+                                 ctypes.POINTER(ctypes.wintypes.HANDLE))
 
 try:
     CreateWellKnownSid = advapi32.CreateWellKnownSid
@@ -101,11 +93,8 @@ else:
     CreateWellKnownSid.restype = ctypes.wintypes.BOOL
     CreateWellKnownSid.errcheck = _errcheck_bool
     CreateWellKnownSid.argtypes = (
-        ctypes.wintypes.DWORD,
-        ctypes.POINTER(ctypes.wintypes.DWORD),
-        ctypes.c_void_p,
-        ctypes.POINTER(ctypes.wintypes.DWORD)
-    )
+        ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD),
+        ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.DWORD))
 
 try:
     CheckTokenMembership = advapi32.CheckTokenMembership
@@ -114,11 +103,8 @@ except AttributeError:
 else:
     CheckTokenMembership.restype = ctypes.wintypes.BOOL
     CheckTokenMembership.errcheck = _errcheck_bool
-    CheckTokenMembership.argtypes = (
-        ctypes.wintypes.HANDLE,
-        ctypes.c_void_p,
-        ctypes.POINTER(ctypes.wintypes.BOOL)
-    )
+    CheckTokenMembership.argtypes = (ctypes.wintypes.HANDLE, ctypes.c_void_p,
+                                     ctypes.POINTER(ctypes.wintypes.BOOL))
 
 try:
     GetTokenInformation = advapi32.GetTokenInformation
@@ -128,12 +114,8 @@ else:
     GetTokenInformation.restype = ctypes.wintypes.BOOL
     GetTokenInformation.errcheck = _errcheck_bool
     GetTokenInformation.argtypes = (
-        ctypes.wintypes.HANDLE,
-        ctypes.wintypes.DWORD,
-        ctypes.c_void_p,
-        ctypes.wintypes.DWORD,
-        ctypes.POINTER(ctypes.wintypes.DWORD)
-    )
+        ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.c_void_p,
+        ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD))
 
 
 def has_root():
@@ -169,8 +151,8 @@ def can_get_root():
             lToken = ctypes.wintypes.HANDLE()
             try:
                 cls = TokenLinkedToken
-                GetTokenInformation(
-                    token, cls, byref(lToken), sizeof(lToken), byref(sz))
+                GetTokenInformation(token, cls, byref(lToken), sizeof(lToken),
+                                    byref(sz))
             except WindowsError as e:
                 if e.winerror == ERROR_NO_SUCH_LOGON_SESSION:
                     return False
@@ -193,6 +175,7 @@ def can_get_root():
 class KillablePopen(subprocess.Popen):
     """Popen that's guaranteed killable, even on python2.5."""
     if not hasattr(subprocess.Popen, "terminate"):
+
         def terminate(self):
             kernel32.TerminateProcess(self._handle, -1)
 
@@ -240,9 +223,8 @@ class SecureStringPipe(base.SecureStringPipe):
         super(SecureStringPipe, self).__init__(token)
         if pipename is None:
             self.pipename = r"\\.\pipe\esky-" + uuid.uuid4().hex
-            self.pipe = kernel32.CreateNamedPipeA(
-                self.pipename, 0x03, 0x00, 1, 8192, 8192, 0, None
-            )
+            self.pipe = kernel32.CreateNamedPipeA(self.pipename, 0x03, 0x00, 1,
+                                                  8192, 8192, 0, None)
         else:
             self.pipename = pipename
             self.pipe = None
@@ -270,16 +252,14 @@ class SecureStringPipe(base.SecureStringPipe):
         if self.pipe is None:
             self.pipe = kernel32.CreateFileA(
                 self.pipename, GENERIC_RDWR, 0, None, OPEN_EXISTING,
-                SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, None
-            )
+                SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, None)
         else:
             kernel32.ConnectNamedPipe(self.pipe, None)
 
     def _recover(self):
-        kernel32.CreateFileA(
-            self.pipename, GENERIC_RDWR, 0, None, OPEN_EXISTING,
-            SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, None
-        )
+        kernel32.CreateFileA(self.pipename, GENERIC_RDWR, 0, None,
+                             OPEN_EXISTING, SECURITY_SQOS_PRESENT
+                             | SECURITY_IDENTIFICATION, None)
 
 
 def spawn_sudo(proxy):

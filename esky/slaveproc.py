@@ -64,6 +64,7 @@ def monitor_master_process(fpath):
     def monitor():
         if wait_for_master(fpath):
             os._exit(1)
+
     t = threading.Thread(target=monitor)
     t.daemon = True
     t.start()
@@ -139,32 +140,27 @@ if sys.platform == "win32":
         CreateFileW = ctypes.windll.kernel32.CreateFileW
         CreateFileW.errcheck = _errcheck_handle
         CreateFileW.restype = ctypes.wintypes.HANDLE
-        CreateFileW.argtypes = (
-            ctypes.wintypes.LPCWSTR,  # lpFileName
-            ctypes.wintypes.DWORD,  # dwDesiredAccess
-            ctypes.wintypes.DWORD,  # dwShareMode
-            ctypes.wintypes.LPVOID,  # lpSecurityAttributes
-            ctypes.wintypes.DWORD,  # dwCreationDisposition
-            ctypes.wintypes.DWORD,  # dwFlagsAndAttributes
-            ctypes.wintypes.HANDLE  # hTemplateFile
-        )
+        CreateFileW.argtypes = (ctypes.wintypes.LPCWSTR,  # lpFileName
+                                ctypes.wintypes.DWORD,  # dwDesiredAccess
+                                ctypes.wintypes.DWORD,  # dwShareMode
+                                ctypes.wintypes.LPVOID,  # lpSecurityAttributes
+                                ctypes.wintypes.DWORD,  # dwCreationDisposition
+                                ctypes.wintypes.DWORD,  # dwFlagsAndAttributes
+                                ctypes.wintypes.HANDLE  # hTemplateFile
+                                )
 
         CloseHandle = ctypes.windll.kernel32.CloseHandle
         CloseHandle.restype = ctypes.wintypes.BOOL
-        CloseHandle.argtypes = (
-            ctypes.wintypes.HANDLE,  # hObject
-        )
+        CloseHandle.argtypes = (ctypes.wintypes.HANDLE,  # hObject
+                                )
 
         result = ctypes.create_string_buffer(1024)
         nbytes = ctypes.c_ulong()
-        handle = CreateFileW(os.path.join(os.path.dirname(fpath), u""),
-                             FILE_LIST_DIRECTORY,
-                             FILE_SHARE_READ | FILE_SHARE_WRITE,
-                             None,
-                             OPEN_EXISTING,
-                             FILE_FLAG_BACKUP_SEMANTICS,
-                             0
-                             )
+        handle = CreateFileW(
+            os.path.join(
+                os.path.dirname(fpath), u""), FILE_LIST_DIRECTORY,
+            FILE_SHARE_READ | FILE_SHARE_WRITE, None, OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS, 0)
 
         #  Since this loop may still be running at interpreter close, we
         #  take local references to our imported functions to avoid
@@ -174,9 +170,8 @@ if sys.platform == "win32":
 
         try:
             while pathexists(fpath):
-                RDCW(handle, byref(result), len(result),
-                     True, FILE_NOTIFY_CHANGE_FILE_NAME,
-                     byref(nbytes), None, None)
+                RDCW(handle, byref(result), len(result), True,
+                     FILE_NOTIFY_CHANGE_FILE_NAME, byref(nbytes), None, None)
         finally:
             CloseHandle(handle)
         return True
@@ -191,7 +186,6 @@ if sys.platform == "win32":
             return []
         else:
             return ["--esky-slave-proc", tfile]
-
 
 else:
 

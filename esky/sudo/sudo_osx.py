@@ -50,14 +50,11 @@ class AuthorizationRight(ctypes.Structure):
     _fields_ = [("name", ctypes.c_char_p),
                 ("valueLength", ctypes.c_uint32),
                 ("value", ctypes.c_void_p),
-                ("flags", ctypes.c_uint32),
-                ]
+                ("flags", ctypes.c_uint32), ]
 
 
 class AuthorizationRights(ctypes.Structure):
-    _fields_ = [("count", ctypes.c_uint32),
-                ("items", AuthorizationRight * 1)
-                ]
+    _fields_ = [("count", ctypes.c_uint32), ("items", AuthorizationRight * 1)]
 
 
 def has_root():
@@ -171,31 +168,28 @@ def spawn_sudo(proxy):
     rights.items[0] = right
 
     r_auth = byref(auth)
-    err = sec.AuthorizationCreate(
-        None, None, kAuthorizationFlagDefaults, r_auth)
+    err = sec.AuthorizationCreate(None, None, kAuthorizationFlagDefaults,
+                                  r_auth)
     if err:
-        raise OSError(errno.EACCES, "could not sudo: %d" % (err,))
+        raise OSError(errno.EACCES, "could not sudo: %d" % (err, ))
 
     try:
 
-        kAuthFlags = kAuthorizationFlagDefaults \
-            | kAuthorizationFlagPreAuthorize \
-            | kAuthorizationFlagInteractionAllowed \
-            | kAuthorizationFlagExtendRights
+        kAuthFlags = kAuthorizationFlagDefaults | kAuthorizationFlagPreAuthorize | kAuthorizationFlagInteractionAllowed | kAuthorizationFlagExtendRights
 
         err = sec.AuthorizationCopyRights(auth, None, None, kAuthFlags, None)
         if err:
-            raise OSError(errno.EACCES, "could not sudo: %d" % (err,))
+            raise OSError(errno.EACCES, "could not sudo: %d" % (err, ))
 
         args = (ctypes.c_char_p * len(exe))()
         for i, arg in enumerate(exe[1:]):
             args[i] = arg
         args[len(exe) - 1] = None
         io = ctypes.c_void_p()
-        err = sec.AuthorizationExecuteWithPrivileges(
-            auth, exe[0], 0, args, byref(io))
+        err = sec.AuthorizationExecuteWithPrivileges(auth, exe[0], 0, args,
+                                                     byref(io))
         if err:
-            raise OSError(errno.EACCES, "could not sudo: %d" % (err,))
+            raise OSError(errno.EACCES, "could not sudo: %d" % (err, ))
 
         buf = ctypes.create_string_buffer(8)
         read = libc.fread(byref(buf), 1, 4, io)

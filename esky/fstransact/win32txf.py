@@ -6,7 +6,6 @@
 
 """
 
-
 import os
 import sys
 import errno
@@ -23,6 +22,7 @@ def check_call(func):
         if not res or res == 0xFFFFFFFF or res == -1:
             raise ctypes.WinError()
         return res
+
     return wrapper
 
 
@@ -40,7 +40,6 @@ try:
     CreateDirectoryTransacted = check_call(kernel32.CreateDirectoryTransactedW)
 except (WindowsError, AttributeError):
     raise ImportError("win32 TxF is not available")
-
 
 ERROR_TRANSACTIONAL_OPEN_NOT_ALLOWED = 6832
 
@@ -93,7 +92,7 @@ class FSTransaction(object):
             else:
                 prefix = self.root + os.sep
             if not path.startswith(prefix):
-                err = "path is outside transaction root: %s" % (path,)
+                err = "path is outside transaction root: %s" % (path, )
                 raise ValueError(err)
         return path
 
@@ -104,8 +103,8 @@ class FSTransaction(object):
             if os.path.isdir(target):
                 s_names = os.listdir(source)
                 for nm in s_names:
-                    self.move(os.path.join(source, nm),
-                              os.path.join(target, nm))
+                    self.move(
+                        os.path.join(source, nm), os.path.join(target, nm))
                 for nm in os.listdir(target):
                     if nm not in s_names:
                         self._remove(os.path.join(target, nm))
@@ -154,8 +153,8 @@ class FSTransaction(object):
             if os.path.isdir(target):
                 s_names = os.listdir(source)
                 for nm in s_names:
-                    self.copy(os.path.join(source, nm),
-                              os.path.join(target, nm))
+                    self.copy(
+                        os.path.join(source, nm), os.path.join(target, nm))
                 for nm in os.listdir(target):
                     if nm not in s_names:
                         self._remove(os.path.join(target, nm))
@@ -180,8 +179,8 @@ class FSTransaction(object):
             target_old = None
             if os.path.isdir(target) and target != source:
                 target_old = get_backup_filename(target)
-                MoveFileTransacted(
-                    target, target_old, None, None, 1, self.trnid)
+                MoveFileTransacted(target, target_old, None, None, 1,
+                                   self.trnid)
             self._do_copy(source, target)
             if target_old is not None:
                 self._remove(target_old)
@@ -191,8 +190,8 @@ class FSTransaction(object):
         if os.path.isdir(source):
             CreateDirectoryTransacted(None, target, 0, self.trnid)
             for nm in os.listdir(source):
-                self._do_copy(os.path.join(source, nm),
-                              os.path.join(target, nm))
+                self._do_copy(
+                    os.path.join(source, nm), os.path.join(target, nm))
         else:
             CopyFileTransacted(source, target, None, None, None, 0, self.trnid)
 

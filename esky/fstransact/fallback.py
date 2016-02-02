@@ -37,7 +37,7 @@ class FSTransaction(object):
             else:
                 prefix = self.root + os.sep
             if not path.startswith(prefix):
-                err = "path is outside transaction root: %s" % (path,)
+                err = "path is outside transaction root: %s" % (path, )
                 raise ValueError(err)
         return path
 
@@ -48,8 +48,8 @@ class FSTransaction(object):
             if os.path.isdir(target):
                 s_names = os.listdir(source)
                 for nm in s_names:
-                    self.move(os.path.join(source, nm),
-                              os.path.join(target, nm))
+                    self.move(
+                        os.path.join(source, nm), os.path.join(target, nm))
                 for nm in os.listdir(target):
                     if nm not in s_names:
                         self.remove(os.path.join(target, nm))
@@ -112,8 +112,8 @@ class FSTransaction(object):
             if os.path.isdir(target):
                 s_names = os.listdir(source)
                 for nm in s_names:
-                    self.copy(os.path.join(source, nm),
-                              os.path.join(target, nm))
+                    self.copy(
+                        os.path.join(source, nm), os.path.join(target, nm))
                 for nm in os.listdir(target):
                     if nm not in s_names:
                         self.remove(os.path.join(target, nm))

@@ -25,9 +25,7 @@ from urlparse import urlparse, urljoin
 
 from esky.bootstrap import join_app_version
 from esky.errors import *
-from esky.util import deep_extract_zipfile, copy_ownership_info, \
-    ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, \
-    really_rmtree, really_rename
+from esky.util import deep_extract_zipfile, copy_ownership_info, ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, really_rmtree, really_rename
 from esky.patch import apply_patch, PatchError
 
 
@@ -180,12 +178,12 @@ class DefaultVersionFinder(VersionFinder):
 
     def find_versions(self, app):
         version_re = "[a-zA-Z0-9\\.-_]+"
-        appname_re = "(?P<version>%s)" % (version_re,)
+        appname_re = "(?P<version>%s)" % (version_re, )
         name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
         appname_re = join_app_version(name_re, appname_re, app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
-        filename_re = filename_re % (appname_re, version_re,)
-        link_re = "href=['\"]?(?P<href>([^'\"]*/)?%s)['\"]?" % (filename_re,)
+        filename_re = filename_re % (appname_re, version_re, )
+        link_re = "href=['\"]?(?P<href>([^'\"]*/)?%s)['\"]?" % (filename_re, )
         # Read the URL.  If this followed any redirects, update the
         # recorded URL to match the final endpoint.
         df = self.open_url(self.download_url)
@@ -208,8 +206,8 @@ class DefaultVersionFinder(VersionFinder):
                 cost = 40
             else:
                 cost = 1
-            self.version_graph.add_link(
-                from_version or "", version, href, cost)
+            self.version_graph.add_link(from_version or "", version, href,
+                                        cost)
         return self.version_graph.get_versions(app.version)
 
     def fetch_version_iter(self, app, version):
@@ -265,14 +263,13 @@ class DefaultVersionFinder(VersionFinder):
                         while data:
                             yield {"status": "downloading",
                                    "size": infile_size,
-                                   "received": partfile.tell(),
-                                   }
+                                   "received": partfile.tell(), }
                             partfile.write(data)
                             outfile_size += len(data)
                             data = infile.read(1024 * 64)
                         if infile_size is not None:
                             if outfile_size != infile_size:
-                                err = "corrupted download: %s" % (url,)
+                                err = "corrupted download: %s" % (url, )
                                 raise IOError(err)
                     except Exception:
                         partfile.close()
@@ -310,7 +307,7 @@ class DefaultVersionFinder(VersionFinder):
                         self._copy_best_version(app, uppath)
                     except EnvironmentError as e:
                         self.version_graph.remove_all_links(path[0][1])
-                        err = "couldn't copy current version: %s" % (e,)
+                        err = "couldn't copy current version: %s" % (e, )
                         raise PatchError(err)
                     patches = path
                 else:
@@ -337,7 +334,7 @@ class DefaultVersionFinder(VersionFinder):
                                 with open(patchfile, "rb") as f:
                                     apply_patch(uppath, f)
                             except EnvironmentError as e:
-                                if e.errno not in (errno.ENOENT,):
+                                if e.errno not in (errno.ENOENT, ):
                                     raise
                                 if not path[0][0].endswith(".patch"):
                                     raise
@@ -371,8 +368,8 @@ class DefaultVersionFinder(VersionFinder):
                 os.makedirs(bspath)
             for nm in os.listdir(uppath):
                 if nm != vdir and nm != ESKY_APPDATA_DIR:
-                    really_rename(os.path.join(uppath, nm),
-                                  os.path.join(bspath, nm))
+                    really_rename(
+                        os.path.join(uppath, nm), os.path.join(bspath, nm))
             # Check that it has an esky-files/bootstrap-manifest.txt file
             bsfile = os.path.join(ctrlpath, "bootstrap-manifest.txt")
             if not os.path.exists(bsfile):
@@ -421,10 +418,8 @@ class DefaultVersionFinder(VersionFinder):
             if e.errno not in (errno.EEXIST, 183):
                 raise
         shutil.copytree(source, os.path.join(dest, best_vdir))
-        mfstnm = os.path.join(
-            source,
-            ESKY_CONTROL_DIR,
-            "bootstrap-manifest.txt")
+        mfstnm = os.path.join(source, ESKY_CONTROL_DIR,
+                              "bootstrap-manifest.txt")
         with open(mfstnm, "r") as manifest:
             for nm in manifest:
                 nm = nm.strip()
@@ -459,12 +454,12 @@ class S3VersionFinder(DefaultVersionFinder):
 
     def find_versions(self, app):
         version_re = "[a-zA-Z0-9\\.-_]+"
-        appname_re = "(?P<version>%s)" % (version_re,)
+        appname_re = "(?P<version>%s)" % (version_re, )
         name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
         appname_re = join_app_version(name_re, appname_re, app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
-        filename_re = filename_re % (appname_re, version_re,)
-        link_re = "Key>(?P<href>([^<]*/)?%s)<" % (filename_re,)
+        filename_re = filename_re % (appname_re, version_re, )
+        link_re = "Key>(?P<href>([^<]*/)?%s)<" % (filename_re, )
         # Read the URL.  If this followed any redirects, update the
         # recorded URL to match the final endpoint.
         df = self.open_url(self.download_url)
@@ -504,10 +499,10 @@ class LocalVersionFinder(DefaultVersionFinder):
 
     def find_versions(self, app):
         version_re = "[a-zA-Z0-9\\.\\-_]+"
-        appname_re = "(?P<version>%s)" % (version_re,)
+        appname_re = "(?P<version>%s)" % (version_re, )
         appname_re = join_app_version(app.name, appname_re, app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
-        filename_re = filename_re % (appname_re, version_re,)
+        filename_re = filename_re % (appname_re, version_re, )
         for nm in os.listdir(self.download_url):
             match = re.match(filename_re, nm)
             if match:
@@ -517,8 +512,8 @@ class LocalVersionFinder(DefaultVersionFinder):
                     cost = 40
                 else:
                     cost = 1
-                self.version_graph.add_link(
-                    from_version or "", version, nm, cost)
+                self.version_graph.add_link(from_version or "", version, nm,
+                                            cost)
         return self.version_graph.get_versions(app.version)
 
     def open_url(self, url):
@@ -652,4 +647,6 @@ class _Inf(object):
 
     def __isub__(self, other):
         return self
+
+
 _inf = _Inf()

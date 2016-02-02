@@ -18,9 +18,9 @@ import pypy.translator.goal.translate
 
 try:
     import pypy.rlib.clibffi
-except (ImportError, AttributeError,) as e:
+except (ImportError, AttributeError, ) as e:
     msg = "Compiling bootstrap exes requires PyPy v1.5 or later"
-    msg += " [error: %s]" % (e,)
+    msg += " [error: %s]" % (e, )
     raise ImportError(msg)
 
 
@@ -36,7 +36,6 @@ def compile_rpython(infile, outfile, gui_only=False, static_msvcrt=False):
         pypy.translator.goal.translate.main()
     finally:
         sys.argv = orig_argv
-
 
 #  For win32, we need some fancy features not provided by the normal
 #  PyPy compiler.  Fortunately we can hack them in.
@@ -71,12 +70,8 @@ if sys.platform == "win32":
                         f.seek(0)
                         f.write(WINMAIN_STUB)
                         f.write(data)
-            return super(
-                CustomWin32Platform,
-                self)._compile_c_file(
-                cc,
-                cfile,
-                compile_args)
+            return super(CustomWin32Platform,
+                         self)._compile_c_file(cc, cfile, compile_args)
 
         def _link(self, cc, ofiles, link_args, standalone, exe_name):
             #  Link against windows subsystem if gui-only is specified.
@@ -101,34 +96,24 @@ if sys.platform == "win32":
                     manifest += '.manifest'
                     with open(manifest, "w") as mf:
                         mf.write(DUMMY_MANIFEST)
-            return super(
-                CustomWin32Platform,
-                self)._link(
-                cc,
-                ofiles,
-                link_args,
-                standalone,
-                exe_name)
+            return super(CustomWin32Platform,
+                         self)._link(cc, ofiles, link_args, standalone,
+                                     exe_name)
 
         def _finish_linking(self, ofiles, *args, **kwds):
-            return super(
-                CustomWin32Platform,
-                self)._finish_linking(
-                ofiles,
-                *
-                args,
-                **kwds)
+            return super(CustomWin32Platform,
+                         self)._finish_linking(ofiles, *args, **kwds)
 
-        #  Ugh.
-        #  Trick pypy into letting us mix this with other platform objects.
-        #  I should probably check that it's an MsvcPlatform...
+#  Ugh.
+#  Trick pypy into letting us mix this with other platform objects.
+#  I should probably check that it's an MsvcPlatform...
+
         def __eq__(self, other):
             return True
 
     pypy.translator.platform.platform = CustomWin32Platform()
     pypy.translator.platform.host = pypy.translator.platform.platform
     pypy.translator.platform.host_factory = lambda *a: pypy.translator.platform.platform
-
 
 WINMAIN_STUB = """
 #ifndef PYPY_NOT_MAIN_FILE
@@ -147,7 +132,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,
 #endif
 """
 
-DUMMY_MANIFEST =  """
+DUMMY_MANIFEST = """
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 </assembly>
 """

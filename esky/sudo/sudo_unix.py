@@ -33,6 +33,7 @@ def can_get_root():
 class KillablePopen(subprocess.Popen):
     """Popen that's guaranteed killable, even on python2.5."""
     if not hasattr(subprocess.Popen, "terminate"):
+
         def terminate(self):
             import signal
             os.kill(self.pid, signal.SIGTERM)
@@ -143,13 +144,13 @@ def spawn_sudo(proxy):
     args.append(base.b64pickle(proxy))
     # Look for a variety of sudo-like programs
     sudo = None
-    display_name = "%s update" % (proxy.name,)
+    display_name = "%s update" % (proxy.name, )
     if "DISPLAY" in os.environ:
         sudo = find_exe("gksudo", "-k", "-D", display_name, "--")
         if sudo is None:
             sudo = find_exe("kdesudo")
         if sudo is None:
-            sudo = find_exe("cocoasudo", "--prompt='%s'" % (display_name,))
+            sudo = find_exe("cocoasudo", "--prompt='%s'" % (display_name, ))
     if sudo is None:
         sudo = find_exe("sudo")
     if sudo is None:

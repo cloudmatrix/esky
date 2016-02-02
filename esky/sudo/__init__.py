@@ -62,11 +62,13 @@ def threading():
 
 
 if sys.platform == "win32":
+
     @lazy_import
     def _impl():
         from esky.sudo import sudo_win32
         return sudo_win32
 elif sys.platform == "darwin":
+
     @lazy_import
     def _impl():
         try:
@@ -76,6 +78,7 @@ elif sys.platform == "darwin":
             from esky.sudo import sudo_unix
             return sudo_unix
 else:
+
     @lazy_import
     def _impl():
         from esky.sudo import sudo_unix
@@ -185,7 +188,7 @@ class SudoProxy(object):
                         iterator = _get_sudo_iterator(self.target, methname)
                         if argtypes is None:
                             msg = "attribute '%s' not allowed from sudo"
-                            raise AttributeError(msg % (attr,))
+                            raise AttributeError(msg % (attr, ))
                         method = getattr(self.target, methname)
                         args = []
                         for t in argtypes:
@@ -226,11 +229,12 @@ class SudoProxy(object):
             raise AttributeError(attr)
         target = self.__dict__["target"]
         if _get_sudo_argtypes(target, attr) is None:
-            msg = "attribute '%s' not allowed from sudo" % (attr,)
+            msg = "attribute '%s' not allowed from sudo" % (attr, )
             raise AttributeError(msg)
         method = getattr(target, attr)
         pipe = self.__dict__["pipe"]
         if not _get_sudo_iterator(target, attr):
+
             @functools.wraps(method.im_func)
             def wrapper(*args):
                 pipe.write(method.im_func.func_name.encode("ascii"))
@@ -241,6 +245,7 @@ class SudoProxy(object):
                     raise result
                 return result
         else:
+
             @functools.wraps(method.im_func)
             def wrapper(*args):
                 pipe.write(method.im_func.func_name.encode("ascii"))
@@ -252,6 +257,7 @@ class SudoProxy(object):
                     (success, result) = pickle.loads(pipe.read())
                 if result is not StopIteration:
                     raise result
+
         setattr(self, attr, wrapper)
         return wrapper
 
@@ -275,10 +281,12 @@ def allow_from_sudo(*argtypes, **kwds):
     this any more hidden, because the fact that a method can have escalated
     privileges is something that that needs to be very obvious from the code.
     """
+
     def decorator(func):
         func._esky_sudo_argtypes = argtypes
         func._esky_sudo_iterator = kwds.pop("iterator", False)
         return func
+
     return decorator
 
 

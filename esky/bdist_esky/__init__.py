@@ -15,7 +15,6 @@ must be given the path to the top-level directory of the frozen app, and a
 
 from __future__ import with_statement
 
-
 import os
 import sys
 import shutil
@@ -30,9 +29,7 @@ from distutils.core import Command
 from distutils.util import convert_path
 
 import esky.patch
-from esky.util import get_platform, create_zipfile, \
-    split_app_version, join_app_version, ESKY_CONTROL_DIR, \
-    ESKY_APPDATA_DIR, really_rmtree
+from esky.util import get_platform, create_zipfile, split_app_version, join_app_version, ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, really_rmtree
 
 if sys.platform == "win32":
     from esky import winres
@@ -49,7 +46,6 @@ else:
     if not os.path.isdir(COMPILED_BOOTSTRAP_CACHE):
         COMPILED_BOOTSTRAP_CACHE = None
 
-
 # setuptools likes to be imported before anything else that
 #  might monkey-patch distutils.  We don't actually use it,
 #  this is just to avoid errors with cx_Freeze.
@@ -57,7 +53,6 @@ try:
     import setuptools
 except ImportError:
     pass
-
 
 _FREEZERS = {}
 try:
@@ -105,8 +100,13 @@ class Executable(unicode):
         else:
             return unicode.__new__(cls, __file__)
 
-    def __init__(self, script, name=None, icon=None, gui_only=None,
-                 include_in_bootstrap_env=True, **kwds):
+    def __init__(self,
+                 script,
+                 name=None,
+                 icon=None,
+                 gui_only=None,
+                 include_in_bootstrap_env=True,
+                 **kwds):
         unicode.__init__(self)
         if isinstance(script, Executable):
             script = script.script
@@ -215,8 +215,7 @@ class bdist_esky(Command):
     description = "create a frozen app in 'esky' format"
 
     user_options = [
-        ('dist-dir=', 'd',
-         "directory to put final built distributions in"),
+        ('dist-dir=', 'd', "directory to put final built distributions in"),
         ('freezer-module=', None,
          "module to use for freezing the application"),
         ('freezer-options=', None,
@@ -229,10 +228,8 @@ class bdist_esky(Command):
          "whether to compile the bootstrapping exes with pypy"),
         ('bundle-msvcrt=', None,
          "whether to bundle MSVCRT as private assembly"),
-        ('includes=', None,
-         "list of modules to specifically include"),
-        ('excludes=', None,
-         "list of modules to specifically exclude"),
+        ('includes=', None, "list of modules to specifically include"),
+        ('excludes=', None, "list of modules to specifically exclude"),
         ('dont-run-startup-hooks=', None,
          "don't force execution of esky.run_startup_hooks()"),
         ('pre-freeze-callback=', None,
@@ -240,18 +237,20 @@ class bdist_esky(Command):
         ('pre-zip-callback=', None,
          "function to call just before starting to zip up the app"),
         ('enable-appdata-dir=', None,
-         "enable new 'appdata' directory layout (will go away after the 0.9.X series)"),
+         "enable new 'appdata' directory layout (will go away after the 0.9.X series)"
+         ),
         ('detached-bootstrap-library=', None,
-         "By default Esky appends the library.zip to the bootstrap executable when using CX_Freeze, this will tell esky to not do that, but create a separate library.zip instead"),
+         "By default Esky appends the library.zip to the bootstrap executable when using CX_Freeze, this will tell esky to not do that, but create a separate library.zip instead"
+         ),
         ('compress=', 'c',
-         "Compression options of the Esky, use lower case for compressed or upper case for uncompressed, currently only support zip files"),
+         "Compression options of the Esky, use lower case for compressed or upper case for uncompressed, currently only support zip files"
+         ),
     ]
 
     boolean_options = [
-        "bundle-msvcrt",
-        "dont-run-startup-hooks",
-        "compile-bootstrap-exes",
-        "enable-appdata-dir"]
+        "bundle-msvcrt", "dont-run-startup-hooks", "compile-bootstrap-exes",
+        "enable-appdata-dir"
+    ]
 
     def initialize_options(self):
         self.dist_dir = None
@@ -272,8 +271,8 @@ class bdist_esky(Command):
         self.compress = 'zip'
 
     def finalize_options(self):
-        assert self.compress in (
-            False, None, 'false', 'none', 'zip', 'ZIP'), 'Bad options passed to compress'
+        assert self.compress in (False, None, 'false', 'none', 'zip',
+                                 'ZIP'), 'Bad options passed to compress'
 
         self.set_undefined_options('bdist', ('dist_dir', 'dist_dir'))
         if self.compile_bootstrap_exes and pypyc is None:
@@ -292,12 +291,12 @@ class bdist_esky(Command):
                 freezer = _FREEZERS[self.freezer_module]
             except KeyError:
                 err = "freezer module not supported: '%s'"
-                err = err % (self.freezer_module,)
+                err = err % (self.freezer_module, )
                 raise RuntimeError(err)
             else:
                 if freezer is None:
                     err = "freezer module not found: '%s'"
-                    err = err % (self.freezer_module,)
+                    err = err % (self.freezer_module, )
                     raise RuntimeError(err)
             self.freezer_module = freezer
         if isinstance(self.pre_freeze_callback, basestring):
@@ -336,14 +335,16 @@ class bdist_esky(Command):
         fullname = self.distribution.get_fullname()
         platform = get_platform()
         self.bootstrap_dir = os.path.join(self.dist_dir,
-                                          "%s.%s" % (fullname, platform,))
+                                          "%s.%s" % (fullname,
+                                                     platform, ))
         if self.enable_appdata_dir:
             self.freeze_dir = os.path.join(
-                self.bootstrap_dir, ESKY_APPDATA_DIR, "%s.%s" %
-                (fullname, platform,))
+                self.bootstrap_dir, ESKY_APPDATA_DIR, "%s.%s" % (fullname,
+                                                                 platform, ))
         else:
             self.freeze_dir = os.path.join(self.bootstrap_dir,
-                                           "%s.%s" % (fullname, platform,))
+                                           "%s.%s" % (fullname,
+                                                      platform, ))
         if os.path.exists(self.bootstrap_dir):
             really_rmtree(self.bootstrap_dir)
         os.makedirs(self.freeze_dir)
@@ -354,28 +355,20 @@ class bdist_esky(Command):
         platform = get_platform()
         self.freezer_module.freeze(self)
         if platform != "win32":
-            lockfile = os.path.join(
-                self.freeze_dir,
-                ESKY_CONTROL_DIR,
-                "lockfile.txt")
+            lockfile = os.path.join(self.freeze_dir, ESKY_CONTROL_DIR,
+                                    "lockfile.txt")
             with open(lockfile, "w") as lf:
                 lf.write("this file is used by esky to lock the version dir\n")
 
     def _generate_filelist_manifest(self):
         """Create a list of all the files in application"""
-        filelist_file = os.path.join(
-            self.freeze_dir,
-            ESKY_CONTROL_DIR,
-            esky.patch.ESKY_FILELIST)
+        filelist_file = os.path.join(self.freeze_dir, ESKY_CONTROL_DIR,
+                                     esky.patch.ESKY_FILELIST)
         esky_files = []
         for root, dirs, files in os.walk(self.bootstrap_dir):
             for f in files:
-                esky_files.append(
-                    os.path.join(
-                        os.path.relpath(
-                            root,
-                            self.bootstrap_dir),
-                        f))
+                esky_files.append(os.path.join(
+                    os.path.relpath(root, self.bootstrap_dir), f))
         with open(filelist_file, 'w') as f:
             f.write(json.dumps(esky_files))
 
@@ -384,9 +377,8 @@ class bdist_esky(Command):
         if self.compress:
             fullname = self.distribution.get_fullname()
             platform = get_platform()
-            zfname = os.path.join(
-                self.dist_dir, "%s.%s.zip" %
-                (fullname, platform,))
+            zfname = os.path.join(self.dist_dir, "%s.%s.zip" % (fullname,
+                                                                platform, ))
             if hasattr(self.freezer_module, "zipit"):
                 self.freezer_module.zipit(self, self.bootstrap_dir, zfname)
             else:
@@ -399,7 +391,8 @@ class bdist_esky(Command):
                     create_zipfile(self.bootstrap_dir, zfname, compress=False)
                     really_rmtree(self.bootstrap_dir)
                 else:
-                    print("To zip the esky use compress or c set to ZIP or zip")
+                    print(
+                        "To zip the esky use compress or c set to ZIP or zip")
 
     def _obj2code(self, obj):
         """Convert an object to some python source code.
@@ -518,7 +511,7 @@ class bdist_esky(Command):
                 (dst, sources) = datafile
                 if os.path.isabs(dst):
                     err = "cant freeze absolute data_file paths (%s)"
-                    err = err % (dst,)
+                    err = err % (dst, )
                     raise ValueError(err)
                 dst = convert_path(dst)
                 for src in sources:
@@ -539,10 +532,8 @@ class bdist_esky(Command):
                 if isinstance(data, basestring):
                     data = [data]
                 for dpattern in data:
-                    dfiles = glob(
-                        os.path.join(
-                            pkg_dir,
-                            convert_path(dpattern)))
+                    dfiles = glob(os.path.join(pkg_dir, convert_path(
+                        dpattern)))
                     for nm in dfiles:
                         arcnm = pkg_path + nm[len(pkg_dir):]
                         yield (nm, arcnm)
@@ -610,7 +601,7 @@ class bdist_esky(Command):
                 except EnvironmentError:
                     pass
             else:
-                err = "manifest for %s not found" % (msvcrt_info,)
+                err = "manifest for %s not found" % (msvcrt_info, )
                 raise RuntimeError(err)
             #  Copy the manifest and matching directory into the freeze dir.
             manifest_name = msvcrt_name + ".manifest"
@@ -658,8 +649,8 @@ class bdist_esky(Command):
                         if name.lower() in fnm.lower():
                             if fnm.lower().endswith(".manifest"):
                                 mf = os.path.join(subdir, fnm)
-                                md = cls._find_msvcrt_dir_for_manifest(
-                                    name, mf)
+                                md = cls._find_msvcrt_dir_for_manifest(name,
+                                                                       mf)
                                 if md is not None:
                                     yield (mf, md)
         #  Search for manifests installed in the WinSxS directory
@@ -769,10 +760,8 @@ class bdist_esky(Command):
     def add_to_bootstrap_manifest(self, dstpath):
         if not os.path.isdir(os.path.join(self.freeze_dir, ESKY_CONTROL_DIR)):
             os.mkdir(os.path.join(self.freeze_dir, ESKY_CONTROL_DIR))
-        f_manifest = os.path.join(
-            self.freeze_dir,
-            ESKY_CONTROL_DIR,
-            "bootstrap-manifest.txt")
+        f_manifest = os.path.join(self.freeze_dir, ESKY_CONTROL_DIR,
+                                  "bootstrap-manifest.txt")
         with open(f_manifest, "at") as f_manifest:
             f_manifest.seek(0, os.SEEK_END)
             if os.path.isdir(dstpath):
@@ -801,10 +790,8 @@ class bdist_esky_patch(Command):
     """
 
     user_options = [
-        ('dist-dir=', 'd',
-         "directory to put final built distributions in"),
-        ('from-version=', None,
-         "version against which to produce patch"),
+        ('dist-dir=', 'd', "directory to put final built distributions in"),
+        ('from-version=', None, "version against which to produce patch"),
     ]
 
     def initialize_options(self):
@@ -817,7 +804,7 @@ class bdist_esky_patch(Command):
     def run(self):
         fullname = self.distribution.get_fullname()
         platform = get_platform()
-        vdir = "%s.%s" % (fullname, platform,)
+        vdir = "%s.%s" % (fullname, platform, )
         appname = split_app_version(vdir)[0]
         #  Ensure we have current version's esky, as target for patch.
         target_esky = os.path.join(self.dist_dir, vdir + ".zip")
@@ -825,33 +812,32 @@ class bdist_esky_patch(Command):
             self.run_command("bdist_esky")
         #  Generate list of source eskys to patch against.
         if self.from_version:
-            source_vdir = join_app_version(
-                appname, self.from_version, platform)
+            source_vdir = join_app_version(appname, self.from_version,
+                                           platform)
             source_eskys = [os.path.join(self.dist_dir, source_vdir + ".zip")]
         else:
             source_eskys = []
             for nm in os.listdir(self.dist_dir):
                 if target_esky.endswith(nm):
                     continue
-                if nm.startswith(
-                        appname + "-") and nm.endswith(platform + ".zip"):
+                if nm.startswith(appname + "-") and nm.endswith(platform +
+                                                                ".zip"):
                     source_eskys.append(os.path.join(self.dist_dir, nm))
         #  Write each patch, transparently unzipping the esky
         for source_esky in source_eskys:
             target_vdir = os.path.basename(source_esky)[:-4]
             target_version = split_app_version(target_vdir)[1]
-            patchfile = vdir + ".from-%s.patch" % (target_version,)
+            patchfile = vdir + ".from-%s.patch" % (target_version, )
             patchfile = os.path.join(self.dist_dir, patchfile)
             print "patching", target_esky, "against", source_esky, "=>", patchfile
             if not self.dry_run:
                 try:
-                    esky.patch.main(
-                        ["-Z", "diff", source_esky, target_esky, patchfile])
+                    esky.patch.main(["-Z", "diff", source_esky, target_esky,
+                                     patchfile])
                 except:
                     import traceback
                     traceback.print_exc()
                     raise
-
 
 #  Monkey-patch distutils to include our commands by default.
 distutils.command.__all__.append("bdist_esky")

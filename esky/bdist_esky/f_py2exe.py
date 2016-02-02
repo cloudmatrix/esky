@@ -8,7 +8,6 @@
 
 from __future__ import with_statement
 
-
 import os
 import sys
 import marshal
@@ -17,12 +16,10 @@ import inspect
 import zipfile
 import ctypes
 
-
 try:
     from py2exe.build_exe import py2exe
 except ImportError:
     from py2exe.distutils_buildexe import py2exe
-
 
 import esky
 from esky.util import is_core_dependency, ESKY_CONTROL_DIR
@@ -175,7 +172,7 @@ def freeze(dist):
     #  Create the bootstraping code, using custom code if specified.
     #  It gets stored as a marshalled list of code objects directly in the exe.
     esky_name = dist.distribution.get_name()
-    code_source = ["__esky_name__ = %r" % (esky_name,)]
+    code_source = ["__esky_name__ = %r" % (esky_name, )]
     code_source.append(inspect.getsource(esky.bootstrap))
     if dist.compile_bootstrap_exes:
         from esky.bdist_esky import pypy_libpython
@@ -215,20 +212,20 @@ def freeze(dist):
             #  need to duplicate some of these fields when to rewrite it.
             coderes = winres.load_resource(exepath, u"PYTHONSCRIPT", 1, 0)
             headsz = struct.calcsize("iiii")
-            (magic, optmz, unbfrd, codesz) = struct.unpack(
-                "iiii", coderes[:headsz])
+            (magic, optmz, unbfrd, codesz) = struct.unpack("iiii",
+                                                           coderes[:headsz])
             assert magic == 0x78563412
             #  Insert the bootstrap code into the exe as a resource.
             #  This appears to have the happy side-effect of stripping any
             #  extra data from the end of the exe, which is exactly what we
             #  want when zipfile=None is specified; otherwise each bootstrap
             #  exe would also contain the whole bundled zipfile.
-            coderes = struct.pack("iiii",
-                                  magic,  # magic value used for integrity checking,
-                                  optmz,  # optimization level to enable
-                                  unbfrd,  # whether to use unbuffered output
-                                  len(code),
-                                  ) + b"\x00" + code + b"\x00\x00"
+            coderes = struct.pack(
+                "iiii",
+                magic,  # magic value used for integrity checking,
+                optmz,  # optimization level to enable
+                unbfrd,  # whether to use unbuffered output
+                len(code), ) + b"\x00" + code + b"\x00\x00"
             winres.add_resource(exepath, coderes, u"PYTHONSCRIPT", 1, 0)
         #  If the python dll hasn't been copied into the bootstrap env,
         #  make sure it's stored in each bootstrap dll as a resource.
@@ -247,8 +244,8 @@ def freeze(dist):
                 try:
                     winres.load_resource(exepath, pydll.upper(), 1, 0)
                 except EnvironmentError:
-                    winres.add_resource(
-                        exepath, pydll_bytes, pydll.upper(), 1, 0)
+                    winres.add_resource(exepath, pydll_bytes, pydll.upper(), 1,
+                                        0)
 
 #  Code to fake out any bootstrappers that try to import from esky.
 _FAKE_ESKY_BOOTSTRAP_MODULE = """
@@ -257,7 +254,6 @@ class __fake:
 sys.modules["esky"] = __fake()
 sys.modules["esky.bootstrap"] = __fake()
 """
-
 
 #  On Windows, execv is flaky and expensive.  If the chainloader is the same
 #  python version as the target exe, we can munge sys.path to bootstrap it
@@ -384,8 +380,8 @@ def _chainload(target_dir):
       for code in codelist:
         %s
       raise SystemExit(0)
-""" % (inspect.getsource(winres.load_resource).replace("\n", "\n" + " " * 4), EXEC_STATEMENT)
-
+""" % (inspect.getsource(winres.load_resource).replace("\n", "\n" + " " * 4),
+       EXEC_STATEMENT)
 
 #  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
 #  exe doesn't have a python runtime, it needs to chainload the one from the

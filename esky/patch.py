@@ -57,7 +57,6 @@ try:
 except NameError:
     bytes = str
 
-
 import os
 import sys
 import bz2
@@ -75,7 +74,6 @@ if sys.version_info[0] < 3:
         from StringIO import StringIO as BytesIO
 else:
     from io import BytesIO
-
 
 #  Try to get code for working with bsdiff4-format patches.
 #
@@ -96,7 +94,6 @@ try:
 except ImportError:
     bsdiff4_native = None
 
-
 try:
     import bsdiff as _cx_bsdiff
 except ImportError:
@@ -105,7 +102,6 @@ else:
     #  This wrapper code basically takes care of the bsdiff patch format,
     #  translating to/from the raw control information for the algorithm.
     class bsdiff4_cx(object):
-
         @staticmethod
         def diff(source, target):
             (tcontrol, bdiff, bextra) = _cx_bsdiff.Diff(source, target)
@@ -123,15 +119,13 @@ else:
             #  Final structure is:
             #  (header)(len bcontrol)(len bdiff)(len target)(bcontrol)\
             #  (bdiff)(bextra)
-            return "".join((
-                "BSDIFF40",
-                _encode_offt(len(bcontrol)),
-                _encode_offt(len(bdiff)),
-                _encode_offt(len(target)),
-                bcontrol,
-                bdiff,
-                bextra,
-            ))
+            return "".join(("BSDIFF40",
+                            _encode_offt(len(bcontrol)),
+                            _encode_offt(len(bdiff)),
+                            _encode_offt(len(target)),
+                            bcontrol,
+                            bdiff,
+                            bextra, ))
 
         @staticmethod
         def patch(source, patch):
@@ -148,11 +142,9 @@ else:
             #  Decode the control tuples
             tcontrol = []
             for i in xrange(0, len(bcontrol), 24):
-                tcontrol.append((
-                    _decode_offt(bcontrol[i:i + 8]),
-                    _decode_offt(bcontrol[i + 8:i + 16]),
-                    _decode_offt(bcontrol[i + 16:i + 24]),
-                ))
+                tcontrol.append((_decode_offt(bcontrol[i:i + 8]),
+                                 _decode_offt(bcontrol[i + 8:i + 16]),
+                                 _decode_offt(bcontrol[i + 16:i + 24]), ))
             #  Actually do the patching.
             return _cx_bsdiff.Patch(source, l_target, tcontrol, bdiff, bextra)
 
@@ -167,10 +159,12 @@ class bsdiff4_py(object):
     #  Expose a diff method if we have one from another module, to
     #  make it easier to test this class.
     if bsdiff4_native is not None:
+
         @staticmethod
         def diff(source, target):
             return bsdiff4_native.diff(source, target)
     elif bsdiff4_cx is not None:
+
         @staticmethod
         def diff(source, target):
             return bsdiff4_cx.diff(source, target)
@@ -192,11 +186,9 @@ class bsdiff4_py(object):
         #  Decode the control tuples
         tcontrol = []
         for i in xrange(0, len(bcontrol), 24):
-            tcontrol.append((
-                _decode_offt(bcontrol[i:i + 8]),
-                _decode_offt(bcontrol[i + 8:i + 16]),
-                _decode_offt(bcontrol[i + 16:i + 24]),
-            ))
+            tcontrol.append((_decode_offt(bcontrol[i:i + 8]),
+                             _decode_offt(bcontrol[i + 8:i + 16]),
+                             _decode_offt(bcontrol[i + 16:i + 24]), ))
         #  Actually do the patching.
         #  This is the bdiff4 patch algorithm in slow, pure python.
         source = BytesIO(source)
@@ -208,8 +200,8 @@ class bsdiff4_py(object):
             orig_data = source.read(x)
             if sys.version_info[0] < 3:
                 for i in xrange(len(diff_data)):
-                    result.write(
-                        chr((ord(diff_data[i]) + ord(orig_data[i])) % 256))
+                    result.write(chr((ord(diff_data[i]) + ord(orig_data[i])) %
+                                     256))
             else:
                 for i in xrange(len(diff_data)):
                     result.write(bytes([(diff_data[i] + orig_data[i]) % 256]))
@@ -224,7 +216,6 @@ elif bsdiff4_cx is not None:
     bsdiff4 = bsdiff4_cx
 else:
     bsdiff4 = bsdiff4_py
-
 
 #  Default size of blocks to use when diffing a file.  4M seems reasonable.
 #  Setting this higher generates smaller patches at the cost of higher
@@ -241,10 +232,8 @@ PATCH_HEADER = "ESKYPTCH".encode("ascii")
 #  esky_filelist lists all the files in the project
 ESKY_FILELIST = "esky_filelist.txt"
 
-
 from esky.errors import Error
-from esky.util import extract_zipfile, create_zipfile, deep_extract_zipfile,\
-    zipfile_common_prefix_dir, really_rmtree, really_rename
+from esky.util import extract_zipfile, create_zipfile, deep_extract_zipfile, zipfile_common_prefix_dir, really_rmtree, really_rename
 
 __all__ = ["PatchError", "DiffError", "main", "write_patch", "apply_patch",
            "Differ", "Patcher"]
@@ -259,7 +248,6 @@ class DiffError(Error):
     """Error raised when a diff can't be generated."""
     pass
 
-
 #  Commands used in the directory patching protocol.  Each of these is
 #  encoded as a vint in the patch stream; unless we get really out of
 #  control and have more than 127 commands, this means one byte per command.
@@ -269,24 +257,24 @@ class DiffError(Error):
 #  anything but adding to the end will break all existing patches!
 #
 _COMMANDS = [
-    "END",           # END():               stop processing current context
-    "SET_PATH",      # SET_PATH(path):      set current target path
-    "JOIN_PATH",     # JOIN_PATH(path):     join path to the current target
-    "POP_PATH",      # POP_PATH(h):         pop one level off current target
+    "END",  # END():               stop processing current context
+    "SET_PATH",  # SET_PATH(path):      set current target path
+    "JOIN_PATH",  # JOIN_PATH(path):     join path to the current target
+    "POP_PATH",  # POP_PATH(h):         pop one level off current target
     "POP_JOIN_PATH",  # POP_JOIN_PATH(path): pop the current path, then join
-    "VERIFY_MD5",    # VERIFY_MD5(dgst):    check md5 digest of current target
-    "REMOVE",        # REMOVE():            remove the current target
-    "MAKEDIR",       # MAKEDIR():           make directory at current target
-    "COPY_FROM",     # COPY_FROM(path):     copy item at path to current target
-    "MOVE_FROM",     # MOVE_FROM(path):     move item at path to current target
-    "PF_COPY",       # PF_COPY(n):          patch file; copy n bytes from input
-    "PF_SKIP",       # PF_SKIP(n):          patch file; skip n bytes from input
-    "PF_INS_RAW",    # PF_INS_RAW(bytes):   patch file; insert raw bytes
-    "PF_INS_BZ2",    # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
+    "VERIFY_MD5",  # VERIFY_MD5(dgst):    check md5 digest of current target
+    "REMOVE",  # REMOVE():            remove the current target
+    "MAKEDIR",  # MAKEDIR():           make directory at current target
+    "COPY_FROM",  # COPY_FROM(path):     copy item at path to current target
+    "MOVE_FROM",  # MOVE_FROM(path):     move item at path to current target
+    "PF_COPY",  # PF_COPY(n):          patch file; copy n bytes from input
+    "PF_SKIP",  # PF_SKIP(n):          patch file; skip n bytes from input
+    "PF_INS_RAW",  # PF_INS_RAW(bytes):   patch file; insert raw bytes
+    "PF_INS_BZ2",  # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
     # PF_BSDIFF4(n,p):     patch file; bsdiff4 from n input bytes
     "PF_BSDIFF4",
-    "PF_REC_ZIP",    # PF_REC_ZIP(m,cs):    patch file; recurse into zipfile
-    "CHMOD",         # CHMOD(mode):         set mode of current target
+    "PF_REC_ZIP",  # PF_REC_ZIP(m,cs):    patch file; recurse into zipfile
+    "CHMOD",  # CHMOD(mode):         set mode of current target
 ]
 
 # Make commands available as global variables
@@ -334,7 +322,9 @@ def _read_vint(stream):
     x += (b << e)
     return x
 
+
 if sys.version_info[0] > 2:
+
     def _write_vint(stream, x):
         """Write a vint-encoded integer to the given stream."""
         while x >= 128:
@@ -343,6 +333,7 @@ if sys.version_info[0] > 2:
             x = x >> 7
         stream.write(bytes([x]))
 else:
+
     def _write_vint(stream, x):
         """Write a vint-encoded integer to the given stream."""
         while x >= 128:
@@ -506,7 +497,7 @@ class Patcher(object):
         if len(bytes) != l:
             raise PatchError("corrupted bytestring")
         if self.dry_run:
-            print "   [%s bytes]" % (len(bytes),)
+            print "   [%s bytes]" % (len(bytes), )
         return bytes
 
     def _read_path(self):
@@ -580,17 +571,13 @@ class Patcher(object):
 
     def _save_state(self):
         """Return the current state, for later restoration."""
-        return (
-            self.target,
-            self.root_dir,
-            self.infile,
-            self.outfile,
-            self.new_target)
+        return (self.target, self.root_dir, self.infile, self.outfile,
+                self.new_target)
 
     def _restore_state(self, state):
         """Restore the object to a previously-saved state."""
-        (self.target, self.root_dir, self.infile,
-         self.outfile, self.new_target) = state
+        (self.target, self.root_dir, self.infile, self.outfile,
+         self.new_target) = state
 
     def _cleanup_patch(self):
         '''Go throught the appdata folder of the new version and remove any files not
@@ -628,12 +615,11 @@ class Patcher(object):
         """
         header = self._read(len(PATCH_HEADER))
         if header != PATCH_HEADER:
-            raise PatchError("not an esky patch file [%s]" % (header,))
+            raise PatchError("not an esky patch file [%s]" % (header, ))
         version = self._read_int()
         if version > HIGHEST_VERSION:
-            raise PatchError(
-                "esky patch version %d not supported" %
-                (version,))
+            raise PatchError("esky patch version %d not supported" %
+                             (version, ))
         try:
             while True:
                 cmd = self._read_command()
@@ -719,9 +705,8 @@ class Patcher(object):
         assert len(digest) == 16
         if not self.dry_run:
             if digest != calculate_patch_digest(self.target, hashlib.md5):
-                raise PatchError(
-                    "incorrect MD5 digest for %s" %
-                    (self.target,))
+                raise PatchError("incorrect MD5 digest for %s" %
+                                 (self.target, ))
 
     def _do_MAKEDIR(self):
         """Execute the MAKEDIR command.
@@ -761,9 +746,7 @@ class Patcher(object):
         """
         self._check_end_patch()
         source_path = os.path.join(
-            os.path.dirname(
-                self.target),
-            self._read_path())
+            os.path.dirname(self.target), self._read_path())
         self._check_path(source_path)
         if not self.dry_run:
             if os.path.exists(self.target):
@@ -787,9 +770,7 @@ class Patcher(object):
         """
         self._check_end_patch()
         source_path = os.path.join(
-            os.path.dirname(
-                self.target),
-            self._read_path())
+            os.path.dirname(self.target), self._read_path())
         self._check_path(source_path)
         if not self.dry_run:
             if os.path.exists(self.target):
@@ -863,9 +844,8 @@ class Patcher(object):
         if not self.dry_run:
             source = self.infile.read(n)
             if len(source) != n:
-                raise PatchError(
-                    "insufficient source data in %s" %
-                    (self.target,))
+                raise PatchError("insufficient source data in %s" %
+                                 (self.target, ))
             self.outfile.write(bsdiff4.patch(source, patch))
 
     def _do_PF_REC_ZIP(self):
@@ -881,14 +861,15 @@ class Patcher(object):
         """
         self._check_begin_patch()
         if not self.dry_run:
-            workdir = os.path.join(
-                self._workdir, str(len(self._context_stack)))
+            workdir = os.path.join(self._workdir,
+                                   str(len(self._context_stack)))
             os.mkdir(workdir)
             t_temp = os.path.join(workdir, "contents")
             m_temp = os.path.join(workdir, "meta")
             z_temp = os.path.join(workdir, "result.zip")
         cur_state = self._blank_state()
         zfmeta = [None]  # stupid lack of mutable closure variables...
+
         #  First we process a set of commands to generate the zipfile metadata.
 
         def end_metadata():
@@ -908,6 +889,7 @@ class Patcher(object):
                         data = f.read(1024 * 16)
                 zfmeta[0].close()
                 really_rmtree(workdir)
+
         self._context_stack.append(end_contents)
         self._context_stack.append(end_metadata)
         if not self.dry_run:
@@ -1251,7 +1233,7 @@ class Differ(object):
         """
         t_nm = os.path.join(target, nm)
         if os.path.isfile(t_nm):
-             # For files, I haven't decided on a good heuristic yet...
+            # For files, I haven't decided on a good heuristic yet...
             return None
         elif os.path.isdir(t_nm):
             #  For directories, decide similarity based on the number of
@@ -1290,12 +1272,8 @@ class Differ(object):
         if bsdiff4.diff is not None:
             patch_data = bsdiff4.diff(sdata, tdata)
             # remove the 8 header bytes, we know it's BSDIFF4 format
-            options.append(
-                (len(sdata),
-                 PF_BSDIFF4,
-                 len(sdata),
-                    patch_data[
-                    8:]))
+            options.append((len(sdata), PF_BSDIFF4, len(sdata), patch_data[
+                8:]))
         #  Find the option with the smallest data and use that.
         options = sorted([(len(cmd[-1]), cmd) for cmd in options])
         best_option = options[0][1]
@@ -1309,7 +1287,6 @@ class Differ(object):
 
 
 class _tempdir(object):
-
     def __init__(self):
         self.path = tempfile.mkdtemp()
 
@@ -1362,14 +1339,25 @@ def _encode_offt(x):
 def main(args):
     """Command-line diffing and patching for esky."""
     parser = optparse.OptionParser()
-    parser.add_option("-z", "--zipped", action="store_true", dest="zipped",
+    parser.add_option("-z",
+                      "--zipped",
+                      action="store_true",
+                      dest="zipped",
                       help="work with zipped source/target dirs")
-    parser.add_option("-Z", "--deep-zipped", action="store_true",
+    parser.add_option("-Z",
+                      "--deep-zipped",
+                      action="store_true",
                       dest="deep_zipped",
                       help="work with deep zipped source/target dirs")
-    parser.add_option("", "--diff-window", dest="diff_window", metavar="N",
+    parser.add_option("",
+                      "--diff-window",
+                      dest="diff_window",
+                      metavar="N",
                       help="set the window size for diffing files")
-    parser.add_option("", "--dry-run", dest="dry_run", action="store_true",
+    parser.add_option("",
+                      "--dry-run",
+                      dest="dry_run",
+                      action="store_true",
                       help="print commands instead of executing them")
     (opts, args) = parser.parse_args(args)
     if opts.deep_zipped:
@@ -1416,11 +1404,10 @@ def main(args):
                         deep_extract_zipfile(target_zip, target)
                     else:
                         extract_zipfile(target_zip, target)
-            write_patch(
-                source,
-                target,
-                stream,
-                diff_window_size=opts.diff_window)
+            write_patch(source,
+                        target,
+                        stream,
+                        diff_window_size=opts.diff_window)
         elif cmd == "patch":
             #  Patch a file or directory.
             #  If --zipped is specified, the target is unzipped to a temporary
@@ -1450,6 +1437,7 @@ def main(args):
 
                     def name_filter(nm):
                         return prefix + nm
+
                     create_zipfile(target, target_temp, name_filter)
                 else:
                     create_zipfile(target, target_temp)
@@ -1461,7 +1449,7 @@ def main(args):
             raise ValueError("invalid command: " + cmd)
     finally:
         if stream is not None:
-            if stream not in (sys.stdin, sys.stdout,):
+            if stream not in (sys.stdin, sys.stdout, ):
                 stream.close()
         if opts.zipped:
             really_rmtree(workdir)

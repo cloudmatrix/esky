@@ -33,7 +33,6 @@ use during the bootstrap process:
 
 """
 
-
 import sys
 import errno
 
@@ -136,7 +135,7 @@ elif "nt" in sys.builtin_module_names:
             if exists(pathjoin(tdir, "esky-slave-procs")):
                 flags = nt.O_CREAT | nt.O_EXCL | nt.O_TEMPORARY | nt.O_NOINHERIT
                 for i in xrange(10):
-                    tfilenm = "slave-%d.%d.txt" % (nt.getpid(), i,)
+                    tfilenm = "slave-%d.%d.txt" % (nt.getpid(), i, )
                     tfilenm = pathjoin(tdir, "esky-slave-procs", tfilenm)
                     try:
                         os_open(tfilenm, flags, 0o600)
@@ -162,10 +161,10 @@ elif "nt" in sys.builtin_module_names:
 
         def __nonzero__(self):
             return False
+
     fcntl = fcntl()
 else:
     raise RuntimeError("unsupported platform: " + sys.platform)
-
 
 if __rpython__:
     # RPython provides ll hooks for the actual os.environ object, not the
@@ -190,6 +189,7 @@ if __rpython__:
 
         def exc_info(self):
             return None, None, None
+
     sys = sys()
     sys.modules["sys"] = sys
 
@@ -244,11 +244,13 @@ if __rpython__:
     # RPython doesn't provide the "fcntl" module.  Fake it.
     # TODO: implement it using externals
     if fcntl:
+
         class fcntl:
             LOCK_SH = fcntl.LOCK_SH
 
             def flock(self, fd, mode):
                 pass
+
         fcntl = fcntl()
 else:
     #  We need to use a compatability wrapper for some string methods missing
@@ -290,7 +292,7 @@ def exists(path):
     except EnvironmentError as e:
         # TODO: how to get the errno under RPython?
         if not __rpython__:
-            if e.errno not in (errno.ENOENT, errno.ENOTDIR, errno.ESRCH,):
+            if e.errno not in (errno.ENOENT, errno.ENOTDIR, errno.ESRCH, ):
                 raise
         return False
     else:
@@ -390,15 +392,13 @@ def get_exe_locations(target_dir):
     if sys.platform == "darwin":
         if basename(dirname(sys.executable)) == "MacOS":
             if __esky_name__:
-                locs.append(pathjoin(target_dir,
-                                     __esky_name__ + ".app",
+                locs.append(pathjoin(target_dir, __esky_name__ + ".app",
                                      sys.executable[len(appdir) + 1:]))
             else:
                 for nm in listdir(target_dir):
                     if nm.endswith(".app"):
-                        locs.append(pathjoin(target_dir,
-                                             nm,
-                                             sys.executable[len(appdir) + 1:]))
+                        locs.append(pathjoin(target_dir, nm, sys.executable[
+                            len(appdir) + 1:]))
     #  This is the default scheme: the same path as the exe in the appdir.
     locs.append(target_dir + sys.executable[len(appdir):])
     #  If sys.executable was a backup file, try using original filename.
@@ -566,7 +566,7 @@ def join_app_version(appname, version, platform):
 
     For example, ("app-name","0.1.2","win32") => appname-0.1.2.win32
     """
-    return "%s-%s.%s" % (appname, version, platform,)
+    return "%s-%s.%s" % (appname, version, platform, )
 
 
 def parse_version(s):
@@ -586,7 +586,7 @@ def parse_version(s):
     parts = []
     for part in _parse_version_parts(s.lower()):
         if part.startswith('*'):
-            if part < '*final':   # remove '-' before a prerelease tag
+            if part < '*final':  # remove '-' before a prerelease tag
                 while parts and parts[-1] == '*final-':
                     parts.pop()
             # remove trailing zeros from each series of numeric parts
@@ -601,7 +601,8 @@ _replace_p = {
     'preview': 'c',
     '-': 'final-',
     'rc': 'c',
-    'dev': '@'}.get
+    'dev': '@'
+}.get
 
 
 def _parse_version_parts(s):
@@ -611,7 +612,7 @@ def _parse_version_parts(s):
         if not part or part == '.':
             continue
         if part[:1] in '0123456789':
-            parts.append(zfill(part, 8))    # pad for numeric comparison
+            parts.append(zfill(part, 8))  # pad for numeric comparison
         else:
             parts.append('*' + part)
     parts.append('*final')  # ensure that alpha/beta/candidate are before final
@@ -673,10 +674,8 @@ def lock_version_dir(vdir):
         #  On win32, we just hold bootstrap file open for reading.
         #  This will prevent it from being renamed during uninstall.
         lockfile = pathjoin(vdir, ESKY_CONTROL_DIR, "bootstrap-manifest.txt")
-        _locked_version_dirs.setdefault(
-            vdir, []).append(
-            os_open(
-                lockfile, 0, 0))
+        _locked_version_dirs.setdefault(vdir,
+                                        []).append(os_open(lockfile, 0, 0))
     else:
         #  On posix platforms we take a shared flock on esky-files/lockfile.txt.
         #  While fcntl.fcntl locks are apparently the new hotness, they have
@@ -696,12 +695,15 @@ def unlock_version_dir(vdir):
     """Unlock the given version dir, allowing it to be uninstalled."""
     os_close(_locked_version_dirs[vdir].pop())
 
+
 if __rpython__:
+
     def main():
         bootstrap()
 
     def target(driver, args):
         """Target function for compiling a standalone bootstraper with PyPy."""
+
         def entry_point(argv):
             exit_code = 0
             #  TODO: resolve symlinks etc
@@ -712,4 +714,5 @@ if __rpython__:
             except SystemExit as e:
                 exit_code = _exit_code[0]
             return exit_code
+
         return entry_point, None

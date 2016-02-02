@@ -130,7 +130,7 @@ def StringIO():
 @lazy_import
 def distutils():
     import distutils
-    import distutils.log   # need to prompt cxfreeze about this dep
+    import distutils.log  # need to prompt cxfreeze about this dep
     import distutils.util
     return distutils
 
@@ -153,6 +153,7 @@ if sys.version_info[:2] < (3, 4):
         import struct
         return struct
 else:
+
     @lazy_import
     def importlib():
         import importlib._bootstrap
@@ -160,13 +161,7 @@ else:
 
 
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
-from esky.bootstrap import get_best_version, get_all_versions,\
-    is_version_dir, is_installed_version_dir,\
-    is_uninstalled_version_dir,\
-    split_app_version, join_app_version, parse_version,\
-    get_original_filename, lock_version_dir,\
-    unlock_version_dir, fcntl, ESKY_CONTROL_DIR,\
-    ESKY_APPDATA_DIR
+from esky.bootstrap import get_best_version, get_all_versions, is_version_dir, is_installed_version_dir, is_uninstalled_version_dir, split_app_version, join_app_version, parse_version, get_original_filename, lock_version_dir, unlock_version_dir, fcntl, ESKY_CONTROL_DIR, ESKY_APPDATA_DIR
 
 
 def files_differ(file1, file2, start=0, stop=None):
@@ -270,10 +265,10 @@ def appexe_from_executable(exepath):
             potential_py2app_bootstrap_exe = osx_dot_app_name[:-4]
         app_bin_dir = os.path.join(appdir, "Contents", "MacOS")
         if os.path.isdir(app_bin_dir):
-            if potential_py2app_bootstrap_exe and os.path.exists(
-                    os.path.join(app_bin_dir, potential_py2app_bootstrap_exe)):
-                return os.path.join(
-                    app_bin_dir, potential_py2app_bootstrap_exe)
+            if potential_py2app_bootstrap_exe and os.path.exists(os.path.join(
+                    app_bin_dir, potential_py2app_bootstrap_exe)):
+                return os.path.join(app_bin_dir,
+                                    potential_py2app_bootstrap_exe)
             return os.path.join(app_bin_dir, exename)
     return os.path.join(appdir, exename)
 
@@ -291,8 +286,10 @@ def extract_zipfile(source, target, name_filter=None):
         if hasattr(zf, "open"):
             zf_open = zf.open
         else:
+
             def zf_open(nm, mode):
                 return StringIO.StringIO(zf.read(nm))
+
         for nm in zf.namelist():
             if nm.endswith("/"):
                 continue
@@ -348,6 +345,7 @@ def deep_extract_zipfile(source, target, name_filter=None):
     """
     prefix = zipfile_common_prefix_dir(source)
     if prefix:
+
         def new_name_filter(nm):
             if not nm.startswith(prefix):
                 return None
@@ -359,12 +357,11 @@ def deep_extract_zipfile(source, target, name_filter=None):
     return extract_zipfile(source, target, new_name_filter)
 
 
-def create_zipfile(
-        source,
-        target,
-        get_zipinfo=None,
-        members=None,
-        compress=None):
+def create_zipfile(source,
+                   target,
+                   get_zipinfo=None,
+                   members=None,
+                   compress=None):
     """Bundle the contents of a given directory into a zipfile.
 
     The argument 'source' names the directory to read, while 'target' names
@@ -388,10 +385,12 @@ def create_zipfile(
         compress_type = zipfile.ZIP_DEFLATED
     zf = zipfile.ZipFile(target, "w", compression=compress_type)
     if members is None:
+
         def gen_members():
             for (dirpath, dirnames, filenames) in os.walk(source):
                 for fn in filenames:
                     yield os.path.join(dirpath, fn)[len(source) + 1:]
+
         members = gen_members()
     for fpath in members:
         if isinstance(fpath, zipfile.ZipInfo):
@@ -503,10 +502,8 @@ def get_backup_filename(filename):
 def is_locked_version_dir(vdir):
     """Check whether the given version dir is locked."""
     if sys.platform == "win32":
-        lockfile = os.path.join(
-            vdir,
-            ESKY_CONTROL_DIR,
-            "bootstrap-manifest.txt")
+        lockfile = os.path.join(vdir, ESKY_CONTROL_DIR,
+                                "bootstrap-manifest.txt")
         try:
             os.rename(lockfile, lockfile)
         except EnvironmentError:
@@ -519,7 +516,7 @@ def is_locked_version_dir(vdir):
         try:
             fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except EnvironmentError as e:
-            if e.errno not in (errno.EACCES, errno.EAGAIN,):
+            if e.errno not in (errno.EACCES, errno.EAGAIN, ):
                 raise
             return True
         else:
@@ -542,7 +539,7 @@ def really_rename(source, target):
             try:
                 os.rename(source, target)
             except WindowsError as e:
-                if e.errno not in (errno.EACCES,):
+                if e.errno not in (errno.EACCES, ):
                     raise
                 time.sleep(0.01)
             else:
@@ -570,7 +567,7 @@ def really_rmtree(path):
             try:
                 shutil.rmtree(path)
             except WindowsError as e:
-                if e.errno in (errno.ENOTEMPTY, errno.EACCES,):
+                if e.errno in (errno.ENOTEMPTY, errno.EACCES, ):
                     time.sleep(0.01)
                 elif e.errno == errno.ENOENT:
                     if not os.path.exists(path):
@@ -588,21 +585,24 @@ def compile_to_bytecode(source_code, compile_filename=None):
     """Given source_code, return its compiled bytecode."""
     if sys.version_info[:2] < (3, 1):
         bytecode = imp.get_magic() + struct.pack("<i", 0)
-        bytecode += marshal.dumps(compile(source_code,
-                                          compile_filename, "exec"))
+        bytecode += marshal.dumps(compile(source_code, compile_filename,
+                                          "exec"))
     elif sys.version_info[:2] < (3, 4):
         bytecode = imp.get_magic() + struct.pack("<ii", 0, 0)
-        bytecode += marshal.dumps(compile(source_code,
-                                          compile_filename, "exec"))
+        bytecode += marshal.dumps(compile(source_code, compile_filename,
+                                          "exec"))
     elif sys.version_info[:2] < (3, 5):
         loader = importlib._bootstrap.SourceLoader()
         code = loader.source_to_code(source_code, '<string>')
-        bytecode = importlib._bootstrap._code_to_bytecode(
-            code, mtime=0, source_size=0)
+        bytecode = importlib._bootstrap._code_to_bytecode(code,
+                                                          mtime=0,
+                                                          source_size=0)
     else:
         loader = importlib._bootstrap_external.SourceLoader()
         code = loader.source_to_code(source_code, '<string>')
         bytecode = importlib._bootstrap_external._code_to_bytecode(
-            code, mtime=0, source_size=0)
+            code,
+            mtime=0,
+            source_size=0)
 
     return bytecode
