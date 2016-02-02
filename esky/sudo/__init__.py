@@ -24,7 +24,7 @@ We also provide some handy utility functions:
 
     * has_root():      check whether current process has root privileges
     * can_get_root():  check whether current process may be able to get root
-    
+
 
 
 """
@@ -36,18 +36,21 @@ import time
 
 from esky.util import lazy_import
 
+
 @lazy_import
 def functools():
     import functools
     return functools
 
+
 @lazy_import
 def pickle():
     try:
-       import cPickle as pickle
+        import cPickle as pickle
     except ImportError:
         import pickle
     return pickle
+
 
 @lazy_import
 def threading():
@@ -82,11 +85,14 @@ else:
 def spawn_sudo(proxy):
     return _impl.spawn_sudo(proxy)
 
+
 def has_root():
     return _impl.has_root()
 
+
 def can_get_root():
     return _impl.can_get_root()
+
 
 def run_startup_hooks():
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
@@ -108,7 +114,7 @@ class SudoProxy(object):
     with root privileges.
     """
 
-    def __init__(self,target):
+    def __init__(self, target):
         #  Reflect the 'name' attribute if it has one, but don't worry
         #  if not.  This helps SudoProxy be re-used on other classes.
         try:
@@ -120,7 +126,7 @@ class SudoProxy(object):
         self.pipe = None
 
     def start(self):
-        (self.proc,self.pipe) = spawn_sudo(self)
+        (self.proc, self.pipe) = spawn_sudo(self)
         if self.proc.poll() is not None:
             raise RuntimeError("sudo helper process terminated unexpectedly")
         #  If threading is available, run a background thread to monitor
@@ -163,7 +169,7 @@ class SudoProxy(object):
         self.pipe = None
         self.proc.terminate()
 
-    def run(self,pipe):
+    def run(self, pipe):
         self.target.sudo_proxy = None
         pipe.write(b("READY"))
         try:
@@ -175,12 +181,12 @@ class SudoProxy(object):
                         pipe.write(b("CLOSING"))
                         break
                     else:
-                        argtypes = _get_sudo_argtypes(self.target,methname)
-                        iterator = _get_sudo_iterator(self.target,methname)
+                        argtypes = _get_sudo_argtypes(self.target, methname)
+                        iterator = _get_sudo_iterator(self.target, methname)
                         if argtypes is None:
                             msg = "attribute '%s' not allowed from sudo"
                             raise AttributeError(msg % (attr,))
-                        method = getattr(self.target,methname)
+                        method = getattr(self.target, methname)
                         args = []
                         for t in argtypes:
                             if t is str:
@@ -189,20 +195,20 @@ class SudoProxy(object):
                                 args.append(t(pipe.read()))
                         try:
                             res = method(*args)
-                        except Exception, e:
-                            pipe.write(pickle.dumps((False,e)))
+                        except Exception as e:
+                            pipe.write(pickle.dumps((False, e)))
                         else:
                             if not iterator:
-                                pipe.write(pickle.dumps((True,res)))
+                                pipe.write(pickle.dumps((True, res)))
                             else:
                                 try:
                                     for item in res:
-                                        pipe.write(pickle.dumps((True,item)))
-                                except Exception, e:
-                                    pipe.write(pickle.dumps((False,e)))
+                                        pipe.write(pickle.dumps((True, item)))
+                                except Exception as e:
+                                    pipe.write(pickle.dumps((False, e)))
                                 else:
                                     SI = StopIteration
-                                    pipe.write(pickle.dumps((False,SI)))
+                                    pipe.write(pickle.dumps((False, SI)))
                 except EOFError:
                     break
             #  Stay alive until the pipe is closed, but don't execute
@@ -215,22 +221,22 @@ class SudoProxy(object):
         finally:
             pipe.close()
 
-    def __getattr__(self,attr):
+    def __getattr__(self, attr):
         if attr.startswith("_"):
             raise AttributeError(attr)
         target = self.__dict__["target"]
-        if _get_sudo_argtypes(target,attr) is None:
+        if _get_sudo_argtypes(target, attr) is None:
             msg = "attribute '%s' not allowed from sudo" % (attr,)
             raise AttributeError(msg)
-        method = getattr(target,attr)
+        method = getattr(target, attr)
         pipe = self.__dict__["pipe"]
-        if not _get_sudo_iterator(target,attr):
+        if not _get_sudo_iterator(target, attr):
             @functools.wraps(method.im_func)
             def wrapper(*args):
                 pipe.write(method.im_func.func_name.encode("ascii"))
                 for arg in args:
                     pipe.write(str(arg).encode("ascii"))
-                (success,result) = pickle.loads(pipe.read())
+                (success, result) = pickle.loads(pipe.read())
                 if not success:
                     raise result
                 return result
@@ -240,17 +246,17 @@ class SudoProxy(object):
                 pipe.write(method.im_func.func_name.encode("ascii"))
                 for arg in args:
                     pipe.write(str(arg).encode("ascii"))
-                (success,result) = pickle.loads(pipe.read())
+                (success, result) = pickle.loads(pipe.read())
                 while success:
                     yield result
-                    (success,result) = pickle.loads(pipe.read())
+                    (success, result) = pickle.loads(pipe.read())
                 if result is not StopIteration:
                     raise result
-        setattr(self,attr,wrapper)
+        setattr(self, attr, wrapper)
         return wrapper
 
 
-def allow_from_sudo(*argtypes,**kwds):
+def allow_from_sudo(*argtypes, **kwds):
     """Method decorator to allow access to a method via the sudo proxy.
 
     This decorator wraps an Esky method so that it can be called via the
@@ -264,19 +270,19 @@ def allow_from_sudo(*argtypes,**kwds):
             ...
 
     Note that there are two aspects to transparently tunneling a method call
-    through the sudo proxy: allowing it via this decorator, and actually 
+    through the sudo proxy: allowing it via this decorator, and actually
     passing on the call to the proxy object.  I have no intention of making
     this any more hidden, because the fact that a method can have escalated
     privileges is something that that needs to be very obvious from the code.
     """
     def decorator(func):
         func._esky_sudo_argtypes = argtypes
-        func._esky_sudo_iterator = kwds.pop("iterator",False)
+        func._esky_sudo_iterator = kwds.pop("iterator", False)
         return func
     return decorator
 
 
-def _get_sudo_argtypes(obj,methname):
+def _get_sudo_argtypes(obj, methname):
     """Get the argtypes list for the given method.
 
     This searches the base classes of obj if the given method is not declared
@@ -286,13 +292,14 @@ def _get_sudo_argtypes(obj,methname):
     for base in _get_mro(obj):
         try:
             argtypes = base.__dict__[methname]._esky_sudo_argtypes
-        except (KeyError,AttributeError):
+        except (KeyError, AttributeError):
             pass
         else:
             return argtypes
     return None
 
-def _get_sudo_iterator(obj,methname):
+
+def _get_sudo_iterator(obj, methname):
     """Get the iterator flag for the given method.
 
     This searches the base classes of obj if the given method is not declared
@@ -302,11 +309,12 @@ def _get_sudo_iterator(obj,methname):
     for base in _get_mro(obj):
         try:
             iterator = base.__dict__[methname]._esky_sudo_iterator
-        except (KeyError,AttributeError):
+        except (KeyError, AttributeError):
             pass
         else:
             return iterator
     return False
+
 
 def _get_mro(obj):
     """Get the method resolution order for an object.
@@ -317,9 +325,10 @@ def _get_mro(obj):
     try:
         return obj.__class__.__mro__
     except AttributeError:
-        return _get_oldstyle_mro(obj.__class__,set())
+        return _get_oldstyle_mro(obj.__class__, set())
 
-def _get_oldstyle_mro(cls,seen):
+
+def _get_oldstyle_mro(cls, seen):
     """Get the method resolution order bor an old-style class.
 
     This is essentially a bottom-up left-to-right iteration of all the
@@ -329,6 +338,5 @@ def _get_oldstyle_mro(cls,seen):
     seen.add(cls)
     for base in cls.__bases__:
         if base not in seen:
-            for ancestor in _get_oldstyle_mro(base,seen):
+            for ancestor in _get_oldstyle_mro(base, seen):
                 yield ancestor
-

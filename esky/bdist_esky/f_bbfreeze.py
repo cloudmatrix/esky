@@ -33,21 +33,21 @@ def freeze(dist):
     excludes = dist.excludes
     options = dist.freezer_options
     #  Merge in any encludes/excludes given in freezer_options
-    for inc in options.pop("includes",()):
+    for inc in options.pop("includes", ()):
         includes.append(inc)
-    for exc in options.pop("excludes",()):
+    for exc in options.pop("excludes", ()):
         excludes.append(exc)
     if "pypy" not in includes and "pypy" not in excludes:
         excludes.append("pypy")
     #  Freeze up the given scripts
-    f = bbfreeze.Freezer(dist.freeze_dir,includes=includes,excludes=excludes)
-    for (nm,val) in options.iteritems():
-        setattr(f,nm,val)
+    f = bbfreeze.Freezer(dist.freeze_dir, includes=includes, excludes=excludes)
+    for (nm, val) in options.iteritems():
+        setattr(f, nm, val)
     f.addModule("esky")
     tdir = tempfile.mkdtemp()
     try:
         for exe in dist.get_executables():
-            f.addScript(exe.script,gui_only=exe.gui_only)
+            f.addScript(exe.script, gui_only=exe.gui_only)
         if "include_py" not in options:
             f.include_py = False
         if "linkmethod" not in options:
@@ -58,16 +58,16 @@ def freeze(dist):
     finally:
         shutil.rmtree(tdir)
     #  Copy data files into the freeze dir
-    for (src,dst) in dist.get_data_files():
-        dst = os.path.join(dist.freeze_dir,dst)
+    for (src, dst) in dist.get_data_files():
+        dst = os.path.join(dist.freeze_dir, dst)
         dstdir = os.path.dirname(dst)
         if not os.path.isdir(dstdir):
             dist.mkpath(dstdir)
-        dist.copy_file(src,dst)
+        dist.copy_file(src, dst)
     #  Copy package data into the library.zip
-    lib = zipfile.ZipFile(os.path.join(dist.freeze_dir,"library.zip"),"a")
-    for (src,arcnm) in dist.get_package_data():
-        lib.write(src,arcnm)
+    lib = zipfile.ZipFile(os.path.join(dist.freeze_dir, "library.zip"), "a")
+    for (src, arcnm) in dist.get_package_data():
+        lib.write(src, arcnm)
     lib.close()
     #  Create the bootstrap code, using custom code if specified.
     #  For win32 we include a special chainloader that can suck the selected
@@ -83,11 +83,11 @@ def freeze(dist):
             take2_code = code_source[1:]
             take2_code.append(_CUSTOM_WIN32_CHAINLOADER)
             take2_code.append(dist.get_bootstrap_code())
-            take2_code = compile("\n".join(take2_code),"<string>","exec")
+            take2_code = compile("\n".join(take2_code), "<string>", "exec")
             take2_code = marshal.dumps(take2_code)
             clscript = "import marshal; "
             clscript += "exec marshal.loads(%r); " % (take2_code,)
-            clscript = clscript.replace("%","%%")
+            clscript = clscript.replace("%", "%%")
             clscript += "chainload(\"%s\")"
             #  Here's the actual source for the compiled bootstrap exe.
             from esky.bdist_esky import pypy_libpython
@@ -99,10 +99,10 @@ def freeze(dist):
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            bsexe = dist.compile_to_bootstrap_exe(exe,code_source)
+            bsexe = dist.compile_to_bootstrap_exe(exe, code_source)
             if sys.platform == "win32":
-                fexe = os.path.join(dist.freeze_dir,exe.name)
-                winres.copy_safe_resources(fexe,bsexe)
+                fexe = os.path.join(dist.freeze_dir, exe.name)
+                winres.copy_safe_resources(fexe, bsexe)
         #  We may also need the bundled MSVCRT libs
         if sys.platform == "win32":
             for nm in os.listdir(dist.freeze_dir):
@@ -116,22 +116,26 @@ def freeze(dist):
         code_source = "\n".join(code_source)
         #  For non-compiled bootstrap exe, store the bootstrapping code
         #  into the library.zip as __main__.
-        maincode = imp.get_magic() + struct.pack("<i",0)
-        maincode += marshal.dumps(compile(code_source,"__main__.py","exec"))
+        maincode = imp.get_magic() + struct.pack("<i", 0)
+        maincode += marshal.dumps(compile(code_source, "__main__.py", "exec"))
         #  Create code for a fake esky.bootstrap module
-        eskycode = imp.get_magic() + struct.pack("<i",0)
-        eskycode += marshal.dumps(compile("","esky/__init__.py","exec"))
-        eskybscode = imp.get_magic() + struct.pack("<i",0)
-        eskybscode += marshal.dumps(compile("","esky/bootstrap.py","exec"))
+        eskycode = imp.get_magic() + struct.pack("<i", 0)
+        eskycode += marshal.dumps(compile("", "esky/__init__.py", "exec"))
+        eskybscode = imp.get_magic() + struct.pack("<i", 0)
+        eskybscode += marshal.dumps(compile("", "esky/bootstrap.py", "exec"))
         #  Store bootstrap code as __main__ in the bootstrap library.zip.
         #  The frozen library.zip might have the loader prepended to it, but
         #  that gets overwritten here.
         bslib_path = dist.copy_to_bootstrap_env("library.zip")
-        bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
-        cdate = (2000,1,1,0,0,0)
-        bslib.writestr(zipfile.ZipInfo("__main__.pyc",cdate),maincode)
-        bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
-        bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
+        bslib = zipfile.PyZipFile(bslib_path, "w", zipfile.ZIP_STORED)
+        cdate = (2000, 1, 1, 0, 0, 0)
+        bslib.writestr(zipfile.ZipInfo("__main__.pyc", cdate), maincode)
+        bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc", cdate), eskycode)
+        bslib.writestr(
+            zipfile.ZipInfo(
+                "esky/bootstrap.pyc",
+                cdate),
+            eskybscode)
         bslib.close()
         #  Copy any core dependencies
         if "fcntl" not in sys.builtin_module_names:

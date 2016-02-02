@@ -61,7 +61,7 @@ class SecureStringPipe(object):
     immediately closed and a RuntimeError being generated.
     """
 
-    def __init__(self,token=None):
+    def __init__(self, token=None):
         if token is None:
             token = os.urandom(16)
         self.token = token
@@ -73,10 +73,10 @@ class SecureStringPipe(object):
     def connect(self):
         raise NotImplementedError
 
-    def _read(self,size):
+    def _read(self, size):
         raise NotImplementedError
 
-    def _write(self,data):
+    def _write(self, data):
         raise NotImplementedError
 
     def _open(self):
@@ -91,16 +91,16 @@ class SecureStringPipe(object):
             self._write_hmac = hmac.new(self.token)
             #timed_out = []
             #t = None
-            #if threading is not None:
+            # if threading is not None:
             #    def rescueme():
             #        timed_out.append(True)
             #        self._recover()
             #    t = threading.Timer(30,rescueme)
             #    t.start()
             self._open()
-            #if timed_out:
+            # if timed_out:
             #    raise IOError(errno.ETIMEDOUT,"timed out during sudo")
-            #elif t is not None:
+            # elif t is not None:
             #    t.cancel()
             self.connected = True
 
@@ -116,7 +116,7 @@ class SecureStringPipe(object):
         sz = self._read(4)
         if len(sz) < 4:
             raise EOFError
-        sz = struct.unpack("I",sz)[0]
+        sz = struct.unpack("I", sz)[0]
         data = self._read(sz)
         if len(data) < sz:
             raise EOFError
@@ -127,13 +127,13 @@ class SecureStringPipe(object):
             raise RuntimeError("mismatched hmac; terminating")
         return data
 
-    def write(self,data):
+    def write(self, data):
         """Write the given string to the pipe.
 
         The expected data format is:  4-byte size, data, signature
         """
         self.check_connection()
-        self._write(struct.pack("I",len(data)))
+        self._write(struct.pack("I", len(data)))
         self._write(data)
         self._write_hmac.update(data)
         self._write(self._write_hmac.digest())
@@ -146,5 +146,3 @@ def spawn_sudo(proxy):
 
 def run_startup_hooks():
     raise NotImplementedError
-
-

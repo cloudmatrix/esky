@@ -32,10 +32,10 @@ def can_get_root():
 
 class KillablePopen(subprocess.Popen):
     """Popen that's guaranteed killable, even on python2.5."""
-    if not hasattr(subprocess.Popen,"terminate"):
+    if not hasattr(subprocess.Popen, "terminate"):
         def terminate(self):
             import signal
-            os.kill(self.pid,signal.SIGTERM)
+            os.kill(self.pid, signal.SIGTERM)
 
 
 class SecureStringPipe(base.SecureStringPipe):
@@ -50,18 +50,18 @@ class SecureStringPipe(base.SecureStringPipe):
     message-hashing token, which we pass to the slave in its env vars.
     """
 
-    def __init__(self,token=None,data=None):
-        super(SecureStringPipe,self).__init__(token)
+    def __init__(self, token=None, data=None):
+        super(SecureStringPipe, self).__init__(token)
         self.rfd = None
         self.wfd = None
         if data is None:
             self.tdir = tempfile.mkdtemp()
-            self.rnm = os.path.join(self.tdir,"master")
-            self.wnm = os.path.join(self.tdir,"slave")
-            os.mkfifo(self.rnm,0600)
-            os.mkfifo(self.wnm,0600)
+            self.rnm = os.path.join(self.tdir, "master")
+            self.wnm = os.path.join(self.tdir, "slave")
+            os.mkfifo(self.rnm, 0o600)
+            os.mkfifo(self.wnm, 0o600)
         else:
-            self.tdir,self.rnm,self.wnm = data
+            self.tdir, self.rnm, self.wnm = data
 
     def __del__(self):
         try:
@@ -70,30 +70,30 @@ class SecureStringPipe(base.SecureStringPipe):
             pass
 
     def connect(self):
-        return SecureStringPipe(self.token,(self.tdir,self.wnm,self.rnm))
+        return SecureStringPipe(self.token, (self.tdir, self.wnm, self.rnm))
 
-    def _read(self,size):
-        return os.read(self.rfd,size)
+    def _read(self, size):
+        return os.read(self.rfd, size)
 
-    def _write(self,data):
-        return os.write(self.wfd,data)
+    def _write(self, data):
+        return os.write(self.wfd, data)
 
     def _open(self):
         if self.rnm.endswith("master"):
-            self.rfd = os.open(self.rnm,os.O_RDONLY)
-            self.wfd = os.open(self.wnm,os.O_WRONLY)
+            self.rfd = os.open(self.rnm, os.O_RDONLY)
+            self.wfd = os.open(self.wnm, os.O_WRONLY)
         else:
-            self.wfd = os.open(self.wnm,os.O_WRONLY)
-            self.rfd = os.open(self.rnm,os.O_RDONLY)
+            self.wfd = os.open(self.wnm, os.O_WRONLY)
+            self.rfd = os.open(self.rnm, os.O_RDONLY)
         os.unlink(self.wnm)
 
     def _recover(self):
         try:
-            os.close(os.open(self.rnm,os.O_WRONLY))
+            os.close(os.open(self.rnm, os.O_WRONLY))
         except EnvironmentError:
             pass
         try:
-            os.close(os.open(self.wnm,os.O_RDONLY))
+            os.close(os.open(self.wnm, os.O_RDONLY))
         except EnvironmentError:
             pass
 
@@ -108,18 +108,18 @@ class SecureStringPipe(base.SecureStringPipe):
             try:
                 if not os.listdir(self.tdir):
                     os.rmdir(self.tdir)
-            except EnvironmentError, e:
+            except EnvironmentError as e:
                 if e.errno != errno.ENOENT:
                     raise
-        super(SecureStringPipe,self).close()
+        super(SecureStringPipe, self).close()
 
 
-def find_exe(name,*args):
-    path = os.environ.get("PATH","/bin:/usr/bin").split(":")
-    if getattr(sys,"frozen",False):
+def find_exe(name, *args):
+    path = os.environ.get("PATH", "/bin:/usr/bin").split(":")
+    if getattr(sys, "frozen", False):
         path.append(os.path.dirname(sys.executable))
     for dir in path:
-        exe = os.path.join(dir,name)
+        exe = os.path.join(dir, name)
         if os.path.exists(exe):
             return [exe] + list(args)
     return None
@@ -127,17 +127,17 @@ def find_exe(name,*args):
 
 def spawn_sudo(proxy):
     """Spawn the sudo slave process, returning proc and a pipe to message it."""
-    rnul = open(os.devnull,"r")
-    wnul = open(os.devnull,"w")
+    rnul = open(os.devnull, "r")
+    wnul = open(os.devnull, "w")
     pipe = SecureStringPipe()
     c_pipe = pipe.connect()
-    if not getattr(sys,"frozen",False):
-        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
-    elif os.path.basename(sys.executable).lower() in ("python","pythonw"):
-        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
+    if not getattr(sys, "frozen", False):
+        exe = [sys.executable, "-c", "import esky; esky.run_startup_hooks()"]
+    elif os.path.basename(sys.executable).lower() in ("python", "pythonw"):
+        exe = [sys.executable, "-c", "import esky; esky.run_startup_hooks()"]
     else:
         if not esky._startup_hooks_were_run:
-            raise OSError(None,"unable to sudo: startup hooks not run")
+            raise OSError(None, "unable to sudo: startup hooks not run")
         exe = [sys.executable]
     args = ["--esky-spawn-sudo"]
     args.append(base.b64pickle(proxy))
@@ -145,11 +145,11 @@ def spawn_sudo(proxy):
     sudo = None
     display_name = "%s update" % (proxy.name,)
     if "DISPLAY" in os.environ:
-        sudo = find_exe("gksudo","-k","-D",display_name,"--")
+        sudo = find_exe("gksudo", "-k", "-D", display_name, "--")
         if sudo is None:
             sudo = find_exe("kdesudo")
         if sudo is None:
-            sudo = find_exe("cocoasudo","--prompt='%s'" % (display_name,))
+            sudo = find_exe("cocoasudo", "--prompt='%s'" % (display_name,))
     if sudo is None:
         sudo = find_exe("sudo")
     if sudo is None:
@@ -160,9 +160,9 @@ def spawn_sudo(proxy):
     env = os.environ.copy()
     env["ESKY_SUDO_PIPE"] = base.b64pickle(c_pipe)
     # Spawn the subprocess
-    kwds = dict(stdin=rnul,stdout=wnul,stderr=wnul,close_fds=True,env=env)
-    proc = KillablePopen(exe,**kwds)
-    return (proc,pipe)
+    kwds = dict(stdin=rnul, stdout=wnul, stderr=wnul, close_fds=True, env=env)
+    proc = KillablePopen(exe, **kwds)
+    return (proc, pipe)
 
 
 def run_startup_hooks():
@@ -171,4 +171,3 @@ def run_startup_hooks():
         pipe = base.b64unpickle(os.environ["ESKY_SUDO_PIPE"])
         proxy.run(pipe)
         sys.exit(0)
-

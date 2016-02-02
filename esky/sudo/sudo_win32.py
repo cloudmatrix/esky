@@ -40,31 +40,32 @@ ERROR_NO_SUCH_LOGON_SESSION = 1312
 ERROR_PRIVILEGE_NOT_HELD = 1314
 TokenLinkedToken = 19
 SEE_MASK_NOCLOSEPROCESS = 0x00000040
-SEE_MASK_NOASYNC  = 0x00000100
+SEE_MASK_NOASYNC = 0x00000100
 
 
-def _errcheck_bool(value,func,args):
+def _errcheck_bool(value, func, args):
     if not value:
         raise ctypes.WinError()
     return args
 
+
 class SHELLEXECUTEINFO(ctypes.Structure):
     _fields_ = (
-      ("cbSize",ctypes.wintypes.DWORD),
-      ("fMask",ctypes.c_ulong),
-      ("hwnd",ctypes.wintypes.HANDLE),
-      ("lpVerb",ctypes.c_char_p),
-      ("lpFile",ctypes.c_char_p),
-      ("lpParameters",ctypes.c_char_p),
-      ("lpDirectory",ctypes.c_char_p),
-      ("nShow",ctypes.c_int),
-      ("hInstApp",ctypes.wintypes.HINSTANCE),
-      ("lpIDList",ctypes.c_void_p),
-      ("lpClass",ctypes.c_char_p),
-      ("hKeyClass",ctypes.wintypes.HKEY),
-      ("dwHotKey",ctypes.wintypes.DWORD),
-      ("hIconOrMonitor",ctypes.wintypes.HANDLE),
-      ("hProcess",ctypes.wintypes.HANDLE),
+        ("cbSize", ctypes.wintypes.DWORD),
+        ("fMask", ctypes.c_ulong),
+        ("hwnd", ctypes.wintypes.HANDLE),
+        ("lpVerb", ctypes.c_char_p),
+        ("lpFile", ctypes.c_char_p),
+        ("lpParameters", ctypes.c_char_p),
+        ("lpDirectory", ctypes.c_char_p),
+        ("nShow", ctypes.c_int),
+        ("hInstApp", ctypes.wintypes.HINSTANCE),
+        ("lpIDList", ctypes.c_void_p),
+        ("lpClass", ctypes.c_char_p),
+        ("hKeyClass", ctypes.wintypes.HKEY),
+        ("dwHotKey", ctypes.wintypes.DWORD),
+        ("hIconOrMonitor", ctypes.wintypes.HANDLE),
+        ("hProcess", ctypes.wintypes.HANDLE),
     )
 
 
@@ -135,7 +136,6 @@ else:
     )
 
 
-
 def has_root():
     """Check whether the user currently has root access."""
     return bool(shell32.IsUserAnAdmin())
@@ -153,24 +153,25 @@ def can_get_root():
     #  Get the token for the current process.
     try:
         token = ctypes.wintypes.HANDLE()
-        OpenProcessToken(proc,TOKEN_QUERY,byref(token))
+        OpenProcessToken(proc, TOKEN_QUERY, byref(token))
         try:
             #  Get the administrators SID.
             sid = ctypes.create_string_buffer(SECURITY_MAX_SID_SIZE)
             sz = ctypes.wintypes.DWORD(SECURITY_MAX_SID_SIZE)
             target_sid = WinBuiltinAdministratorsSid
-            CreateWellKnownSid(target_sid,None,byref(sid),byref(sz))
+            CreateWellKnownSid(target_sid, None, byref(sid), byref(sz))
             #  Check whether the token has that SID directly.
             has_admin = ctypes.wintypes.BOOL()
-            CheckTokenMembership(None,byref(sid),byref(has_admin))
+            CheckTokenMembership(None, byref(sid), byref(has_admin))
             if has_admin.value:
                 return True
             #  Get the linked token.  Failure may mean no linked token.
             lToken = ctypes.wintypes.HANDLE()
             try:
                 cls = TokenLinkedToken
-                GetTokenInformation(token,cls,byref(lToken),sizeof(lToken),byref(sz))
-            except WindowsError, e:
+                GetTokenInformation(
+                    token, cls, byref(lToken), sizeof(lToken), byref(sz))
+            except WindowsError as e:
                 if e.winerror == ERROR_NO_SUCH_LOGON_SESSION:
                     return False
                 elif e.winerror == ERROR_PRIVILEGE_NOT_HELD:
@@ -179,7 +180,7 @@ def can_get_root():
                     raise
             #  Check if the linked token has the admin SID
             try:
-                CheckTokenMembership(lToken,byref(sid),byref(has_admin))
+                CheckTokenMembership(lToken, byref(sid), byref(has_admin))
                 return bool(has_admin.value)
             finally:
                 kernel32.CloseHandle(lToken)
@@ -189,24 +190,26 @@ def can_get_root():
         kernel32.CloseHandle(proc)
 
 
-
 class KillablePopen(subprocess.Popen):
     """Popen that's guaranteed killable, even on python2.5."""
-    if not hasattr(subprocess.Popen,"terminate"):
+    if not hasattr(subprocess.Popen, "terminate"):
         def terminate(self):
-            kernel32.TerminateProcess(self._handle,-1)
+            kernel32.TerminateProcess(self._handle, -1)
 
 
 class FakePopen(KillablePopen):
     """Popen-alike based on a raw process handle."""
-    def __init__(self,handle):
-        super(FakePopen,self).__init__(None)
+
+    def __init__(self, handle):
+        super(FakePopen, self).__init__(None)
         self._handle = handle
+
     def terminate(self):
-        kernel32.TerminateProcess(self._handle,-1)
-    def _execute_child(self,*args,**kwds):
+        kernel32.TerminateProcess(self._handle, -1)
+
+    def _execute_child(self, *args, **kwds):
         pass
-    
+
 
 class SecureStringPipe(base.SecureStringPipe):
     """Two-way pipe for securely communicating strings with a sudo subprocess.
@@ -233,49 +236,49 @@ class SecureStringPipe(base.SecureStringPipe):
     root privs; it *shouldn't* be sufficient to crack root on the machine...
     """
 
-    def __init__(self,token=None,pipename=None):
-        super(SecureStringPipe,self).__init__(token)
+    def __init__(self, token=None, pipename=None):
+        super(SecureStringPipe, self).__init__(token)
         if pipename is None:
             self.pipename = r"\\.\pipe\esky-" + uuid.uuid4().hex
             self.pipe = kernel32.CreateNamedPipeA(
-                          self.pipename,0x03,0x00,1,8192,8192,0,None
-                        )
+                self.pipename, 0x03, 0x00, 1, 8192, 8192, 0, None
+            )
         else:
             self.pipename = pipename
             self.pipe = None
 
     def connect(self):
-        return SecureStringPipe(self.token,self.pipename)
+        return SecureStringPipe(self.token, self.pipename)
 
-    def _read(self,size):
+    def _read(self, size):
         data = ctypes.create_string_buffer(size)
         szread = ctypes.c_int()
-        kernel32.ReadFile(self.pipe,data,size,byref(szread),None)
+        kernel32.ReadFile(self.pipe, data, size, byref(szread), None)
         return data.raw[:szread.value]
 
-    def _write(self,data):
+    def _write(self, data):
         szwritten = ctypes.c_int()
-        kernel32.WriteFile(self.pipe,data,len(data),byref(szwritten),None)
+        kernel32.WriteFile(self.pipe, data, len(data), byref(szwritten), None)
 
     def close(self):
         if self.pipe is not None:
             kernel32.CloseHandle(self.pipe)
             self.pipe = None
-        super(SecureStringPipe,self).close()
+        super(SecureStringPipe, self).close()
 
     def _open(self):
         if self.pipe is None:
             self.pipe = kernel32.CreateFileA(
-                self.pipename,GENERIC_RDWR,0,None,OPEN_EXISTING,
-                SECURITY_SQOS_PRESENT|SECURITY_IDENTIFICATION,None
+                self.pipename, GENERIC_RDWR, 0, None, OPEN_EXISTING,
+                SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, None
             )
         else:
-            kernel32.ConnectNamedPipe(self.pipe,None)
+            kernel32.ConnectNamedPipe(self.pipe, None)
 
     def _recover(self):
         kernel32.CreateFileA(
-            self.pipename,GENERIC_RDWR,0,None,OPEN_EXISTING,
-            SECURITY_SQOS_PRESENT|SECURITY_IDENTIFICATION,None
+            self.pipename, GENERIC_RDWR, 0, None, OPEN_EXISTING,
+            SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, None
         )
 
 
@@ -287,12 +290,12 @@ def spawn_sudo(proxy):
     """
     pipe = SecureStringPipe()
     c_pipe = pipe.connect()
-    if getattr(sys,"frozen",False):
+    if getattr(sys, "frozen", False):
         if not esky._startup_hooks_were_run:
-            raise OSError(None,"unable to sudo: startup hooks not run")
+            raise OSError(None, "unable to sudo: startup hooks not run")
         exe = [sys.executable]
     else:
-        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
+        exe = [sys.executable, "-c", "import esky; esky.run_startup_hooks()"]
     args = ["--esky-spawn-sudo"]
     args.append(base.b64pickle(proxy))
     args.append(base.b64pickle(c_pipe))
@@ -302,7 +305,7 @@ def spawn_sudo(proxy):
         kwds = {}
         if sys.hexversion >= 0x02060000:
             kwds["close_fds"] = True
-        proc = KillablePopen(exe,**kwds)
+        proc = KillablePopen(exe, **kwds)
     else:
         execinfo = SHELLEXECUTEINFO()
         execinfo.cbSize = sizeof(execinfo)
@@ -315,7 +318,7 @@ def spawn_sudo(proxy):
         execinfo.nShow = 0
         ShellExecuteEx(byref(execinfo))
         proc = FakePopen(execinfo.hProcess)
-    return (proc,pipe)
+    return (proc, pipe)
 
 
 def run_startup_hooks():

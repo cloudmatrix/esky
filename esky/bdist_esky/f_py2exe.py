@@ -19,10 +19,10 @@ import ctypes
 
 
 try:
-  from py2exe.build_exe import py2exe
+    from py2exe.build_exe import py2exe
 except ImportError:
-  from py2exe.distutils_buildexe import py2exe
-  
+    from py2exe.distutils_buildexe import py2exe
+
 
 import esky
 from esky.util import is_core_dependency, ESKY_CONTROL_DIR
@@ -35,20 +35,20 @@ except ImportError:
 
 #  Hack to make win32com work seamlessly with py2exe
 if modulefinder is not None:
-  try:
-    import win32com
-    for p in win32com.__path__[1:]:
-        modulefinder.AddPackagePath("win32com", p)
-    for extra in ["win32com.shell"]: #,"win32com.mapi"
-        __import__(extra)
-        m = sys.modules[extra]
-        for p in m.__path__[1:]:
-           modulefinder.AddPackagePath(extra, p)
-  except ImportError:
-     pass
+    try:
+        import win32com
+        for p in win32com.__path__[1:]:
+            modulefinder.AddPackagePath("win32com", p)
+        for extra in ["win32com.shell"]:  # ,"win32com.mapi"
+            __import__(extra)
+            m = sys.modules[extra]
+            for p in m.__path__[1:]:
+                modulefinder.AddPackagePath(extra, p)
+    except ImportError:
+        pass
 
 
-class custom_py2exe(py2exe): 
+class custom_py2exe(py2exe):
     """Custom py2exe command subclass.
 
     This py2exe command subclass incorporates some well-known py2exe "hacks"
@@ -60,12 +60,12 @@ class custom_py2exe(py2exe):
         self.__mf = mf
         return mf
 
-    def build_manifest(self,target,template):
-        (mfest,mid) = py2exe.build_manifest(self,target,template)
+    def build_manifest(self, target, template):
+        (mfest, mid) = py2exe.build_manifest(self, target, template)
         #  Hack to get proper UI theme when freezing wxPython
         if mfest is not None:
             if "wx" in self.__mf.modules:
-                mfest = mfest.replace("</assembly>","""
+                mfest = mfest.replace("</assembly>", """
                     <dependency>
                       <dependentAssembly>
                         <assemblyIdentity
@@ -78,7 +78,7 @@ class custom_py2exe(py2exe):
                       </dependentAssembly>
                    </dependency>
                  </assembly>""")
-        return (mfest,mid)
+        return (mfest, mid)
 
 
 def freeze(dist):
@@ -88,19 +88,19 @@ def freeze(dist):
     options = dist.freezer_options
     #  Merge in any encludes/excludes given in freezer_options
     includes.append("esky")
-    for inc in options.pop("includes",()):
+    for inc in options.pop("includes", ()):
         includes.append(inc)
-    for exc in options.pop("excludes",()):
+    for exc in options.pop("excludes", ()):
         excludes.append(exc)
     if "pypy" not in includes and "pypy" not in excludes:
         excludes.append("pypy")
     #  py2exe expects some arguments on the main distribution object.
     #  We handle data_files ourselves, so fake it out for py2exe.
-    if getattr(dist.distribution,"console",None):
+    if getattr(dist.distribution, "console", None):
         msg = "don't call setup(console=[...]) with esky;"
         msg += " use setup(scripts=[...]) instead"
         raise RuntimeError(msg)
-    if getattr(dist.distribution,"windows",None):
+    if getattr(dist.distribution, "windows", None):
         msg = "don't call setup(windows=[...]) with esky;"
         msg += " use setup(scripts=[...]) instead"
         raise RuntimeError(msg)
@@ -115,7 +115,7 @@ def freeze(dist):
         s["script"] = exe.script
         s["dest_base"] = exe.name[:-4]
         if exe.icon is not None and "icon_resources" not in s:
-            s["icon_resources"] = [(1,exe.icon)]
+            s["icon_resources"] = [(1, exe.icon)]
         if exe.gui_only:
             dist.distribution.windows.append(s)
         else:
@@ -128,46 +128,47 @@ def freeze(dist):
     cmd.excludes = excludes
     if "bundle_files" in options:
         if options["bundle_files"] < 3 and dist.compile_bootstrap_exes:
-             err = "can't compile bootstrap exes when bundle_files < 3"
-             raise RuntimeError(err)
-    for (nm,val) in options.iteritems():
-        setattr(cmd,nm,val)
+            err = "can't compile bootstrap exes when bundle_files < 3"
+            raise RuntimeError(err)
+    for (nm, val) in options.iteritems():
+        setattr(cmd, nm, val)
     cmd.dist_dir = dist.freeze_dir
     cmd.finalize_options()
     #  Actually run the freeze process
     cmd.run()
     #  Copy data files into the freeze dir
     dist.distribution.data_files = my_data_files
-    for (src,dst) in dist.get_data_files():
-        dst = os.path.join(dist.freeze_dir,dst)
+    for (src, dst) in dist.get_data_files():
+        dst = os.path.join(dist.freeze_dir, dst)
         dstdir = os.path.dirname(dst)
         if not os.path.isdir(dstdir):
             dist.mkpath(dstdir)
-        dist.copy_file(src,dst)
+        dist.copy_file(src, dst)
     #  Place a marker file so we know how it was frozen
-    os.mkdir(os.path.join(dist.freeze_dir,ESKY_CONTROL_DIR))
-    marker_file = os.path.join(ESKY_CONTROL_DIR,"f-py2exe-%d%d.txt")%sys.version_info[:2]
-    open(os.path.join(dist.freeze_dir,marker_file),"w").close()
+    os.mkdir(os.path.join(dist.freeze_dir, ESKY_CONTROL_DIR))
+    marker_file = os.path.join(ESKY_CONTROL_DIR,
+                               "f-py2exe-%d%d.txt") % sys.version_info[:2]
+    open(os.path.join(dist.freeze_dir, marker_file), "w").close()
     #  Copy package data into the library.zip
     #  For now, we don't try to put package data into a bundled zipfile.
     dist_zipfile = dist.distribution.zipfile
     if dist_zipfile is None:
-        for (src,arcnm) in dist.get_package_data():
+        for (src, arcnm) in dist.get_package_data():
             err = "zipfile=None can't be used with package_data (yet...)"
             raise RuntimeError(err)
     elif not cmd.skip_archive:
-        lib = zipfile.ZipFile(os.path.join(dist.freeze_dir,dist_zipfile),"a")
-        for (src,arcnm) in dist.get_package_data():
-            lib.write(src,arcnm)
+        lib = zipfile.ZipFile(os.path.join(dist.freeze_dir, dist_zipfile), "a")
+        for (src, arcnm) in dist.get_package_data():
+            lib.write(src, arcnm)
         lib.close()
     else:
-        for (src,arcnm) in dist.get_package_data():
-            lib = os.path.join(dist.freeze_dir,os.path.dirname(dist_zipfile))
+        for (src, arcnm) in dist.get_package_data():
+            lib = os.path.join(dist.freeze_dir, os.path.dirname(dist_zipfile))
             dest = os.path.join(lib, os.path.dirname(src))
             f = os.path.basename(src)
             if not os.path.isdir(dest):
                 dist.mkpath(dest)
-            dist.copy_file(src,os.path.join(dest, f))
+            dist.copy_file(src, os.path.join(dest, f))
     #  There's no need to copy library.zip into the bootstrap env, as the
     #  chainloader will run before py2exe goes looking for it.
     pass
@@ -187,9 +188,9 @@ def freeze(dist):
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            fexe = os.path.join(dist.freeze_dir,exe.name)
-            bsexe = dist.compile_to_bootstrap_exe(exe,code_source)
-            winres.copy_safe_resources(fexe,bsexe)
+            fexe = os.path.join(dist.freeze_dir, exe.name)
+            bsexe = dist.compile_to_bootstrap_exe(exe, code_source)
+            winres.copy_safe_resources(fexe, bsexe)
         #  We may also need the bundled MSVCRT libs
         for nm in os.listdir(dist.freeze_dir):
             if is_core_dependency(nm) and nm.startswith("Microsoft"):
@@ -200,7 +201,7 @@ def freeze(dist):
         code_source.append(dist.get_bootstrap_code())
         code_source.append("bootstrap()")
         code_source = "\n".join(code_source)
-        code = marshal.dumps([compile(code_source,"__main__.py","exec")])
+        code = marshal.dumps([compile(code_source, "__main__.py", "exec")])
         #  Copy any core dependencies into the bootstrap env.
         for nm in os.listdir(dist.freeze_dir):
             if is_core_dependency(nm):
@@ -212,9 +213,10 @@ def freeze(dist):
             exepath = dist.copy_to_bootstrap_env(exe.name)
             #  Read the py2exe metadata from the frozen exe.  We will
             #  need to duplicate some of these fields when to rewrite it.
-            coderes = winres.load_resource(exepath,u"PYTHONSCRIPT",1,0)
+            coderes = winres.load_resource(exepath, u"PYTHONSCRIPT", 1, 0)
             headsz = struct.calcsize("iiii")
-            (magic,optmz,unbfrd,codesz) = struct.unpack("iiii",coderes[:headsz])
+            (magic, optmz, unbfrd, codesz) = struct.unpack(
+                "iiii", coderes[:headsz])
             assert magic == 0x78563412
             #  Insert the bootstrap code into the exe as a resource.
             #  This appears to have the happy side-effect of stripping any
@@ -222,30 +224,31 @@ def freeze(dist):
             #  want when zipfile=None is specified; otherwise each bootstrap
             #  exe would also contain the whole bundled zipfile.
             coderes = struct.pack("iiii",
-                         magic, # magic value used for integrity checking,
-                         optmz, # optimization level to enable
-                         unbfrd,  # whether to use unbuffered output
-                         len(code),
-                      ) + b"\x00" + code + b"\x00\x00"
-            winres.add_resource(exepath,coderes,u"PYTHONSCRIPT",1,0)
+                                  magic,  # magic value used for integrity checking,
+                                  optmz,  # optimization level to enable
+                                  unbfrd,  # whether to use unbuffered output
+                                  len(code),
+                                  ) + b"\x00" + code + b"\x00\x00"
+            winres.add_resource(exepath, coderes, u"PYTHONSCRIPT", 1, 0)
         #  If the python dll hasn't been copied into the bootstrap env,
         #  make sure it's stored in each bootstrap dll as a resource.
         pydll = u"python%d%d.dll" % sys.version_info[:2]
-        if not os.path.exists(os.path.join(dist.bootstrap_dir,pydll)):
+        if not os.path.exists(os.path.join(dist.bootstrap_dir, pydll)):
             buf = ctypes.create_string_buffer(3000)
             GetModuleFileNameA = ctypes.windll.kernel32.GetModuleFileNameA
-            if not GetModuleFileNameA(sys.dllhandle,ctypes.byref(buf),3000):
+            if not GetModuleFileNameA(sys.dllhandle, ctypes.byref(buf), 3000):
                 raise ctypes.WinError()
-            with open(buf.value,"rb") as f:
+            with open(buf.value, "rb") as f:
                 pydll_bytes = f.read()
             for exe in dist.get_executables(normalise=False):
                 if not exe.include_in_bootstrap_env:
                     continue
-                exepath = os.path.join(dist.bootstrap_dir,exe.name)
+                exepath = os.path.join(dist.bootstrap_dir, exe.name)
                 try:
-                    winres.load_resource(exepath,pydll.upper(),1,0)
+                    winres.load_resource(exepath, pydll.upper(), 1, 0)
                 except EnvironmentError:
-                    winres.add_resource(exepath,pydll_bytes,pydll.upper(),1,0)
+                    winres.add_resource(
+                        exepath, pydll_bytes, pydll.upper(), 1, 0)
 
 #  Code to fake out any bootstrappers that try to import from esky.
 _FAKE_ESKY_BOOTSTRAP_MODULE = """
@@ -381,7 +384,7 @@ def _chainload(target_dir):
       for code in codelist:
         %s
       raise SystemExit(0)
-""" % (inspect.getsource(winres.load_resource).replace("\n","\n"+" "*4), EXEC_STATEMENT)
+""" % (inspect.getsource(winres.load_resource).replace("\n", "\n" + " " * 4), EXEC_STATEMENT)
 
 
 #  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
@@ -488,5 +491,3 @@ def _chainload(target_dir):
       sys.exit(0)
 
 """
-
-

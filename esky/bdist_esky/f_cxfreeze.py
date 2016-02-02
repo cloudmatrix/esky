@@ -31,9 +31,9 @@ def freeze(dist):
     excludes = dist.excludes
     options = dist.freezer_options
     #  Merge in any encludes/excludes given in freezer_options
-    for inc in options.pop("includes",()):
+    for inc in options.pop("includes", ()):
         includes.append(inc)
-    for exc in options.pop("excludes",()):
+    for exc in options.pop("excludes", ()):
         excludes.append(exc)
     if "esky" not in includes and "esky" not in excludes:
         includes.append("esky")
@@ -41,13 +41,14 @@ def freeze(dist):
         excludes.append("pypy")
     #  cx_Freeze doesn't seem to respect __path__ properly; hack it so
     #  that the required distutils modules are always found correctly.
-    def load_distutils(finder,module):
+
+    def load_distutils(finder, module):
         module.path = distutils.__path__ + module.path
         finder.IncludeModule("distutils.dist")
     cx_Freeze.hooks.load_distutils = load_distutils
     #  Build kwds arguments out of the given freezer opts.
     kwds = {}
-    for (nm,val) in options.iteritems():
+    for (nm, val) in options.iteritems():
         kwds[_normalise_opt_name(nm)] = val
     kwds["includes"] = includes
     kwds["excludes"] = excludes
@@ -59,26 +60,36 @@ def freeze(dist):
         base = None
         if exe.gui_only and sys.platform == "win32":
             base = "Win32GUI"
-        executables.append(cx_Freeze.Executable(exe.script,base=base,targetName=exe.name,icon=exe.icon,**exe._kwds))
+        executables.append(
+            cx_Freeze.Executable(
+                exe.script,
+                base=base,
+                targetName=exe.name,
+                icon=exe.icon,
+                **exe._kwds))
     #  Freeze up the executables
-    f = cx_Freeze.Freezer(executables,**kwds)
+    f = cx_Freeze.Freezer(executables, **kwds)
     f.Freeze()
     #  Copy data files into the freeze dir
-    for (src,dst) in dist.get_data_files():
-        dst = os.path.join(dist.freeze_dir,dst)
+    for (src, dst) in dist.get_data_files():
+        dst = os.path.join(dist.freeze_dir, dst)
         dstdir = os.path.dirname(dst)
         if not os.path.isdir(dstdir):
             dist.mkpath(dstdir)
-        dist.copy_file(src,dst)
+        dist.copy_file(src, dst)
     #  Copy package data into the library.zip
     #  For now, this only works if there's a shared "library.zip" file.
     if f.createLibraryZip:
-        lib = zipfile.ZipFile(os.path.join(dist.freeze_dir,"library.zip"),"a")
-        for (src,arcnm) in dist.get_package_data():
-            lib.write(src,arcnm)
+        lib = zipfile.ZipFile(
+            os.path.join(
+                dist.freeze_dir,
+                "library.zip"),
+            "a")
+        for (src, arcnm) in dist.get_package_data():
+            lib.write(src, arcnm)
         lib.close()
     else:
-        for (src,arcnm) in dist.get_package_data():
+        for (src, arcnm) in dist.get_package_data():
             err = "use of package_data currently requires createLibraryZip=True"
             raise RuntimeError(err)
     #  Create the bootstrap code, using custom code if specified.
@@ -95,8 +106,8 @@ def freeze(dist):
             #  The pypy-compiled bootstrap exe will try to load a python env
             #  into its own process and run this "take2" code to bootstrap.
             #take2_code = code_source[1:]
-            #take2_code.append(_CUSTOM_WIN32_CHAINLOADER)
-            #take2_code.append(dist.get_bootstrap_code())
+            # take2_code.append(_CUSTOM_WIN32_CHAINLOADER)
+            # take2_code.append(dist.get_bootstrap_code())
             #take2_code = compile("\n".join(take2_code),"<string>","exec")
             #take2_code = marshal.dumps(take2_code)
             #clscript = "import marshal; "
@@ -105,29 +116,29 @@ def freeze(dist):
             #clscript += "chainload(\"%s\")"
             #  Here's the actual source for the compiled bootstrap exe.
             #from esky.bdist_esky import pypy_libpython
-            #code_source.append(inspect.getsource(pypy_libpython))
+            # code_source.append(inspect.getsource(pypy_libpython))
             #code_source.append("_PYPY_CHAINLOADER_SCRIPT = %r" % (clscript,))
-            #code_source.append(_CUSTOM_PYPY_CHAINLOADER)
+            # code_source.append(_CUSTOM_PYPY_CHAINLOADER)
         code_source.append(dist.get_bootstrap_code())
         code_source = "\n".join(code_source)
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            bsexe = dist.compile_to_bootstrap_exe(exe,code_source)
+            bsexe = dist.compile_to_bootstrap_exe(exe, code_source)
             if sys.platform == "win32":
-                fexe = os.path.join(dist.freeze_dir,exe.name)
-                winres.copy_safe_resources(fexe,bsexe)
+                fexe = os.path.join(dist.freeze_dir, exe.name)
+                winres.copy_safe_resources(fexe, bsexe)
     else:
         if sys.platform == "win32":
             code_source.append(_CUSTOM_WIN32_CHAINLOADER)
         code_source.append(dist.get_bootstrap_code())
         code_source.append("bootstrap()")
         code_source = "\n".join(code_source)
-        
-        maincode = compile_to_bytecode(code_source, INITNAME+".py")
+
+        maincode = compile_to_bytecode(code_source, INITNAME + ".py")
         eskycode = compile_to_bytecode("", "esky/__init__.py")
         eskybscode = compile_to_bytecode("", "esky/bootstrap.py")
-        
+
         #  Copy any core dependencies
         if "fcntl" not in sys.builtin_module_names:
             for nm in os.listdir(dist.freeze_dir):
@@ -136,26 +147,34 @@ def freeze(dist):
         for nm in os.listdir(dist.freeze_dir):
             if is_core_dependency(nm):
                 dist.copy_to_bootstrap_env(nm)
-                
+
         #  Copy the loader program for each script into the bootstrap env, and
         #  append the bootstrapping code to it as a zipfile.
         for exe in dist.get_executables(normalise=False):
             if not exe.include_in_bootstrap_env:
                 continue
-            
+
             exepath = dist.copy_to_bootstrap_env(exe.name)
             if not dist.detached_bootstrap_library:
-                #append library to the bootstrap exe.
+                # append library to the bootstrap exe.
                 exepath = dist.copy_to_bootstrap_env(exe.name)
-                bslib = zipfile.PyZipFile(exepath,"a",zipfile.ZIP_STORED)
+                bslib = zipfile.PyZipFile(exepath, "a", zipfile.ZIP_STORED)
             else:
-                #Create a separate library.zip for the bootstrap exe.
+                # Create a separate library.zip for the bootstrap exe.
                 bslib_path = dist.copy_to_bootstrap_env("library.zip")
-                bslib = zipfile.PyZipFile(bslib_path,"w",zipfile.ZIP_STORED)
-            cdate = (2000,1,1,0,0,0)
-            bslib.writestr(zipfile.ZipInfo(INITNAME+".pyc",cdate),maincode)
-            bslib.writestr(zipfile.ZipInfo("esky/__init__.pyc",cdate),eskycode)
-            bslib.writestr(zipfile.ZipInfo("esky/bootstrap.pyc",cdate),eskybscode)
+                bslib = zipfile.PyZipFile(bslib_path, "w", zipfile.ZIP_STORED)
+            cdate = (2000, 1, 1, 0, 0, 0)
+            bslib.writestr(zipfile.ZipInfo(INITNAME + ".pyc", cdate), maincode)
+            bslib.writestr(
+                zipfile.ZipInfo(
+                    "esky/__init__.pyc",
+                    cdate),
+                eskycode)
+            bslib.writestr(
+                zipfile.ZipInfo(
+                    "esky/bootstrap.pyc",
+                    cdate),
+                eskybscode)
             bslib.close()
 
 
@@ -166,7 +185,7 @@ def _normalise_opt_name(nm):
     them converted to the "optName" format used internally by cx_Freeze.
     """
     bits = nm.split("-")
-    for i in xrange(1,len(bits)):
+    for i in xrange(1, len(bits)):
         if bits[i]:
             bits[i] = bits[i][0].upper() + bits[i][1:]
     return "".join(bits)
@@ -237,7 +256,7 @@ def _chainload(target_dir):
               sys.exit(0)
       else:
           _orig_chainload(target_dir)
-""" % (INITNAME,EXEC_STATEMENT)
+""" % (INITNAME, EXEC_STATEMENT)
 
 
 #  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap
@@ -296,5 +315,3 @@ def _chainload(target_dir):
       sys.exit(0)
 
 """
-
-

@@ -20,7 +20,7 @@ class FSTransaction(object):
     support transactional filesystem operations.
     """
 
-    def __init__(self,root=None):
+    def __init__(self, root=None):
         if root is None:
             self.root = None
         else:
@@ -29,9 +29,9 @@ class FSTransaction(object):
                 self.root = self.root[:-1]
         self.pending = []
 
-    def _check_path(self,path):
+    def _check_path(self, path):
         if self.root is not None:
-            path = os.path.normpath(os.path.join(self.root,path))
+            path = os.path.normpath(os.path.join(self.root, path))
             if len(self.root) == 2 and sys.platform == "win32":
                 prefix = self.root
             else:
@@ -41,28 +41,28 @@ class FSTransaction(object):
                 raise ValueError(err)
         return path
 
-    def move(self,source,target):
+    def move(self, source, target):
         source = self._check_path(source)
         target = self._check_path(target)
         if os.path.isdir(source):
             if os.path.isdir(target):
                 s_names = os.listdir(source)
                 for nm in s_names:
-                    self.move(os.path.join(source,nm),
-                              os.path.join(target,nm))
+                    self.move(os.path.join(source, nm),
+                              os.path.join(target, nm))
                 for nm in os.listdir(target):
                     if nm not in s_names:
-                        self.remove(os.path.join(target,nm))
+                        self.remove(os.path.join(target, nm))
                 self.remove(source)
             else:
-                self.pending.append(("_move",source,target))
+                self.pending.append(("_move", source, target))
         else:
-            if os.path.isdir(target) or files_differ(source,target):
-                self.pending.append(("_move",source,target))
+            if os.path.isdir(target) or files_differ(source, target):
+                self.pending.append(("_move", source, target))
             else:
-                self.pending.append(("_remove",source))
+                self.pending.append(("_remove", source))
 
-    def _move(self,source,target):
+    def _move(self, source, target):
         if sys.platform == "win32" and os.path.exists(target):
             #  os.rename won't overwite an existing file on win32.
             #  We also want to use this on files that are potentially open.
@@ -70,11 +70,11 @@ class FSTransaction(object):
             target_old = target + ".old"
             while os.path.exists(target_old):
                 target_old = target_old + ".old"
-            really_rename(target,target_old)
+            really_rename(target, target_old)
             try:
-                really_rename(source,target)
+                really_rename(source, target)
             except:
-                really_rename(target_old,target)
+                really_rename(target_old, target)
                 raise
             else:
                 try:
@@ -87,51 +87,51 @@ class FSTransaction(object):
                 target_old = target + ".old"
                 while os.path.exists(target_old):
                     target_old = target_old + ".old"
-                really_rename(target,target_old)
+                really_rename(target, target_old)
             elif os.path.isfile(target) and os.path.isdir(source):
                 target_old = target + ".old"
                 while os.path.exists(target_old):
                     target_old = target_old + ".old"
-                really_rename(target,target_old)
+                really_rename(target, target_old)
             self._create_parents(target)
-            really_rename(source,target)
+            really_rename(source, target)
             if target_old is not None:
                 self._remove(target_old)
 
-    def _create_parents(self,target):
+    def _create_parents(self, target):
         parents = [target]
         while not os.path.exists(os.path.dirname(parents[-1])):
             parents.append(os.path.dirname(parents[-1]))
         for parent in reversed(parents[1:]):
             os.mkdir(parent)
 
-    def copy(self,source,target):
+    def copy(self, source, target):
         source = self._check_path(source)
         target = self._check_path(target)
         if os.path.isdir(source):
             if os.path.isdir(target):
                 s_names = os.listdir(source)
                 for nm in s_names:
-                    self.copy(os.path.join(source,nm),
-                              os.path.join(target,nm))
+                    self.copy(os.path.join(source, nm),
+                              os.path.join(target, nm))
                 for nm in os.listdir(target):
                     if nm not in s_names:
-                        self.remove(os.path.join(target,nm))
+                        self.remove(os.path.join(target, nm))
             else:
-                self.pending.append(("_copy",source,target))
+                self.pending.append(("_copy", source, target))
         else:
-            if os.path.isdir(target) or files_differ(source,target):
-                self.pending.append(("_copy",source,target))
+            if os.path.isdir(target) or files_differ(source, target):
+                self.pending.append(("_copy", source, target))
 
-    def _copy(self,source,target):
+    def _copy(self, source, target):
         is_win32 = (sys.platform == "win32")
         if is_win32 and os.path.exists(target) and target != source:
             target_old = get_backup_filename(target)
-            really_rename(target,target_old)
+            really_rename(target, target_old)
             try:
-                self._do_copy(source,target)
+                self._do_copy(source, target)
             except:
-                really_rename(target_old,target)
+                really_rename(target_old, target)
                 raise
             else:
                 try:
@@ -142,38 +142,36 @@ class FSTransaction(object):
             target_old = None
             if os.path.isdir(target) and os.path.isfile(source):
                 target_old = get_backup_filename(target)
-                really_rename(target,target_old)
+                really_rename(target, target_old)
             elif os.path.isfile(target) and os.path.isdir(source):
                 target_old = get_backup_filename(target)
-                really_rename(target,target_old)
-            self._do_copy(source,target)
+                really_rename(target, target_old)
+            self._do_copy(source, target)
             if target_old is not None:
                 self._remove(target_old)
 
-    def _do_copy(self,source,target):
+    def _do_copy(self, source, target):
         self._create_parents(target)
         if os.path.isfile(source):
-            shutil.copy2(source,target)
+            shutil.copy2(source, target)
         else:
-            shutil.copytree(source,target)
+            shutil.copytree(source, target)
 
-    def remove(self,target):
+    def remove(self, target):
         target = self._check_path(target)
-        self.pending.append(("_remove",target))
+        self.pending.append(("_remove", target))
 
-    def _remove(self,target):
+    def _remove(self, target):
         if os.path.isfile(target):
             os.unlink(target)
         elif os.path.isdir(target):
             for nm in os.listdir(target):
-                self._remove(os.path.join(target,nm))
+                self._remove(os.path.join(target, nm))
             os.rmdir(target)
 
     def commit(self):
         for op in self.pending:
-            getattr(self,op[0])(*op[1:])
+            getattr(self, op[0])(*op[1:])
 
     def abort(self):
         del self.pending[:]
-
-

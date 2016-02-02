@@ -131,7 +131,7 @@ class Esky(object):
     DefaultVersionFinder instance.
     """
 
-    lock_timeout = 60*60  # 1 hour timeout on appdir locks
+    lock_timeout = 60 * 60  # 1 hour timeout on appdir locks
 
     def __init__(self, appdir_or_exe, version_finder=None):
         self._init_from_appdir(appdir_or_exe)
@@ -251,7 +251,7 @@ class Esky(object):
         #  Try to make the "locked" directory.
         try:
             os.mkdir(lockdir)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
             #  Is it stale?  If so, break it and try again.
@@ -263,13 +263,13 @@ class Esky(object):
                         newest_mtime = mtime
                 if newest_mtime + self.lock_timeout < time.time():
                     really_rmtree(lockdir)
-                    return self.lock(num_retries+1)
+                    return self.lock(num_retries + 1)
                 else:
                     raise EskyLockedError
-            except OSError, e:
+            except OSError as e:
                 if e.errno not in (errno.ENOENT, errno.ENOTDIR,):
                     raise
-                return self.lock(num_retries+1)
+                return self.lock(num_retries + 1)
         else:
             #  Success!  Record my ownership
             open(os.path.join(lockdir, myid), "wb").close()
@@ -445,7 +445,7 @@ class Esky(object):
                         else:
                             yield (self._try_remove, (tdir, nm, manifest,))
                     elif is_uninstalled_version_dir(fullnm):
-                        #  It's a partially-removed version; finish removing it.
+                        # It's a partially-removed version; finish removing it.
                         yield (self._try_remove, (tdir, nm, manifest,))
                     else:
                         for (_, _, filenms) in os.walk(fullnm):
@@ -465,7 +465,7 @@ class Esky(object):
                 for (dirnm, _, filenms) in os.walk(ovrdir, topdown=False):
                     for nm in filenms:
                         ovrsrc = os.path.join(dirnm, nm)
-                        ovrdst = os.path.join(appdir, ovrsrc[len(ovrdir)+1:])
+                        ovrdst = os.path.join(appdir, ovrsrc[len(ovrdir) + 1:])
                         yield (self._overwrite, (ovrsrc, ovrdst,))
                         yield (os.unlink, (ovrsrc,))
                     yield (os.rmdir, (dirnm,))
@@ -481,10 +481,10 @@ class Esky(object):
         with open(src, "rb") as fIn:
             with open(dst, "ab") as fOut:
                 fOut.seek(0)
-                chunk = fIn.read(512*16)
+                chunk = fIn.read(512 * 16)
                 while chunk:
                     fOut.write(chunk)
-                    chunk = fIn.read(512*16)
+                    chunk = fIn.read(512 * 16)
 
     @allow_from_sudo()
     def cleanup_at_exit(self):
@@ -580,7 +580,7 @@ class Esky(object):
                 os.rmdir(fullpath)
             else:
                 os.unlink(fullpath)
-        except EnvironmentError, e:
+        except EnvironmentError as e:
             if e.errno not in self._errors_to_ignore:
                 raise
             return False
@@ -629,7 +629,7 @@ class Esky(object):
                         raise
                     try:
                         self.get_root()
-                    except Exception, e:
+                    except Exception as e:
                         raise exc_type, exc_value, exc_traceback
                     else:
                         got_root = True
@@ -646,13 +646,13 @@ class Esky(object):
                     raise
                 try:
                     self.get_root()
-                except Exception, e:
+                except Exception as e:
                     raise exc_type, exc_value, exc_traceback
                 else:
                     got_root = True
                     callback({"status": "cleaning up"})
                     cleaned = self.cleanup()
-        except Exception, e:
+        except Exception as e:
             callback({"status": "error", "exception": e})
             raise
         else:
@@ -772,7 +772,7 @@ class Esky(object):
             vsdir = os.path.join(self.appdir, ESKY_APPDATA_DIR)
             try:
                 os.mkdir(vsdir)
-            except EnvironmentError, e:
+            except EnvironmentError as e:
                 if e.errno not in (errno.EEXIST,):
                     raise
             else:
@@ -876,13 +876,13 @@ class Esky(object):
             else:
                 try:
                     f = open(lockfile, "r")
-                except EnvironmentError, e:
+                except EnvironmentError as e:
                     if e.errno != errno.ENOENT:
                         raise
                 else:
                     try:
                         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    except EnvironmentError, e:
+                    except EnvironmentError as e:
                         if e.errno not in (errno.EACCES, errno.EAGAIN,):
                             raise
                         msg = "version in use: %s" % (version,)
@@ -971,7 +971,11 @@ def run_startup_hooks():
             vdir = sys.executable[len(appdir):].split(os.sep)[1]
             vdir = os.path.join(appdir, vdir)
             if not is_version_dir(vdir):
-                vdir = os.sep.join(sys.executable[len(appdir):].split(os.sep)[1:3])
+                vdir = os.sep.join(
+                    sys.executable[
+                        len(appdir):].split(
+                        os.sep)[
+                        1:3])
                 vdir = os.path.join(appdir, vdir)
         lock_version_dir(vdir)
     # Run the "spawn-cleanup" hook if given.

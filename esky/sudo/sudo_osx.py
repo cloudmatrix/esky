@@ -45,17 +45,19 @@ kAuthorizationFlagDestroyRights = (1 << 3)
 kAuthorizationFlagPreAuthorize = (1 << 4)
 kAuthorizationFlagNoData = (1 << 20)
 
+
 class AuthorizationRight(ctypes.Structure):
-    _fields_ = [("name",ctypes.c_char_p),
-                ("valueLength",ctypes.c_uint32),
-                ("value",ctypes.c_void_p),
-                ("flags",ctypes.c_uint32),
-               ]
+    _fields_ = [("name", ctypes.c_char_p),
+                ("valueLength", ctypes.c_uint32),
+                ("value", ctypes.c_void_p),
+                ("flags", ctypes.c_uint32),
+                ]
+
 
 class AuthorizationRights(ctypes.Structure):
-    _fields_ = [("count",ctypes.c_uint32),
-                ("items",AuthorizationRight * 1)
-               ]
+    _fields_ = [("count", ctypes.c_uint32),
+                ("items", AuthorizationRight * 1)
+                ]
 
 
 def has_root():
@@ -74,13 +76,16 @@ def can_get_root():
 
 class FakePopen(subprocess.Popen):
     """Popen-esque class that's guaranteed killable, even on python2.5."""
-    def __init__(self,pid):
-        super(FakePopen,self).__init__(None)
+
+    def __init__(self, pid):
+        super(FakePopen, self).__init__(None)
         self.pid = pid
+
     def terminate(self):
         import signal
-        os.kill(self.pid,signal.SIGTERM)
-    def _execute_child(self,*args,**kwds):
+        os.kill(self.pid, signal.SIGTERM)
+
+    def _execute_child(self, *args, **kwds):
         pass
 
 
@@ -92,8 +97,8 @@ class SecureStringPipe(base.SecureStringPipe):
     the thing that AuthorizationExecuteWithPrivileges gives us...
     """
 
-    def __init__(self,token=None):
-        super(SecureStringPipe,self).__init__(token)
+    def __init__(self, token=None):
+        super(SecureStringPipe, self).__init__(token)
         self.fp = None
 
     def __del__(self):
@@ -105,19 +110,19 @@ class SecureStringPipe(base.SecureStringPipe):
     def connect(self):
         return SecureStringPipe(self.token)
 
-    def _read(self,size):
+    def _read(self, size):
         if self.fp is None:
-            return os.read(0,size)
+            return os.read(0, size)
         else:
-            buf = ctypes.create_string_buffer(size+2)
-            read = libc.fread(byref(buf),1,size,self.fp)
+            buf = ctypes.create_string_buffer(size + 2)
+            read = libc.fread(byref(buf), 1, size, self.fp)
             return buf.raw[:read]
 
-    def _write(self,data):
+    def _write(self, data):
         if self.fp is None:
-            os.write(1,data)
+            os.write(1, data)
         else:
-            libc.fwrite(data,1,len(data),self.fp)
+            libc.fwrite(data, 1, len(data), self.fp)
 
     def _open(self):
         pass
@@ -129,7 +134,7 @@ class SecureStringPipe(base.SecureStringPipe):
         if self.fp is not None:
             libc.fclose(self.fp)
             self.fp = None
-        super(SecureStringPipe,self).close()
+        super(SecureStringPipe, self).close()
 
 
 def spawn_sudo(proxy):
@@ -138,13 +143,13 @@ def spawn_sudo(proxy):
     pipe = SecureStringPipe()
     c_pipe = pipe.connect()
 
-    if not getattr(sys,"frozen",False):
-        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
-    elif os.path.basename(sys.executable).lower() in ("python","pythonw"):
-        exe = [sys.executable,"-c","import esky; esky.run_startup_hooks()"]
+    if not getattr(sys, "frozen", False):
+        exe = [sys.executable, "-c", "import esky; esky.run_startup_hooks()"]
+    elif os.path.basename(sys.executable).lower() in ("python", "pythonw"):
+        exe = [sys.executable, "-c", "import esky; esky.run_startup_hooks()"]
     else:
         if not esky._startup_hooks_were_run:
-            raise OSError(None,"unable to sudo: startup hooks not run")
+            raise OSError(None, "unable to sudo: startup hooks not run")
         exe = [sys.executable]
     args = ["--esky-spawn-sudo"]
     args.append(base.b64pickle(proxy))
@@ -166,40 +171,42 @@ def spawn_sudo(proxy):
     rights.items[0] = right
 
     r_auth = byref(auth)
-    err = sec.AuthorizationCreate(None,None,kAuthorizationFlagDefaults,r_auth)
+    err = sec.AuthorizationCreate(
+        None, None, kAuthorizationFlagDefaults, r_auth)
     if err:
-        raise OSError(errno.EACCES,"could not sudo: %d" % (err,))
+        raise OSError(errno.EACCES, "could not sudo: %d" % (err,))
 
     try:
 
         kAuthFlags = kAuthorizationFlagDefaults \
-                     | kAuthorizationFlagPreAuthorize \
-                     | kAuthorizationFlagInteractionAllowed \
-                     | kAuthorizationFlagExtendRights
-        
-        err = sec.AuthorizationCopyRights(auth,None,None,kAuthFlags,None)
+            | kAuthorizationFlagPreAuthorize \
+            | kAuthorizationFlagInteractionAllowed \
+            | kAuthorizationFlagExtendRights
+
+        err = sec.AuthorizationCopyRights(auth, None, None, kAuthFlags, None)
         if err:
-            raise OSError(errno.EACCES,"could not sudo: %d" % (err,))
+            raise OSError(errno.EACCES, "could not sudo: %d" % (err,))
 
         args = (ctypes.c_char_p * len(exe))()
-        for i,arg in enumerate(exe[1:]):
+        for i, arg in enumerate(exe[1:]):
             args[i] = arg
-        args[len(exe)-1] = None
+        args[len(exe) - 1] = None
         io = ctypes.c_void_p()
-        err = sec.AuthorizationExecuteWithPrivileges(auth,exe[0],0,args,byref(io))
+        err = sec.AuthorizationExecuteWithPrivileges(
+            auth, exe[0], 0, args, byref(io))
         if err:
-            raise OSError(errno.EACCES,"could not sudo: %d" %(err,))
-        
+            raise OSError(errno.EACCES, "could not sudo: %d" % (err,))
+
         buf = ctypes.create_string_buffer(8)
-        read = libc.fread(byref(buf),1,4,io)
+        read = libc.fread(byref(buf), 1, 4, io)
         if read != 4:
             libc.fclose(io)
-            raise OSError(errno.EACCES,"could not sudo: child failed")
-        pid = struct.unpack("I",buf.raw[:4])[0]
+            raise OSError(errno.EACCES, "could not sudo: child failed")
+        pid = struct.unpack("I", buf.raw[:4])[0]
         pipe.fp = io
-        return (FakePopen(pid),pipe)
+        return (FakePopen(pid), pipe)
     finally:
-        sec.AuthorizationFree(auth,kAuthorizationFlagDestroyRights)
+        sec.AuthorizationFree(auth, kAuthorizationFlagDestroyRights)
 
 
 def run_startup_hooks():
@@ -210,7 +217,6 @@ def run_startup_hooks():
         else:
             proxy = pickle.loads(b64decode(sys.argv[2]))
             pipe = pickle.loads(b64decode(sys.argv[3]))
-        os.write(1,struct.pack("I",os.getpid()))
+        os.write(1, struct.pack("I", os.getpid()))
         proxy.run(pipe)
         sys.exit(0)
-

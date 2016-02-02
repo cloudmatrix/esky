@@ -4,7 +4,7 @@
 
   esky.fstransact: best-effort support for transactional filesystem operations
 
-This module provides a uniform interface to various platform-specific 
+This module provides a uniform interface to various platform-specific
 mechanisms for doing transactional filesystem operations.  On platforms where
 transactions are not supported, it falls back to doing things one operation
 at a time.
@@ -30,6 +30,7 @@ def _fallback():
     import esky.fstransact.fallback
     return esky.fstransact.fallback
 
+
 @lazy_import
 def _win32txf():
     try:
@@ -52,10 +53,8 @@ def FSTransaction(root=None):
     if sys.platform == "win32" and _win32txf:
         try:
             return _win32txf.FSTransaction(root)
-        except WindowsError, e:
+        except WindowsError as e:
             if e.winerror != _win32txf.ERROR_TRANSACTIONAL_OPEN_NOT_ALLOWED:
                 raise
     #  If all else fails, use the fallback implementation.
     return _fallback.FSTransaction(root)
-
-
