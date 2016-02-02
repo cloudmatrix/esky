@@ -5,6 +5,13 @@
   esky.bdist_esky.f_bbfreeze:  bdist_esky support for bbfreeze
 
 """
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *
 
 import os
 import sys
@@ -39,7 +46,7 @@ def freeze(dist):
         excludes.append("pypy")
     #  Freeze up the given scripts
     f = bbfreeze.Freezer(dist.freeze_dir, includes=includes, excludes=excludes)
-    for (nm, val) in options.iteritems():
+    for (nm, val) in list(options.items()):
         setattr(f, nm, val)
     f.addModule("esky")
     tdir = tempfile.mkdtemp()

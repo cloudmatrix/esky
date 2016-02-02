@@ -12,16 +12,25 @@ specified URL to look for new versions.
 """
 
 from __future__ import with_statement
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
+from builtins import *
+from builtins import object
 
 import os
 import re
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import zipfile
 import shutil
 import tempfile
 import errno
-from urlparse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin
 
 from esky.bootstrap import join_app_version
 from esky.errors import *
@@ -165,7 +174,7 @@ class DefaultVersionFinder(VersionFinder):
             really_rmtree(os.path.join(rddir, nm))
 
     def open_url(self, url):
-        f = urllib2.urlopen(url, timeout=30)
+        f = urllib.request.urlopen(url, timeout=30)
         try:
             size = f.headers.get("content-length", None)
             if size is not None:
@@ -179,7 +188,7 @@ class DefaultVersionFinder(VersionFinder):
     def find_versions(self, app):
         version_re = "[a-zA-Z0-9\\.-_]+"
         appname_re = "(?P<version>%s)" % (version_re, )
-        name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
+        name_re = "(%s|%s)" % (app.name, urllib.parse.quote(app.name))
         appname_re = join_app_version(name_re, appname_re, app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
         filename_re = filename_re % (appname_re, version_re, )
@@ -326,7 +335,7 @@ class DefaultVersionFinder(VersionFinder):
                 # TODO: remove compatability hooks for ESKY_APPDATA_DIR="".
                 # If a patch fails to apply because we've put an appdata dir
                 # where it doesn't expect one, try again with old layout.
-                for _ in xrange(2):
+                for _ in range(2):
                     #  Apply any patches in turn.
                     for (patchfile, patchurl) in patches:
                         try:
@@ -455,7 +464,7 @@ class S3VersionFinder(DefaultVersionFinder):
     def find_versions(self, app):
         version_re = "[a-zA-Z0-9\\.-_]+"
         appname_re = "(?P<version>%s)" % (version_re, )
-        name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
+        name_re = "(%s|%s)" % (app.name, urllib.parse.quote(app.name))
         appname_re = join_app_version(name_re, appname_re, app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
         filename_re = filename_re % (appname_re, version_re, )
@@ -478,7 +487,7 @@ class S3VersionFinder(DefaultVersionFinder):
             dwl_url = self.download_url[0:self.download_url.find("?")]
         for match in re.finditer(link_re, downloads, re.I):
             version = match.group("version")
-            href = urllib.quote(match.group("href"))
+            href = urllib.parse.quote(match.group("href"))
             from_version = match.group("from_version")
             # TODO: try to assign costs based on file size.
             if from_version is None:
@@ -558,7 +567,7 @@ class VersionGraph(object):
         """List all versions reachable from the given source version."""
         # TODO: be more efficient here
         best_paths = self.get_best_paths(source)
-        return [k for (k, v) in best_paths.iteritems() if k and v]
+        return [k for (k, v) in best_paths.items() if k and v]
 
     def get_best_path(self, source, target):
         """Get the best path from source to target.
@@ -602,7 +611,7 @@ class VersionGraph(object):
         vias = self._links[source][target]
         if not vias:
             return (_inf, "")
-        vias = sorted((cost, via) for (via, cost) in vias.iteritems())
+        vias = sorted((cost, via) for (via, cost) in vias.items())
         return vias[0]
 
 

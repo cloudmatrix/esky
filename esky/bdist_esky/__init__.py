@@ -14,6 +14,14 @@ must be given the path to the top-level directory of the frozen app, and a
 """
 
 from __future__ import with_statement
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from past.builtins import basestring
+from builtins import *
 
 import os
 import sys
@@ -83,7 +91,7 @@ except ImportError:
     _FREEZERS["cx_freeze"] = None
 
 
-class Executable(unicode):
+class Executable(str):
     """Class to hold information about a specific executable.
 
     This class provides a uniform way to specify extra meta-data about
@@ -98,13 +106,13 @@ class Executable(unicode):
 
     def __new__(cls, script, **kwds):
         if isinstance(script, basestring):
-            return unicode.__new__(cls, script)
+            return str.__new__(cls, script)
         else:
-            return unicode.__new__(cls, __file__)
+            return str.__new__(cls, __file__)
 
     def __init__(self, script, name=None, icon=None, gui_only=None,
                  include_in_bootstrap_env=True, **kwds):
-        unicode.__init__(self)
+        str.__init__(self)
         if isinstance(script, Executable):
             script = script.script
             if name is None:
@@ -379,11 +387,11 @@ class bdist_esky(Command):
                 self.freezer_module.zipit(self, self.bootstrap_dir, zfname)
             else:
                 if self.compress == 'zip':
-                    print "zipping up the esky with compression"
+                    print("zipping up the esky with compression")
                     create_zipfile(self.bootstrap_dir, zfname, compress=True)
                     really_rmtree(self.bootstrap_dir)
                 elif self.compress == 'ZIP':
-                    print "zipping up the esky without compression"
+                    print("zipping up the esky without compression")
                     create_zipfile(self.bootstrap_dir, zfname, compress=False)
                     really_rmtree(self.bootstrap_dir)
                 else:
@@ -521,7 +529,7 @@ class bdist_esky(Command):
         or equivalent, alongside the python files for that package.
         """
         if self.distribution.package_data:
-            for pkg, data in self.distribution.package_data.iteritems():
+            for pkg, data in list(self.distribution.package_data.items()):
                 pkg_dir = self.get_package_dir(pkg)
                 pkg_path = pkg.replace(".", "/")
                 if isinstance(data, basestring):
@@ -824,7 +832,7 @@ class bdist_esky_patch(Command):
             target_version = split_app_version(target_vdir)[1]
             patchfile = vdir + ".from-%s.patch" % (target_version, )
             patchfile = os.path.join(self.dist_dir, patchfile)
-            print "patching", target_esky, "against", source_esky, "=>", patchfile
+            print("patching", target_esky, "against", source_esky, "=>", patchfile)
             if not self.dry_run:
                 try:
                     esky.patch.main(["-Z", "diff", source_esky, target_esky,

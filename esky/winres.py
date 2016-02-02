@@ -11,6 +11,14 @@ under Windows.
 """
 
 from __future__ import with_statement
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from past.builtins import basestring
+from builtins import *
 
 import os
 import sys
@@ -94,7 +102,7 @@ def find_resource(filename_or_handle, res_type, res_id, res_lang=None):
             res_lang = _DEFAULT_RESLANG
         if isinstance(filename_or_handle, basestring):
             filename = filename_or_handle
-            if not isinstance(filename, unicode):
+            if not isinstance(filename, str):
                 filename = filename.decode(sys.getfilesystemencoding())
             #  See if we already have that file loaded as a module.
             #  In this case it won't be in memory as one big block and we
@@ -150,7 +158,7 @@ def load_resource(filename_or_handle,
     """
     if isinstance(filename_or_handle, basestring):
         filename = filename_or_handle
-        if not isinstance(filename, unicode):
+        if not isinstance(filename, str):
             filename = filename.decode(sys.getfilesystemencoding())
         l_handle = k32.LoadLibraryExW(filename, None, LOAD_LIBRARY_AS_DATAFILE)
         if not l_handle:
@@ -190,7 +198,7 @@ def add_resource(filename,
     to be added, along with the "res_lang" argument if given.  The contents
     of the specified resource must be provided as a string.
     """
-    if not isinstance(filename, unicode):
+    if not isinstance(filename, str):
         filename = filename.decode(sys.getfilesystemencoding())
     l_handle = k32.BeginUpdateResourceW(filename, 0)
     if not l_handle:

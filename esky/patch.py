@@ -52,6 +52,19 @@ already have the corresponding zip files.
 """
 
 from __future__ import with_statement
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from builtins import map
+from builtins import str
+from builtins import bytes
+from builtins import chr
+from builtins import range
+from builtins import *
+from builtins import object
 try:
     bytes = bytes
 except NameError:
@@ -69,9 +82,9 @@ import tempfile
 import json
 if sys.version_info[0] < 3:
     try:
-        from cStringIO import StringIO as BytesIO
+        from io import StringIO as BytesIO
     except ImportError:
-        from StringIO import StringIO as BytesIO
+        from io import StringIO as BytesIO
 else:
     from io import BytesIO
 
@@ -141,7 +154,7 @@ else:
             bextra = bz2.decompress(patch[e_bdiff:])
             #  Decode the control tuples
             tcontrol = []
-            for i in xrange(0, len(bcontrol), 24):
+            for i in range(0, len(bcontrol), 24):
                 tcontrol.append((_decode_offt(bcontrol[i:i + 8]),
                                  _decode_offt(bcontrol[i + 8:i + 16]),
                                  _decode_offt(bcontrol[i + 16:i + 24]), ))
@@ -185,7 +198,7 @@ class bsdiff4_py(object):
         bextra = bz2.decompress(patch[e_bdiff:])
         #  Decode the control tuples
         tcontrol = []
-        for i in xrange(0, len(bcontrol), 24):
+        for i in range(0, len(bcontrol), 24):
             tcontrol.append((_decode_offt(bcontrol[i:i + 8]),
                              _decode_offt(bcontrol[i + 8:i + 16]),
                              _decode_offt(bcontrol[i + 16:i + 24]), ))
@@ -199,11 +212,11 @@ class bsdiff4_py(object):
             diff_data = bdiff.read(x)
             orig_data = source.read(x)
             if sys.version_info[0] < 3:
-                for i in xrange(len(diff_data)):
+                for i in range(len(diff_data)):
                     result.write(
                         chr((ord(diff_data[i]) + ord(orig_data[i])) % 256))
             else:
-                for i in xrange(len(diff_data)):
+                for i in range(len(diff_data)):
                     result.write(bytes([(diff_data[i] + orig_data[i]) % 256]))
             result.write(bextra.read(y))
             source.seek(z, os.SEEK_CUR)
@@ -479,14 +492,14 @@ class Patcher(object):
         """Read an integer from the command stream."""
         i = _read_vint(self.commands)
         if self.dry_run:
-            print "  ", i
+            print("  ", i)
         return i
 
     def _read_command(self):
         """Read the next command to be processed."""
         cmd = _read_vint(self.commands)
         if self.dry_run:
-            print _COMMANDS[cmd]
+            print(_COMMANDS[cmd])
         return cmd
 
     def _read_bytes(self):
@@ -496,7 +509,7 @@ class Patcher(object):
         if len(bytes) != l:
             raise PatchError("corrupted bytestring")
         if self.dry_run:
-            print "   [%s bytes]" % (len(bytes), )
+            print("   [%s bytes]" % (len(bytes), ))
         return bytes
 
     def _read_path(self):
@@ -507,7 +520,7 @@ class Patcher(object):
             raise PatchError("corrupted path")
         path = bytes.decode("utf-8")
         if self.dry_run:
-            print "  ", path
+            print("  ", path)
         return path
 
     def _check_begin_patch(self):
@@ -949,7 +962,7 @@ class Differ(object):
         elif self._pending_pop_path:
             # POP_PATH,JOIN_PATH => POP_JOIN_PATH
             if cmd == JOIN_PATH:
-                for _ in xrange(self._pending_pop_path - 1):
+                for _ in range(self._pending_pop_path - 1):
                     _write_vint(self.outfile, POP_PATH)
                 _write_vint(self.outfile, POP_JOIN_PATH)
             # POP_PATH,SET_PATH => SET_PATH
@@ -957,7 +970,7 @@ class Differ(object):
                 _write_vint(self.outfile, SET_PATH)
             # Otherwise, write out all the POP_PATH instructions.
             else:
-                for _ in xrange(self._pending_pop_path):
+                for _ in range(self._pending_pop_path):
                     _write_vint(self.outfile, POP_PATH)
                 _write_vint(self.outfile, cmd)
             self._pending_pop_path = 0
@@ -1027,7 +1040,7 @@ class Differ(object):
         #  Now generate COPY or MOVE commands for all those new items.
         #  Doing them all in a batch means we gracefully cope with
         #  several tagrgets coming from the same source.
-        for nm, sibnm in nm_sibnm_map.iteritems():
+        for nm, sibnm in nm_sibnm_map.items():
             s_nm = os.path.join(source, sibnm)
             self._write_command(JOIN_PATH)
             self._write_path(nm)
@@ -1277,7 +1290,7 @@ class Differ(object):
         best_option = options[0][1]
         self._write_command(best_option[1])
         for arg in best_option[2:]:
-            if isinstance(arg, (str, unicode, bytes)):
+            if isinstance(arg, (str, str, bytes)):
                 self._write_bytes(arg)
             else:
                 self._write_int(arg)
@@ -1302,9 +1315,9 @@ def _decode_offt(bytes):
     signed vint representation, but this is the format used by bsdiff4.
     """
     if sys.version_info[0] < 3:
-        bytes = map(ord, bytes)
+        bytes = list(map(ord, bytes))
     x = bytes[7] & 0x7F
-    for b in xrange(6, -1, -1):
+    for b in range(6, -1, -1):
         x = x * 256 + bytes[b]
     if bytes[7] & 0x80:
         x = -x
@@ -1324,7 +1337,7 @@ def _encode_offt(x):
         sign = 0
     bs = [0] * 8
     bs[0] = x % 256
-    for b in xrange(7):
+    for b in range(7):
         x = (x - bs[b]) / 256
         bs[b + 1] = x % 256
     bs[7] |= sign

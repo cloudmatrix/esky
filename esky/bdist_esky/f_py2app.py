@@ -7,6 +7,13 @@
 """
 
 from __future__ import with_statement
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *
 
 import os
 import sys
@@ -186,7 +193,7 @@ def _make_py2app_cmd(dist_dir, distribution, options, exes):
     exe = exes[0]
     extra_exes = exes[1:]
     cmd = py2app(distribution)
-    for (nm, val) in options.iteritems():
+    for (nm, val) in list(options.items()):
         setattr(cmd, nm, val)
     cmd.dist_dir = dist_dir
     cmd.app = [Target(script=exe.script, dest_base=exe.name)]

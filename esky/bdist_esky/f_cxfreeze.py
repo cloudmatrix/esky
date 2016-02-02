@@ -5,6 +5,14 @@
   esky.bdist_esky.f_cxfreeze:  bdist_esky support for cx_Freeze
 
 """
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
+from builtins import *
 
 import os
 import sys
@@ -47,7 +55,7 @@ def freeze(dist):
     cx_Freeze.hooks.load_distutils = load_distutils
     #  Build kwds arguments out of the given freezer opts.
     kwds = {}
-    for (nm, val) in options.iteritems():
+    for (nm, val) in list(options.items()):
         kwds[_normalise_opt_name(nm)] = val
     kwds["includes"] = includes
     kwds["excludes"] = excludes
@@ -173,7 +181,7 @@ def _normalise_opt_name(nm):
     them converted to the "optName" format used internally by cx_Freeze.
     """
     bits = nm.split("-")
-    for i in xrange(1, len(bits)):
+    for i in range(1, len(bits)):
         if bits[i]:
             bits[i] = bits[i][0].upper() + bits[i][1:]
     return "".join(bits)
