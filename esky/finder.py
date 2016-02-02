@@ -24,17 +24,18 @@ from builtins import object
 
 import os
 import re
-import urllib.request, urllib.parse, urllib.error
-import urllib.request, urllib.error, urllib.parse
 import zipfile
 import shutil
 import tempfile
 import errno
+import urllib.request, urllib.error, urllib.parse
 from urllib.parse import urlparse, urljoin
 
 from esky.bootstrap import join_app_version
 from esky.errors import *
-from esky.util import deep_extract_zipfile, copy_ownership_info, ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, really_rmtree, really_rename
+from esky.util import deep_extract_zipfile, copy_ownership_info
+from esky.util import ESKY_CONTROL_DIR, ESKY_APPDATA_DIR
+from esky.util import really_rmtree, really_rename
 from esky.patch import apply_patch, PatchError
 
 
@@ -119,7 +120,7 @@ class DefaultVersionFinder(VersionFinder):
     """
 
     def __init__(self, download_url):
-        self.download_url = download_url
+        self.download_url = str(download_url)
         super(DefaultVersionFinder, self).__init__()
         self.version_graph = VersionGraph()
 
@@ -464,7 +465,7 @@ class S3VersionFinder(DefaultVersionFinder):
     def find_versions(self, app):
         version_re = "[a-zA-Z0-9\\.-_]+"
         appname_re = "(?P<version>%s)" % (version_re, )
-        name_re = "(%s|%s)" % (app.name, urllib.parse.quote(app.name))
+        name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
         appname_re = join_app_version(name_re, appname_re, app.platform)
         filename_re = "%s\\.(zip|exe|from-(?P<from_version>%s)\\.patch)"
         filename_re = filename_re % (appname_re, version_re, )
@@ -487,7 +488,7 @@ class S3VersionFinder(DefaultVersionFinder):
             dwl_url = self.download_url[0:self.download_url.find("?")]
         for match in re.finditer(link_re, downloads, re.I):
             version = match.group("version")
-            href = urllib.parse.quote(match.group("href"))
+            href = urllib.quote(match.group("href"))
             from_version = match.group("from_version")
             # TODO: try to assign costs based on file size.
             if from_version is None:

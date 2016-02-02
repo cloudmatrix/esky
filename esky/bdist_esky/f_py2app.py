@@ -193,7 +193,7 @@ def _make_py2app_cmd(dist_dir, distribution, options, exes):
     exe = exes[0]
     extra_exes = exes[1:]
     cmd = py2app(distribution)
-    for (nm, val) in list(options.items()):
+    for (nm, val) in options.items():
         setattr(cmd, nm, val)
     cmd.dist_dir = dist_dir
     cmd.app = [Target(script=exe.script, dest_base=exe.name)]

@@ -17,11 +17,12 @@ from __future__ import with_statement
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from __future__ import unicode_literals
-from future import standard_library
-standard_library.install_aliases()
+# Importing these breaks our python2..
+# from __future__ import unicode_literals
+# from future import standard_library
+# standard_library.install_aliases()
 from past.builtins import basestring
-from builtins import *
+from builtins import str
 
 import os
 import sys
@@ -529,7 +530,7 @@ class bdist_esky(Command):
         or equivalent, alongside the python files for that package.
         """
         if self.distribution.package_data:
-            for pkg, data in list(self.distribution.package_data.items()):
+            for pkg, data in self.distribution.package_data.items():
                 pkg_dir = self.get_package_dir(pkg)
                 pkg_path = pkg.replace(".", "/")
                 if isinstance(data, basestring):

@@ -58,17 +58,8 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 from future import standard_library
 standard_library.install_aliases()
-from builtins import map
-from builtins import str
-from builtins import bytes
-from builtins import chr
-from builtins import range
-from builtins import *
-from builtins import object
-try:
-    bytes = bytes
-except NameError:
-    bytes = str
+from builtins import map, str, bytes, chr, range, object
+from past.utils import old_div
 
 import os
 import sys
@@ -80,13 +71,7 @@ import optparse
 import zipfile
 import tempfile
 import json
-if sys.version_info[0] < 3:
-    try:
-        from io import StringIO as BytesIO
-    except ImportError:
-        from io import StringIO as BytesIO
-else:
-    from io import BytesIO
+from io import BytesIO
 
 #  Try to get code for working with bsdiff4-format patches.
 #
@@ -335,24 +320,14 @@ def _read_vint(stream):
     return x
 
 
-if sys.version_info[0] > 2:
+def _write_vint(stream, x):
+    """Write a vint-encoded integer to the given stream."""
+    while x >= 128:
+        b = x & 127
+        stream.write(bytes([b | 128]))
+        x = x >> 7
+    stream.write(bytes([x]))
 
-    def _write_vint(stream, x):
-        """Write a vint-encoded integer to the given stream."""
-        while x >= 128:
-            b = x & 127
-            stream.write(bytes([b | 128]))
-            x = x >> 7
-        stream.write(bytes([x]))
-else:
-
-    def _write_vint(stream, x):
-        """Write a vint-encoded integer to the given stream."""
-        while x >= 128:
-            b = x & 127
-            stream.write(chr(b | 128))
-            x = x >> 7
-        stream.write(chr(x))
 
 
 def _read_zipfile_metadata(stream):
@@ -1290,7 +1265,7 @@ class Differ(object):
         best_option = options[0][1]
         self._write_command(best_option[1])
         for arg in best_option[2:]:
-            if isinstance(arg, (str, str, bytes)):
+            if isinstance(arg, (str, bytes)):
                 self._write_bytes(arg)
             else:
                 self._write_int(arg)
@@ -1338,7 +1313,7 @@ def _encode_offt(x):
     bs = [0] * 8
     bs[0] = x % 256
     for b in range(7):
-        x = (x - bs[b]) / 256
+        x = old_div((x - bs[b]), 256)
         bs[b + 1] = x % 256
     bs[7] |= sign
     if sys.version_info[0] < 3:

@@ -32,16 +32,6 @@ use during the bootstrap process:
 
 
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
-from builtins import *
-from builtins import object
-
 import sys
 import errno
 
@@ -68,6 +58,16 @@ except NameError:
 #  RPython doesn't handle SystemExit automatically, so we put the exit code
 #  in this global var and catch SystemExit ourselves at the outmost scope.
 _exit_code = [0]
+
+# We fudge it up so we can use python 2 and 3 without relying on any external libraries
+if sys.version_info[0] > 2:
+   PY3 = True
+else:
+   PY3 = False
+try:
+   range = xrange
+except NameError:
+   pass
 
 #  The os module is not builtin, so we grab what we can from the
 #  platform-specific modules and fudge the rest.
@@ -450,9 +450,12 @@ def _chainload(target_dir):
     else:
         if exc_value is not None:
             if exc_type is not None:
-                raise exc_type, exc_value, traceback
+                if PY3:
+                    raise exc_type(exc_value).with_traceback(exc_value)
+                else:
+                    raise exc_type(exc_value)
             else:
-                raise exc_value
+                raise exc_type(exc_value)
         raise RuntimeError("couldn't chainload any executables")
 
 

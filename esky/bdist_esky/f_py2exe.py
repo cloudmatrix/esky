@@ -134,7 +134,7 @@ def freeze(dist):
         if options["bundle_files"] < 3 and dist.compile_bootstrap_exes:
             err = "can't compile bootstrap exes when bundle_files < 3"
             raise RuntimeError(err)
-    for (nm, val) in list(options.items()):
+    for (nm, val) in options.items():
         setattr(cmd, nm, val)
     cmd.dist_dir = dist.freeze_dir
     cmd.finalize_options()

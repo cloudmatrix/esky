@@ -18,7 +18,8 @@ from __future__ import unicode_literals
 from future import standard_library
 standard_library.install_aliases()
 from past.builtins import basestring
-from builtins import *
+from past.utils import old_div
+from builtins import str
 
 import os
 import sys
@@ -76,7 +77,7 @@ def get_loaded_modules():
                 raise ctypes.WinError()
         nmbuf = ctypes.create_unicode_buffer(300)
         i = 0
-        while i < needed.value / msz:
+        while i < old_div(needed.value, msz):
             hmod = buf[i]
             i += 1
             if not k32.GetModuleFileNameW(hmod, byref(nmbuf), 300):

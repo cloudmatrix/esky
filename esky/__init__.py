@@ -96,10 +96,7 @@ def base64():
 
 @lazy_import
 def pickle():
-    try:
-        import pickle as pickle
-    except ImportError:
-        import pickle
+    import pickle
     return pickle
 
 
@@ -646,8 +643,8 @@ class Esky(object):
                         raise
                     try:
                         self.get_root()
-                    except Exception as e:
-                        raise exc_type, exc_value, exc_traceback
+                    except Exception:
+                        raise exc_type(exc_value).with_traceback(exc_traceback)
                     else:
                         got_root = True
                         self._do_auto_update(version, callback)
@@ -663,8 +660,8 @@ class Esky(object):
                     raise
                 try:
                     self.get_root()
-                except Exception as e:
-                    raise exc_type, exc_value, exc_traceback
+                except Exception:
+                    raise exc_type(exc_value).with_traceback(exc_traceback)
                 else:
                     got_root = True
                     callback({"status": "cleaning up"})

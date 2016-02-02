@@ -55,7 +55,7 @@ def freeze(dist):
     cx_Freeze.hooks.load_distutils = load_distutils
     #  Build kwds arguments out of the given freezer opts.
     kwds = {}
-    for (nm, val) in list(options.items()):
+    for (nm, val) in options.items():
         kwds[_normalise_opt_name(nm)] = val
     kwds["includes"] = includes
     kwds["excludes"] = excludes
