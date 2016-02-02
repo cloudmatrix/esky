@@ -397,8 +397,9 @@ def get_exe_locations(target_dir):
             else:
                 for nm in listdir(target_dir):
                     if nm.endswith(".app"):
-                        locs.append(pathjoin(target_dir, nm, sys.executable[
-                            len(appdir) + 1:]))
+                        locs.append(pathjoin(target_dir,
+                                             nm,
+                                             sys.executable[ len(appdir) + 1:]))
     #  This is the default scheme: the same path as the exe in the appdir.
     locs.append(target_dir + sys.executable[len(appdir):])
     #  If sys.executable was a backup file, try using original filename.
@@ -601,8 +602,7 @@ _replace_p = {
     'preview': 'c',
     '-': 'final-',
     'rc': 'c',
-    'dev': '@'
-}.get
+    'dev': '@'}.get
 
 
 def _parse_version_parts(s):

@@ -29,7 +29,9 @@ from distutils.core import Command
 from distutils.util import convert_path
 
 import esky.patch
-from esky.util import get_platform, create_zipfile, split_app_version, join_app_version, ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, really_rmtree
+from esky.util import get_platform, create_zipfile
+from esky.util import ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, really_rmtree
+from esky.bootstrap import split_app_version, join_app_version
 
 if sys.platform == "win32":
     from esky import winres
@@ -100,13 +102,8 @@ class Executable(unicode):
         else:
             return unicode.__new__(cls, __file__)
 
-    def __init__(self,
-                 script,
-                 name=None,
-                 icon=None,
-                 gui_only=None,
-                 include_in_bootstrap_env=True,
-                 **kwds):
+    def __init__(self, script, name=None, icon=None, gui_only=None,
+                 include_in_bootstrap_env=True, **kwds):
         unicode.__init__(self)
         if isinstance(script, Executable):
             script = script.script
@@ -215,7 +212,8 @@ class bdist_esky(Command):
     description = "create a frozen app in 'esky' format"
 
     user_options = [
-        ('dist-dir=', 'd', "directory to put final built distributions in"),
+        ('dist-dir=', 'd',
+         "directory to put final built distributions in"),
         ('freezer-module=', None,
          "module to use for freezing the application"),
         ('freezer-options=', None,
@@ -228,8 +226,10 @@ class bdist_esky(Command):
          "whether to compile the bootstrapping exes with pypy"),
         ('bundle-msvcrt=', None,
          "whether to bundle MSVCRT as private assembly"),
-        ('includes=', None, "list of modules to specifically include"),
-        ('excludes=', None, "list of modules to specifically exclude"),
+        ('includes=', None,
+         "list of modules to specifically include"),
+        ('excludes=', None,
+         "list of modules to specifically exclude"),
         ('dont-run-startup-hooks=', None,
          "don't force execution of esky.run_startup_hooks()"),
         ('pre-freeze-callback=', None,
@@ -237,14 +237,11 @@ class bdist_esky(Command):
         ('pre-zip-callback=', None,
          "function to call just before starting to zip up the app"),
         ('enable-appdata-dir=', None,
-         "enable new 'appdata' directory layout (will go away after the 0.9.X series)"
-         ),
+         "enable new 'appdata' directory layout (will go away after the 0.9.X series)"),
         ('detached-bootstrap-library=', None,
-         "By default Esky appends the library.zip to the bootstrap executable when using CX_Freeze, this will tell esky to not do that, but create a separate library.zip instead"
-         ),
+         "By default Esky appends the library.zip to the bootstrap executable when using CX_Freeze, this will tell esky to not do that, but create a separate library.zip instead"),
         ('compress=', 'c',
-         "Compression options of the Esky, use lower case for compressed or upper case for uncompressed, currently only support zip files"
-         ),
+         "Compression options of the Esky, use lower case for compressed or upper case for uncompressed, currently only support zip files"),
     ]
 
     boolean_options = [
@@ -271,8 +268,8 @@ class bdist_esky(Command):
         self.compress = 'zip'
 
     def finalize_options(self):
-        assert self.compress in (False, None, 'false', 'none', 'zip',
-                                 'ZIP'), 'Bad options passed to compress'
+        assert self.compress in (
+            False, None, 'false', 'none', 'zip', 'ZIP'), 'Bad options passed to compress'
 
         self.set_undefined_options('bdist', ('dist_dir', 'dist_dir'))
         if self.compile_bootstrap_exes and pypyc is None:
@@ -335,16 +332,15 @@ class bdist_esky(Command):
         fullname = self.distribution.get_fullname()
         platform = get_platform()
         self.bootstrap_dir = os.path.join(self.dist_dir,
-                                          "%s.%s" % (fullname,
-                                                     platform, ))
+                                            "%s.%s" % (fullname, platform, ))
         if self.enable_appdata_dir:
             self.freeze_dir = os.path.join(
-                self.bootstrap_dir, ESKY_APPDATA_DIR, "%s.%s" % (fullname,
-                                                                 platform, ))
+                self.bootstrap_dir, ESKY_APPDATA_DIR, 
+                                            "%s.%s" % (fullname, platform, ))
         else:
             self.freeze_dir = os.path.join(self.bootstrap_dir,
-                                           "%s.%s" % (fullname,
-                                                      platform, ))
+                                            
+                                            "%s.%s" % (fullname, platform, ))
         if os.path.exists(self.bootstrap_dir):
             really_rmtree(self.bootstrap_dir)
         os.makedirs(self.freeze_dir)
@@ -391,8 +387,7 @@ class bdist_esky(Command):
                     create_zipfile(self.bootstrap_dir, zfname, compress=False)
                     really_rmtree(self.bootstrap_dir)
                 else:
-                    print(
-                        "To zip the esky use compress or c set to ZIP or zip")
+                    print( "To zip the esky use compress or c set to ZIP or zip")
 
     def _obj2code(self, obj):
         """Convert an object to some python source code.
@@ -532,8 +527,7 @@ class bdist_esky(Command):
                 if isinstance(data, basestring):
                     data = [data]
                 for dpattern in data:
-                    dfiles = glob(os.path.join(pkg_dir, convert_path(
-                        dpattern)))
+                    dfiles = glob(os.path.join(pkg_dir, convert_path(dpattern)))
                     for nm in dfiles:
                         arcnm = pkg_path + nm[len(pkg_dir):]
                         yield (nm, arcnm)
@@ -649,8 +643,7 @@ class bdist_esky(Command):
                         if name.lower() in fnm.lower():
                             if fnm.lower().endswith(".manifest"):
                                 mf = os.path.join(subdir, fnm)
-                                md = cls._find_msvcrt_dir_for_manifest(name,
-                                                                       mf)
+                                md = cls._find_msvcrt_dir_for_manifest(name, mf)
                                 if md is not None:
                                     yield (mf, md)
         #  Search for manifests installed in the WinSxS directory
@@ -790,8 +783,10 @@ class bdist_esky_patch(Command):
     """
 
     user_options = [
-        ('dist-dir=', 'd', "directory to put final built distributions in"),
-        ('from-version=', None, "version against which to produce patch"),
+        ('dist-dir=', 'd',
+         "directory to put final built distributions in"),
+        ('from-version=', None,
+         "version against which to produce patch"),
     ]
 
     def initialize_options(self):

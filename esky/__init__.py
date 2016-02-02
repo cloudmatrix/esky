@@ -36,13 +36,13 @@ if sys.platform != "win32":
 
 from esky.errors import *
 from esky.sudo import SudoProxy, has_root, allow_from_sudo
-from esky.util import (split_app_version, join_app_version, is_version_dir,
-                       is_uninstalled_version_dir, parse_version,
-                       get_best_version, appdir_from_executable,
-                       copy_ownership_info, lock_version_dir, ESKY_CONTROL_DIR,
-                       files_differ, lazy_import, ESKY_APPDATA_DIR,
-                       get_all_versions, is_locked_version_dir,
-                       is_installed_version_dir, really_rmtree, really_rename)
+from esky.util import is_version_dir, appdir_from_executable
+from esky.util import copy_ownership_info, ESKY_CONTROL_DIR
+from esky.util import files_differ, lazy_import, ESKY_APPDATA_DIR
+from esky.util import is_locked_version_dir, really_rmtree, really_rename
+from esky.bootstrap import split_app_version, join_app_version, parse_version
+from esky.bootstrap import is_uninstalled_version_dir, get_best_version
+from esky.bootstrap import lock_version_dir, get_all_versions, is_installed_version_dir
 
 #  Since all frozen apps are required to import this module and call the
 #  run_startup_hooks() function, we use a simple lazy import mechanism to

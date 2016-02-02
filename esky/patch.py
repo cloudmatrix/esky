@@ -200,8 +200,8 @@ class bsdiff4_py(object):
             orig_data = source.read(x)
             if sys.version_info[0] < 3:
                 for i in xrange(len(diff_data)):
-                    result.write(chr((ord(diff_data[i]) + ord(orig_data[i])) %
-                                     256))
+                    result.write(
+                        chr((ord(diff_data[i]) + ord(orig_data[i])) % 256))
             else:
                 for i in xrange(len(diff_data)):
                     result.write(bytes([(diff_data[i] + orig_data[i]) % 256]))
@@ -257,24 +257,23 @@ class DiffError(Error):
 #  anything but adding to the end will break all existing patches!
 #
 _COMMANDS = [
-    "END",  # END():               stop processing current context
-    "SET_PATH",  # SET_PATH(path):      set current target path
-    "JOIN_PATH",  # JOIN_PATH(path):     join path to the current target
-    "POP_PATH",  # POP_PATH(h):         pop one level off current target
-    "POP_JOIN_PATH",  # POP_JOIN_PATH(path): pop the current path, then join
-    "VERIFY_MD5",  # VERIFY_MD5(dgst):    check md5 digest of current target
-    "REMOVE",  # REMOVE():            remove the current target
-    "MAKEDIR",  # MAKEDIR():           make directory at current target
-    "COPY_FROM",  # COPY_FROM(path):     copy item at path to current target
-    "MOVE_FROM",  # MOVE_FROM(path):     move item at path to current target
-    "PF_COPY",  # PF_COPY(n):          patch file; copy n bytes from input
-    "PF_SKIP",  # PF_SKIP(n):          patch file; skip n bytes from input
-    "PF_INS_RAW",  # PF_INS_RAW(bytes):   patch file; insert raw bytes
-    "PF_INS_BZ2",  # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
-    # PF_BSDIFF4(n,p):     patch file; bsdiff4 from n input bytes
-    "PF_BSDIFF4",
-    "PF_REC_ZIP",  # PF_REC_ZIP(m,cs):    patch file; recurse into zipfile
-    "CHMOD",  # CHMOD(mode):         set mode of current target
+    "END",           # END():               stop processing current context
+    "SET_PATH",      # SET_PATH(path):      set current target path
+    "JOIN_PATH",     # JOIN_PATH(path):     join path to the current target
+    "POP_PATH",      # POP_PATH(h):         pop one level off current target
+    "POP_JOIN_PATH", # POP_JOIN_PATH(path): pop the current path, then join
+    "VERIFY_MD5",    # VERIFY_MD5(dgst):    check md5 digest of current target
+    "REMOVE",        # REMOVE():            remove the current target
+    "MAKEDIR",       # MAKEDIR():           make directory at current target
+    "COPY_FROM",     # COPY_FROM(path):     copy item at path to current target
+    "MOVE_FROM",     # MOVE_FROM(path):     move item at path to current target
+    "PF_COPY",       # PF_COPY(n):          patch file; copy n bytes from input
+    "PF_SKIP",       # PF_SKIP(n):          patch file; skip n bytes from input
+    "PF_INS_RAW",    # PF_INS_RAW(bytes):   patch file; insert raw bytes
+    "PF_INS_BZ2",    # PF_INS_BZ2(bytes):   patch file; insert unbzip'd bytes
+    "PF_BSDIFF4",    # PF_BSDIFF4(n,p):     patch file; bsdiff4 from n input bytes
+    "PF_REC_ZIP",    # PF_REC_ZIP(m,cs):    patch file; recurse into zipfile
+    "CHMOD",         # CHMOD(mode):         set mode of current target
 ]
 
 # Make commands available as global variables
@@ -1272,8 +1271,7 @@ class Differ(object):
         if bsdiff4.diff is not None:
             patch_data = bsdiff4.diff(sdata, tdata)
             # remove the 8 header bytes, we know it's BSDIFF4 format
-            options.append((len(sdata), PF_BSDIFF4, len(sdata), patch_data[
-                8:]))
+            options.append((len(sdata), PF_BSDIFF4, len(sdata), patch_data[ 8:]))
         #  Find the option with the smallest data and use that.
         options = sorted([(len(cmd[-1]), cmd) for cmd in options])
         best_option = options[0][1]

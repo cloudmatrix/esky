@@ -175,7 +175,10 @@ def spawn_sudo(proxy):
 
     try:
 
-        kAuthFlags = kAuthorizationFlagDefaults | kAuthorizationFlagPreAuthorize | kAuthorizationFlagInteractionAllowed | kAuthorizationFlagExtendRights
+        kAuthFlags = kAuthorizationFlagDefaults \
+                     | kAuthorizationFlagPreAuthorize \
+                     | kAuthorizationFlagInteractionAllowed \
+                     | kAuthorizationFlagExtendRights
 
         err = sec.AuthorizationCopyRights(auth, None, None, kAuthFlags, None)
         if err:

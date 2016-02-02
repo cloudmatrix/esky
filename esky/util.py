@@ -161,7 +161,7 @@ else:
 
 
 from esky.bootstrap import appdir_from_executable as _bs_appdir_from_executable
-from esky.bootstrap import get_best_version, get_all_versions, is_version_dir, is_installed_version_dir, is_uninstalled_version_dir, split_app_version, join_app_version, parse_version, get_original_filename, lock_version_dir, unlock_version_dir, fcntl, ESKY_CONTROL_DIR, ESKY_APPDATA_DIR
+from esky.bootstrap import is_version_dir, fcntl, ESKY_CONTROL_DIR, ESKY_APPDATA_DIR
 
 
 def files_differ(file1, file2, start=0, stop=None):
