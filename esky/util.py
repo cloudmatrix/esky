@@ -122,15 +122,6 @@ def itertools():
 
 
 @lazy_import
-def StringIO():
-    try:
-        import io as StringIO
-    except ImportError:
-        import io
-    return StringIO
-
-
-@lazy_import
 def distutils():
     import distutils
     import distutils.log  # need to prompt cxfreeze about this dep
@@ -284,15 +275,7 @@ def extract_zipfile(source, target, name_filter=None):
     'name_filter' must be a function mapping names from the zipfile to names
     in the target directory.
     """
-    zf = zipfile.ZipFile(source, "r")
-    try:
-        if hasattr(zf, "open"):
-            zf_open = zf.open
-        else:
-
-            def zf_open(nm, mode):
-                return io.StringIO(zf.read(nm))
-
+    with zipfile.ZipFile(source, "r") as zf:
         for nm in zf.namelist():
             if nm.endswith("/"):
                 continue
@@ -310,20 +293,12 @@ def extract_zipfile(source, target, name_filter=None):
                 target = zf.read(nm)
                 os.symlink(target, outfilenm)
                 continue
-            infile = zf_open(nm, "r")
-            try:
-                outfile = open(outfilenm, "wb")
-                try:
+            with zf.open(nm, 'r') as infile:
+                with open(outfilenm, "wb") as outfile:
                     shutil.copyfileobj(infile, outfile)
-                finally:
-                    outfile.close()
-            finally:
-                infile.close()
             mode = zinfo.external_attr >> 16
             if mode:
                 os.chmod(outfilenm, mode)
-    finally:
-        zf.close()
 
 
 def zipfile_common_prefix_dir(source):

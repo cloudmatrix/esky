@@ -68,7 +68,15 @@ import optparse
 import zipfile
 import tempfile
 import json
-from io import BytesIO
+
+# Python 2 tests break when we use io
+if sys.version_info[0] < 3:
+    try:
+        from cStringIO import StringIO as BytesIO
+    except ImportError:
+        from StringIO import StringIO as BytesIO
+else:
+    from io import BytesIO
 
 #  Try to get code for working with bsdiff4-format patches.
 #
