@@ -26,8 +26,9 @@ We are tested and running on Python 2.7, 3.3 and 3.4
 
 #### News
 
- - Python2.6 support may be depreciated (as moving codebase to python3)
- - Bbfreeze will be depreciated
+ - Codebase our now python 3 and python2 compliant
+ - Bbfreeze depreciated
+ - RIP python 2.6
 
 
 

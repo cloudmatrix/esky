@@ -71,11 +71,6 @@ try:
 except ImportError:
     _FREEZERS["py2app"] = None
 try:
-    from esky.bdist_esky import f_bbfreeze
-    _FREEZERS["bbfreeze"] = f_bbfreeze
-except ImportError:
-    _FREEZERS["bbfreeze"] = None
-try:
     from esky.bdist_esky import f_cxfreeze
     _FREEZERS["cxfreeze"] = f_cxfreeze
     _FREEZERS["cx_Freeze"] = f_cxfreeze
@@ -173,7 +168,7 @@ class bdist_esky(Command):
         excludes:  a list of modules to explicitly exclude from the freeze
 
         freezer_module:  name of freezer module to use; currently py2exe,
-                         py2app,  bbfreeze and cx-freeze are supported.
+                         py2app, and cx-freeze are supported.
 
         freezer_options: dict of options to pass through to the underlying
                          freezer module.
@@ -278,13 +273,13 @@ class bdist_esky(Command):
         if self.compile_bootstrap_exes and pypyc is None:
             raise PYPYC_ERROR
         if self.freezer_module is None:
-            for freezer_module in ("py2exe", "py2app", "bbfreeze", "cxfreeze"):
+            for freezer_module in ("py2exe", "py2app", "cxfreeze"):
                 self.freezer_module = _FREEZERS[freezer_module]
                 if self.freezer_module is not None:
                     break
             else:
                 err = "no supported freezer modules found"
-                err += " (try installing bbfreeze)"
+                err += " (try installing cxfreeze)"
                 raise RuntimeError(err)
         else:
             try:

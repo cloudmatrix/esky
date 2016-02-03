@@ -42,10 +42,6 @@ try:
 except ImportError:
     py2app = None
 try:
-    import bbfreeze
-except ImportError:
-    bbfreeze = None
-try:
     import cx_Freeze
 except ImportError:
     cx_Freeze = None
@@ -160,30 +156,6 @@ class TestEsky(unittest.TestCase):
         @pytest.mark.py2app
         def test_esky_py2app_pypy(self):
             self._run_eskytester({"bdist_esky":{"freezer_module":"py2app",
-                                                "compile_bootstrap_exes":1}})
-
-  if bbfreeze is not None:
-    @pytest.mark.bbfreeze
-    def test_esky_bbfreeze(self):
-        self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
-
-    if sys.platform == "win32":
-        @pytest.mark.bbfreeze
-        def test_esky_bbfreeze_nocustomchainload(self):
-            with setenv("ESKY_NO_CUSTOM_CHAINLOAD","1"):
-               bscode = "_chainload = _orig_chainload\nbootstrap()"
-               self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze",
-                                                   "bootstrap_code":bscode}})
-    if esky.sudo.can_get_root():
-        @pytest.mark.bbfreeze
-        def test_esky_bbfreeze_needsroot(self):
-            with setenv("ESKY_NEEDSROOT","1"):
-                self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze"}})
-
-    if pypy is not None:
-        @pytest.mark.bbfreeze
-        def test_esky_bbfreeze_pypy(self):
-            self._run_eskytester({"bdist_esky":{"freezer_module":"bbfreeze",
                                                 "compile_bootstrap_exes":1}})
 
   if cx_Freeze is not None:
