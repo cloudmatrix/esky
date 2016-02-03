@@ -15,12 +15,6 @@ must be given the path to the top-level directory of the frozen app, and a
 
 from __future__ import with_statement
 from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-# Importing these breaks our python2..
-# from __future__ import unicode_literals
-# from future import standard_library
-# standard_library.install_aliases()
 from past.builtins import basestring
 from builtins import str
 

@@ -10,13 +10,6 @@ native win32 API.  In particular, it uses the "runas" verb technique to
 launch a process with administrative rights on Windows Vista and above.
 
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import *
 
 import sys
 import uuid

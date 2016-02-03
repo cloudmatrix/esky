@@ -9,13 +9,6 @@ This implementation of esky.sudo uses the native OSX Authorization framework
 to spawn a helper with root privileges.
 
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import *
 
 import sys
 if sys.platform != "darwin":

@@ -51,11 +51,8 @@ already have the corresponding zip files.
 
 """
 
-from __future__ import with_statement
 from __future__ import print_function
 from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
 from future import standard_library
 standard_library.install_aliases()
 from builtins import map, str, bytes, chr, range, object
@@ -231,7 +228,8 @@ PATCH_HEADER = "ESKYPTCH".encode("ascii")
 ESKY_FILELIST = "esky_filelist.txt"
 
 from esky.errors import Error
-from esky.util import extract_zipfile, create_zipfile, deep_extract_zipfile, zipfile_common_prefix_dir, really_rmtree, really_rename
+from esky.util import extract_zipfile, create_zipfile, deep_extract_zipfile
+from esky.util import zipfile_common_prefix_dir, really_rmtree, really_rename
 
 __all__ = ["PatchError", "DiffError", "main", "write_patch", "apply_patch",
            "Differ", "Patcher"]
