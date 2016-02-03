@@ -35,6 +35,7 @@ import esky.patch
 from esky.util import get_platform, create_zipfile
 from esky.util import ESKY_CONTROL_DIR, ESKY_APPDATA_DIR, really_rmtree
 from esky.bootstrap import split_app_version, join_app_version
+from esky.bdist_esky.f_util import add_future_deps
 
 if sys.platform == "win32":
     from esky import winres
@@ -319,6 +320,7 @@ class bdist_esky(Command):
         self._run_initialise_dirs()
         if self.pre_freeze_callback is not None:
             self.pre_freeze_callback(self)
+        add_future_deps(self)
         self._run_freeze_scripts()
         if self.pre_zip_callback is not None:
             self.pre_zip_callback(self)

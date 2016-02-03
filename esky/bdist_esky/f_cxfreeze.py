@@ -23,6 +23,7 @@ INITNAME = "cx_Freeze__init__"
 
 import esky
 from esky.util import is_core_dependency, compile_to_bytecode
+from esky.bdist_esky.f_util import freeze_future
 
 
 def freeze(dist):
@@ -54,6 +55,9 @@ def freeze(dist):
     kwds["includes"] = includes
     kwds["excludes"] = excludes
     kwds["targetDir"] = dist.freeze_dir
+    if kwds.get("optimize"):
+        kwds["optimizeFlag"] = kwds.get('optimize')
+        del kwds['optimize']
     #  Build an Executable object for each script.
     #  To include the esky startup code, we write each to a tempdir.
     executables = []
@@ -69,6 +73,8 @@ def freeze(dist):
     #  Freeze up the executables
     f = cx_Freeze.Freezer(executables, **kwds)
     f.Freeze()
+    freeze_future(f.targetDir, optimize=kwds.get("optimizeFlag"))
+
     #  Copy data files into the freeze dir
     for (src, dst) in dist.get_data_files():
         dst = os.path.join(dist.freeze_dir, dst)

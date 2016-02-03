@@ -51,6 +51,11 @@ def lazy_import(func):
     return _LazyImport(func.__name__, func, namespace)
 
 
+if sys.version_info[0] > 2:
+    PY3 = True
+else:
+    PY3 = False
+
 class _LazyImport(object):
     """Class representing a lazy import."""
 
