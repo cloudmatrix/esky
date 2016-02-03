@@ -16,12 +16,15 @@ import sys
 import errno
 LOCAL_HTTP_PORT = 8000
 
+if sys.version_info[0] > 2:
+    PY3 = True
+else:
+    PY3 = False
+
 #  Since esky apps are required to call the esky.run_startup_hooks() method on
 #  every invocation, we want as little overhead as possible when importing
 #  the main module.  We therefore use a simple lazy-loading scheme for many
 #  of our imports, built from the functions below.
-
-
 def lazy_import(func):
     """Decorator for declaring a lazy import.
 
@@ -50,11 +53,6 @@ def lazy_import(func):
         namespace = f.f_locals
     return _LazyImport(func.__name__, func, namespace)
 
-
-if sys.version_info[0] > 2:
-    PY3 = True
-else:
-    PY3 = False
 
 class _LazyImport(object):
     """Class representing a lazy import."""
