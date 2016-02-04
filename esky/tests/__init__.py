@@ -21,6 +21,7 @@ def _check_needsroot(func):
             if not self.has_root():
                 raise OSError(errno.EACCES, "you need root")
         return func(self, *args, **kwds)
+
     return do_check_needsroot
 
 

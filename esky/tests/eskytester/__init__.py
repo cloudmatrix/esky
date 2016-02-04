@@ -1,4 +1,3 @@
-
 import os
 import sys
 from HTMLParser import HTMLParser
@@ -43,7 +42,6 @@ def yes_my_data_is_installed():
 
 
 class TestHTMLParser(HTMLParser):
-
     def __init__(self):
         HTMLParser.__init__(self)
         self.expecting = ["html", "body", "p", "p"]

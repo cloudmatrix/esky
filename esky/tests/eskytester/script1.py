@@ -1,11 +1,9 @@
-
 #  Entry point for testing an esky install.
 
 import os
 import sys
 import time
 import errno
-
 
 import esky
 import esky.tests
@@ -36,18 +34,17 @@ assert os.path.isfile(eskytester.script_path(app, "script1"))
 
 
 class ATestClass(object):
-
     def __init__(self):
         self.a = "A"
 
 
 class BTestClass(ATestClass):
-
     def __init__(self):
         super(BTestClass, self).__init__()
         self.a = "B"
-assert BTestClass().a == "B"
 
+
+assert BTestClass().a == "B"
 
 #  Spawn another instance that just busy-loops,
 #  holding a lock on the current version.
@@ -66,8 +63,8 @@ else:
         import ctypes
         import subprocess
         import eskytester
-        proc = subprocess.Popen(
-            [eskytester.script_path(app, "script1"), "busyloop"])
+        proc = subprocess.Popen([eskytester.script_path(app, "script1"),
+                                 "busyloop"])
         assert proc.poll() is None
 
         @atexit.register
@@ -82,6 +79,7 @@ else:
                 else:
                     os.kill(proc.pid, signal.SIGTERM)
             proc.wait()
+
     spawn_busy_loop(app)
 
 #  Upgrade to the next version (0.2, even though 0.3 is available)
@@ -93,7 +91,6 @@ if os.environ.get("ESKY_NEEDSROOT", ""):
     assert app.has_root() == already_root
     app.get_root()
 
-
 app.install_version("0.2")
 app.reinitialize()
 assert app.name == "eskytester"
@@ -101,26 +98,28 @@ assert app.active_version == "0.1"
 assert app.version == "0.2"
 assert app.find_update() == "0.3"
 
-
 assert os.path.isfile(eskytester.script_path(app, "script1"))
 assert os.path.isfile(eskytester.script_path(app, "script2"))
 if ESKY_APPDATA_DIR:
-    assert os.path.isfile(os.path.join(os.path.dirname(app._get_versions_dir(
-    )), "eskytester-0.1." + esky.util.get_platform(), ESKY_CONTROL_DIR, "bootstrap-manifest.txt"))
+    assert os.path.isfile(os.path.join(
+        os.path.dirname(app._get_versions_dir()), "eskytester-0.1." +
+        esky.util.get_platform(), ESKY_CONTROL_DIR, "bootstrap-manifest.txt"))
 else:
     assert os.path.isfile(os.path.join(app._get_versions_dir(
-    ), "eskytester-0.1." + esky.util.get_platform(), ESKY_CONTROL_DIR, "bootstrap-manifest.txt"))
-assert os.path.isfile(os.path.join(app._get_versions_dir(), "eskytester-0.2." +
-                                   esky.util.get_platform(), ESKY_CONTROL_DIR, "bootstrap-manifest.txt"))
-
+    ), "eskytester-0.1." + esky.util.get_platform(), ESKY_CONTROL_DIR,
+                                       "bootstrap-manifest.txt"))
+assert os.path.isfile(os.path.join(app._get_versions_dir(
+), "eskytester-0.2." + esky.util.get_platform(), ESKY_CONTROL_DIR,
+                                   "bootstrap-manifest.txt"))
 
 #  Check that we can't uninstall a version that's in use.
 if ESKY_APPDATA_DIR:
-    assert esky.util.is_locked_version_dir(os.path.join(os.path.dirname(
-        app._get_versions_dir()), "eskytester-0.1." + esky.util.get_platform()))
-else:
     assert esky.util.is_locked_version_dir(os.path.join(
-        app._get_versions_dir(), "eskytester-0.1." + esky.util.get_platform()))
+        os.path.dirname(app._get_versions_dir(
+        )), "eskytester-0.1." + esky.util.get_platform()))
+else:
+    assert esky.util.is_locked_version_dir(os.path.join(app._get_versions_dir(
+    ), "eskytester-0.1." + esky.util.get_platform()))
 try:
     app.uninstall_version("0.1")
 except esky.VersionLockedError:

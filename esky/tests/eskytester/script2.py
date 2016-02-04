@@ -1,4 +1,3 @@
-
 #  Second entry point for testing an esky install.
 
 from __future__ import with_statement
@@ -12,10 +11,8 @@ import esky.util
 from esky.util import LOCAL_HTTP_PORT
 import esky.tests
 
-
 ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
 ESKY_APPDATA_DIR = esky.util.ESKY_APPDATA_DIR
-
 
 platform = esky.util.get_platform()
 if platform == "win32":
@@ -61,8 +58,8 @@ if sys.platform == "win32" and sys.hexversion >= 0x02600000:
         assert False, "MSVCRT not bundled in app dir"
 
 if ESKY_APPDATA_DIR:
-    v1dir = os.path.join(os.path.dirname(
-        app._get_versions_dir()), "eskytester-0.1." + platform)
+    v1dir = os.path.join(
+        os.path.dirname(app._get_versions_dir()), "eskytester-0.1." + platform)
 else:
     v1dir = os.path.join(app._get_versions_dir(), "eskytester-0.1." + platform)
 v3dir = os.path.join(app._get_versions_dir(), "eskytester-0.3." + platform)
@@ -77,7 +74,10 @@ if len(sys.argv) == 1:
     assert not os.path.isdir(v1dir)
     assert not os.path.isdir(v3dir)
     #  Check that the bootstrap env is intact
-    with open(os.path.join(app._get_versions_dir(), "eskytester-0.2." + platform, ESKY_CONTROL_DIR, "bootstrap-manifest.txt"), "rt") as mf:
+    with open(
+            os.path.join(app._get_versions_dir(), "eskytester-0.2." + platform,
+                         ESKY_CONTROL_DIR, "bootstrap-manifest.txt"),
+            "rt") as mf:
         for nm in mf:
             nm = nm.strip()
             assert os.path.exists(os.path.join(app.appdir, nm))
@@ -88,16 +88,18 @@ if len(sys.argv) == 1:
     #  While we're here, check that the bootstrap library hasn't changed
     if os.path.exists(os.path.join(app.appdir, "library.zip")):
         f1 = open(os.path.join(app.appdir, "library.zip"), "rb")
-        f2 = open(os.path.join(v3dir, ESKY_CONTROL_DIR,
-                               "bootstrap", "library.zip"), "rb")
+        f2 = open(
+            os.path.join(v3dir, ESKY_CONTROL_DIR, "bootstrap",
+                         "library.zip"), "rb")
         assert f1.read() == f2.read()
         f1.close()
         f2.close()
     #  Also check one of the bootstrap exes to make sure it has changed safely
     if sys.platform == "win32":
         f1 = open(os.path.join(app.appdir, "script2" + dotexe), "rb")
-        f2 = open(os.path.join(v3dir, ESKY_CONTROL_DIR,
-                               "bootstrap", "script2" + dotexe), "rb")
+        f2 = open(
+            os.path.join(v3dir, ESKY_CONTROL_DIR, "bootstrap",
+                         "script2" + dotexe), "rb")
         if f1.read() != f2.read():
             assert esky.winres.is_safe_to_overwrite(
                 f1.name, f2.name), "bootstrap exe was changed unsafely"
@@ -109,8 +111,8 @@ if len(sys.argv) == 1:
     elif sys.platform != "win32":
         # win32 won't let us delete it since we loaded it as a library
         # when checking whether it was safe to overwrite.
-        os.unlink(os.path.join(v3dir, ESKY_CONTROL_DIR,
-                               "bootstrap", "script2" + dotexe))
+        os.unlink(os.path.join(v3dir, ESKY_CONTROL_DIR, "bootstrap", "script2"
+                               + dotexe))
     #  Re-launch the script.
     #  We should still be at version 0.2 after this.
     subprocess.check_call([script2, "rerun"])
@@ -124,9 +126,9 @@ else:
     assert os.path.isfile(eskytester.script_path(app, "script2"))
     assert not os.path.isfile(eskytester.script_path(app, "script1"))
     assert os.path.isfile(eskytester.script_path(app, "script3"))
-    assert os.path.isdir(os.path.join(
-        app._get_versions_dir(), "eskytester-0.2." + platform))
-    assert os.path.isdir(os.path.join(
-        app._get_versions_dir(), "eskytester-0.3." + platform))
+    assert os.path.isdir(os.path.join(app._get_versions_dir(),
+                                      "eskytester-0.2." + platform))
+    assert os.path.isdir(os.path.join(app._get_versions_dir(),
+                                      "eskytester-0.3." + platform))
 
     open(os.path.join(app.appdir, "tests-completed"), "w").close()
