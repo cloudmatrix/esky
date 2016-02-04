@@ -3,7 +3,6 @@
 import os
 import sys
 import time
-import errno
 
 import esky
 import esky.tests
@@ -14,7 +13,7 @@ ESKY_CONTROL_DIR = esky.util.ESKY_CONTROL_DIR
 ESKY_APPDATA_DIR = esky.util.ESKY_APPDATA_DIR
 
 #  Test that the frozen app is actually working
-import eskytester
+from esky.tests import eskytester
 eskytester.yes_i_am_working()
 eskytester.yes_my_deps_are_working()
 eskytester.yes_my_data_is_installed()
@@ -105,21 +104,14 @@ if ESKY_APPDATA_DIR:
         os.path.dirname(app._get_versions_dir()), "eskytester-0.1." +
         esky.util.get_platform(), ESKY_CONTROL_DIR, "bootstrap-manifest.txt"))
 else:
-    assert os.path.isfile(os.path.join(app._get_versions_dir(
-    ), "eskytester-0.1." + esky.util.get_platform(), ESKY_CONTROL_DIR,
-                                       "bootstrap-manifest.txt"))
-assert os.path.isfile(os.path.join(app._get_versions_dir(
-), "eskytester-0.2." + esky.util.get_platform(), ESKY_CONTROL_DIR,
-                                   "bootstrap-manifest.txt"))
+    assert os.path.isfile(os.path.join(app._get_versions_dir( ), "eskytester-0.1." + esky.util.get_platform(), ESKY_CONTROL_DIR, "bootstrap-manifest.txt"))
+assert os.path.isfile(os.path.join(app._get_versions_dir( ), "eskytester-0.2." + esky.util.get_platform(), ESKY_CONTROL_DIR, "bootstrap-manifest.txt"))
 
 #  Check that we can't uninstall a version that's in use.
 if ESKY_APPDATA_DIR:
-    assert esky.util.is_locked_version_dir(os.path.join(
-        os.path.dirname(app._get_versions_dir(
-        )), "eskytester-0.1." + esky.util.get_platform()))
+    assert esky.util.is_locked_version_dir(os.path.join( os.path.dirname(app._get_versions_dir( )), "eskytester-0.1." + esky.util.get_platform()))
 else:
-    assert esky.util.is_locked_version_dir(os.path.join(app._get_versions_dir(
-    ), "eskytester-0.1." + esky.util.get_platform()))
+    assert esky.util.is_locked_version_dir(os.path.join(app._get_versions_dir(), "eskytester-0.1." + esky.util.get_platform()))
 try:
     app.uninstall_version("0.1")
 except esky.VersionLockedError:

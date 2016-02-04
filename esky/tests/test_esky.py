@@ -9,7 +9,6 @@ import unittest
 from os.path import dirname
 import subprocess
 import shutil
-import zipfile
 import threading
 import tempfile
 import urllib2
@@ -25,9 +24,11 @@ from distutils import dir_util
 
 import esky
 import esky.patch
-from esky.bdist_esky import Executable, bdist_esky
+from esky.bdist_esky import Executable
 import esky.bdist_esky
-from esky.util import extract_zipfile, deep_extract_zipfile, get_platform, ESKY_CONTROL_DIR, files_differ, ESKY_APPDATA_DIR, really_rmtree, LOCAL_HTTP_PORT
+from esky.util import extract_zipfile, deep_extract_zipfile, get_platform
+from esky.util import ESKY_CONTROL_DIR, files_differ, ESKY_APPDATA_DIR
+from esky.util import really_rmtree, LOCAL_HTTP_PORT
 from esky.fstransact import FSTransaction
 import pytest
 
@@ -226,18 +227,12 @@ class TestEsky(unittest.TestCase):
         server = None
         script2 = None
         try:
-            options.setdefault("build", {})[
-                "build_base"] = os.path.join(tdir, "build")
-            options.setdefault("bdist", {})[
-                "dist_dir"] = os.path.join(tdir, "dist")
+            options.setdefault("build", {})[ "build_base"] = os.path.join(tdir, "build")
+            options.setdefault("bdist", {})[ "dist_dir"] = os.path.join(tdir, "dist")
             #  Set some callbacks to test that they work correctly
-            options.setdefault("bdist_esky", {}).setdefault(
-                "pre_freeze_callback",
-                "esky.tests.test_esky.assert_freezedir_exists")
-            options.setdefault("bdist_esky", {}).setdefault(
-                "pre_zip_callback", assert_freezedir_exists)
-            options["bdist_esky"].setdefault("excludes",
-                                             []).extend(["Tkinter", "tkinter"])
+            options.setdefault("bdist_esky", {}).setdefault( "pre_freeze_callback", "esky.tests.test_esky.assert_freezedir_exists")
+            options.setdefault("bdist_esky", {}).setdefault( "pre_zip_callback", assert_freezedir_exists)
+            options["bdist_esky"].setdefault("excludes", []).extend(["Tkinter", "tkinter"])
             options["bdist_esky"]["compress"] = "ZIP"
             platform = get_platform()
             deploydir = "deploy.%s" % (platform, )
@@ -260,51 +255,22 @@ class TestEsky(unittest.TestCase):
             options2["bdist_esky"] = options["bdist_esky"].copy()
             options2["bdist_esky"]["bundle_msvcrt"] = True
             script1 = "eskytester/script1.py"
-            script2 = Executable(
-                [None, open("eskytester/script2.py")],
-                name="script2")
+            script2 = Executable( [None, open("eskytester/script2.py")], name="script2")
             script3 = "eskytester/script3.py"
-            dist_setup(version="0.1",
-                       scripts=[script1],
-                       options=options,
-                       script_args=[
-                           "bdist_esky"
-                       ],
-                       **metadata)
-            dist_setup(version="0.2",
-                       scripts=[
-                           script1, script2
-                       ],
-                       options=options2,
-                       script_args=["bdist_esky"],
-                       **metadata)
-            dist_setup(version="0.3",
-                       scripts=[script2, script3],
-                       options=options,
-                       script_args=[
-                           "bdist_esky_patch"
-                       ],
-                       **metadata)
-            os.unlink(os.path.join(tdir, "dist", "eskytester-0.3.%s.zip" % (
-                platform, )))
+            dist_setup(version="0.1", scripts=[script1], options=options, script_args=[ "bdist_esky" ], **metadata)
+            dist_setup(version="0.2", scripts=[ script1, script2 ], options=options2, script_args=["bdist_esky"], **metadata)
+            dist_setup(version="0.3", scripts=[script2, script3], options=options, script_args=[ "bdist_esky_patch" ], **metadata)
+            os.unlink(os.path.join(tdir, "dist", "eskytester-0.3.%s.zip" % ( platform, )))
             #  Check that the patches apply cleanly
             uzdir = os.path.join(tdir, "unzip")
-            deep_extract_zipfile(
-                os.path.join(tdir, "dist",
-                             "eskytester-0.1.%s.zip" % (platform, )), uzdir)
-            with open(
-                    os.path.join(tdir, "dist",
-                                 "eskytester-0.3.%s.from-0.1.patch" %
-                                 (platform, )), "rb") as f:
+
+            deep_extract_zipfile( os.path.join(tdir, "dist", "eskytester-0.1.%s.zip" % (platform, )), uzdir)
+            with open( os.path.join(tdir, "dist", "eskytester-0.3.%s.from-0.1.patch" % (platform, )), "rb") as f:
                 esky.patch.apply_patch(uzdir, f)
             really_rmtree(uzdir)
-            deep_extract_zipfile(
-                os.path.join(tdir, "dist",
-                             "eskytester-0.2.%s.zip" % (platform, )), uzdir)
-            with open(
-                    os.path.join(tdir, "dist",
-                                 "eskytester-0.3.%s.from-0.2.patch" %
-                                 (platform, )), "rb") as f:
+
+            deep_extract_zipfile( os.path.join(tdir, "dist", "eskytester-0.2.%s.zip" % (platform, )), uzdir)
+            with open( os.path.join(tdir, "dist", "eskytester-0.3.%s.from-0.2.patch" % (platform, )), "rb") as f:
                 esky.patch.apply_patch(uzdir, f)
             really_rmtree(uzdir)
             #  Serve the updates at LOCAL_HTTP_PORT set in esky.util
@@ -377,9 +343,7 @@ class TestEsky(unittest.TestCase):
                                 "testapp-0.1.%s" % (platform, ))
             os.makedirs(vdir)
             os.mkdir(os.path.join(vdir, ESKY_CONTROL_DIR))
-            open(
-                os.path.join(vdir, ESKY_CONTROL_DIR,
-                             "bootstrap-manifest.txt"), "wb").close()
+            open( os.path.join(vdir, ESKY_CONTROL_DIR, "bootstrap-manifest.txt"), "wb").close()
             e1 = esky.Esky(appdir, "http://example.com/downloads/")
             assert e1.name == "testapp"
             assert e1.version == "0.1"
@@ -425,10 +389,7 @@ class TestEsky(unittest.TestCase):
         try:
             os.makedirs(os.path.join(appdir, ESKY_APPDATA_DIR, "testapp-0.1",
                                      ESKY_CONTROL_DIR))
-            open(
-                os.path.join(appdir, ESKY_APPDATA_DIR, "testapp-0.1",
-                             ESKY_CONTROL_DIR, "bootstrap-manifest.txt"),
-                "wb").close()
+            open( os.path.join(appdir, ESKY_APPDATA_DIR, "testapp-0.1", ESKY_CONTROL_DIR, "bootstrap-manifest.txt"), "wb").close()
             e1 = esky.Esky(appdir, "http://example.com/downloads/")
             e2 = esky.Esky(appdir, "http://example.com/downloads/")
             trigger1 = threading.Event()
@@ -848,15 +809,15 @@ class TestPatch(unittest.TestCase):
         with open(patch_fname, "wb") as patchfile:
             esky.patch.write_patch(src_dir, tgt_dir, patchfile)
 
-# Add file to source
+        # Add file to source
         with open(os.path.join(src_dir, 'logfile.log'), 'w') as newfile:
             newfile.write('')
 
-# Try to apply the patch.
+        # Try to apply the patch.
         with open(patch_fname, "rb") as patchfile:
             esky.patch.apply_patch(src_dir, patchfile)
 
-# Then the two directory structures should be different.
+        # Then the two directory structures should be different.
         self.assertNotEquals(
             esky.patch.calculate_digest(src_dir),
             esky.patch.calculate_digest(tgt_dir))
@@ -890,7 +851,7 @@ class TestPatch(unittest.TestCase):
         with open(patch_fname, "wb") as patchfile:
             esky.patch.write_patch(src_dir, tgt_dir, patchfile)
 
-# Add file to source
+        # Add file to source
         with open(os.path.join(src_dir, 'logfile.log'), 'w') as newfile:
             newfile.write('')
         # Add pyc and pyo file
@@ -899,7 +860,7 @@ class TestPatch(unittest.TestCase):
         with open(os.path.join(src_dir, 'python.pyo'), 'w') as newfile:
             newfile.write('')
 
-# Apply the patch.
+        # Apply the patch.
         with open(patch_fname, "rb") as patchfile:
             esky.patch.apply_patch(src_dir, patchfile)
 
@@ -930,15 +891,15 @@ class TestPatch(unittest.TestCase):
         with open(patch_fname, "wb") as patchfile:
             esky.patch.write_patch(src_dir, tgt_dir, patchfile)
 
-# Remove file from source
+        # Remove file from source
         os.remove(os.path.join(src_dir, 'example.exe'))
 
         # Try to apply the patch.
         with open(patch_fname, "rb") as patchfile:
             esky.patch.apply_patch(src_dir, patchfile)
 
-# should have failed by now...
 
+    # should have failed by now...
     def test_apply_patch_fail_when_sourcefile_has_been_deleted(self):
         with pytest.raises(Exception):
             self._test_apply_patch_fail_when_sourcefile_has_been_deleted()

@@ -11,7 +11,7 @@ import esky.tests
 platform = esky.util.get_platform()
 
 #  Test that the frozen app is actually working
-import eskytester
+from esky.tests import eskytester
 eskytester.yes_i_am_working()
 eskytester.yes_my_deps_are_working()
 eskytester.yes_my_data_is_installed()
