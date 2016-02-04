@@ -1,5 +1,8 @@
 #  Entry point for testing an esky install.
 
+from __future__ import print_function
+from builtins import object
+
 import os
 import sys
 import time

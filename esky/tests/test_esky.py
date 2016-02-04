@@ -1,7 +1,10 @@
 #  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
 #  All rights reserved; available under the terms of the BSD License.
 
-from __future__ import with_statement
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str, range
 
 import sys
 import os
@@ -11,13 +14,13 @@ import subprocess
 import shutil
 import threading
 import tempfile
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import hashlib
 import tarfile
 import time
 from contextlib import contextmanager
-from SimpleHTTPServer import SimpleHTTPRequestHandler
-from BaseHTTPServer import HTTPServer
+from http.server import SimpleHTTPRequestHandler
+from http.server import HTTPServer
 
 from distutils.core import setup as dist_setup
 from distutils import dir_util
@@ -274,7 +277,7 @@ class TestEsky(unittest.TestCase):
                 esky.patch.apply_patch(uzdir, f)
             really_rmtree(uzdir)
             #  Serve the updates at LOCAL_HTTP_PORT set in esky.util
-            print "running local update server"
+            print("running local update server")
             try:
                 server = HTTPServer(
                     ("localhost", LOCAL_HTTP_PORT), SimpleHTTPRequestHandler)
@@ -306,20 +309,20 @@ class TestEsky(unittest.TestCase):
                     cmd1 = os.path.join(deploydir, "script1")
                     cmd2 = os.path.join(deploydir, "script2")
                     cmd3 = os.path.join(deploydir, "script3")
-            print "spawning eskytester script1", options["bdist_esky"][
-                "freezer_module"]
+            print("spawning eskytester script1", options["bdist_esky"][
+                "freezer_module"])
             os.unlink(os.path.join(tdir, "dist", "eskytester-0.1.%s.zip" % (
                 platform, )))
             p = subprocess.Popen(cmd1)
             assert p.wait() == 0
             os.unlink(os.path.join(appdir, "tests-completed"))
-            print "spawning eskytester script2"
+            print("spawning eskytester script2")
             os.unlink(os.path.join(tdir, "dist", "eskytester-0.2.%s.zip" % (
                 platform, )))
             p = subprocess.Popen(cmd2)
             assert p.wait() == 0
             os.unlink(os.path.join(appdir, "tests-completed"))
-            print "spawning eskytester script3"
+            print("spawning eskytester script3")
             p = subprocess.Popen(cmd3)
             assert p.wait() == 0
             os.unlink(os.path.join(appdir, "tests-completed"))
@@ -361,7 +364,7 @@ class TestEsky(unittest.TestCase):
                 def runme():
                     try:
                         e.lock()
-                    except Exception, err:
+                    except Exception as err:
                         errors.append(err)
                     else:
                         locked.append(e)
@@ -399,7 +402,7 @@ class TestEsky(unittest.TestCase):
             def run1():
                 try:
                     e1.lock()
-                except Exception, err:
+                except Exception as err:
                     errors.append(err)
                 trigger1.set()
                 trigger2.wait()
@@ -410,7 +413,7 @@ class TestEsky(unittest.TestCase):
                     e2.lock()
                 except esky.EskyLockedError:
                     pass
-                except Exception, err:
+                except Exception as err:
                     errors.append(err)
                 else:
                     errors.append("locked when I shouldn't have")
@@ -418,7 +421,7 @@ class TestEsky(unittest.TestCase):
                 time.sleep(0.5)
                 try:
                     e2.lock()
-                except Exception, err:
+                except Exception as err:
                     errors.append(err)
                 trigger2.set()
 
@@ -666,7 +669,7 @@ class TestPatch(unittest.TestCase):
         for (tfname, hash) in self._TEST_FILES:
             tfpath = os.path.join(tfdir, tfname)
             if not os.path.exists(tfpath):
-                data = urllib2.urlopen(self._TEST_FILES_URL + tfname).read()
+                data = urllib.request.urlopen(self._TEST_FILES_URL + tfname).read()
                 assert hashlib.md5(data).hexdigest() == hash
                 with open(tfpath, "wb") as f:
                     f.write(data)
@@ -677,10 +680,10 @@ class TestPatch(unittest.TestCase):
     def test_patch_bigfile(self):
         tdir = tempfile.mkdtemp()
         try:
-            data = [os.urandom(100) * 10 for i in xrange(6)]
+            data = [os.urandom(100) * 10 for i in range(6)]
             for nm in ("source", "target"):
                 with open(os.path.join(tdir, nm), "wb") as f:
-                    for i in xrange(1000):
+                    for i in range(1000):
                         for chunk in data:
                             f.write(chunk)
                 data[2], data[3] = data[3], data[2]
@@ -839,7 +842,7 @@ class TestPatch(unittest.TestCase):
         source = "example-app-0.1.tar.gz"
         target = "example-app-0.2.tar.gz"
         src_dir, tgt_dir = self._extract(source, target)
-        print src_dir, tgt_dir
+        print(src_dir, tgt_dir)
 
         # The two directory structures should initially be different.
         self.assertNotEquals(

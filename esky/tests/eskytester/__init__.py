@@ -1,7 +1,9 @@
+from future import standard_library
+standard_library.install_aliases()
 import os
 import sys
-from HTMLParser import HTMLParser
-import cPickle
+from html.parser import HTMLParser
+import pickle
 import zipfile
 
 
