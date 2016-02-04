@@ -19,12 +19,13 @@ eskytester.yes_my_data_is_installed()
 
 #  Test that we're at the best possible version
 assert sys.frozen
-app = esky.tests.TestableEsky(sys.executable,"http://localhost:{0}/dist/".format(LOCAL_HTTP_PORT))
+app = esky.tests.TestableEsky(
+    sys.executable, "http://localhost:{0}/dist/".format(LOCAL_HTTP_PORT))
 assert app.name == "eskytester"
 assert app.active_version == app.version == "0.3"
 assert app.find_update() is None
 
-if os.environ.get("ESKY_NEEDSROOT",""):
+if os.environ.get("ESKY_NEEDSROOT", ""):
     app.get_root()
 
 try:
@@ -33,10 +34,11 @@ except esky.EskyLockedError:
     print "LOCKED, SLEEPING"
     time.sleep(10)
     app.cleanup()
-assert os.path.isdir(os.path.join(app._get_versions_dir(),"eskytester-0.3."+platform))
-assert not os.path.isfile(eskytester.script_path(app,"script1"))
-assert os.path.isfile(eskytester.script_path(app,"script2"))
-assert os.path.isfile(eskytester.script_path(app,"script3"))
+assert os.path.isdir(os.path.join(
+    app._get_versions_dir(), "eskytester-0.3." + platform))
+assert not os.path.isfile(eskytester.script_path(app, "script1"))
+assert os.path.isfile(eskytester.script_path(app, "script2"))
+assert os.path.isfile(eskytester.script_path(app, "script3"))
 
 #  Test that MSVCRT wasn't bundled with this version
 if sys.platform == "win32":
@@ -50,7 +52,7 @@ if sys.platform == "win32":
 #  On windows, test that we were chainloaded without an execv
 if sys.platform == "win32":
     if "ESKY_NO_CUSTOM_CHAINLOAD" not in os.environ:
-        assert hasattr(sys,"bootstrap_executable"), "didn't chainload in-proc"
+        assert hasattr(sys, "bootstrap_executable"), "didn't chainload in-proc"
 
 
-open(os.path.join(app.appdir,"tests-completed"),"w").close()
+open(os.path.join(app.appdir, "tests-completed"), "w").close()
