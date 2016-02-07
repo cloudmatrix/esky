@@ -87,10 +87,6 @@ class TestEsky(unittest.TestCase):
     if py2exe is not None:
 
         @pytest.mark.py2exe
-        def test_esky_py2exe(self):
-            self._run_eskytester({"bdist_esky": {"freezer_module": "py2exe"}})
-
-        @pytest.mark.py2exe
         def test_esky_py2exe_bundle1(self):
             self._run_eskytester({"bdist_esky": {"freezer_module": "py2exe",
                                                  "freezer_options": {
