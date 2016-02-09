@@ -4,7 +4,6 @@ setup_kwds = {}
 if sys.version_info > (3,):
     from setuptools import setup
     setup_kwds["test_suite"] = "esky.tests.test_esky"
-    setup_kwds["use_2to3"] = True
 else:
     from distutils.core import setup
 
