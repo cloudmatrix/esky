@@ -3,7 +3,10 @@
     esky.bdist_esky.f_util: utils required for freezing after
 
 adding the future module as a dep. Not useful to end users
-so kept out of the way here.
+so kept out of the way here. The basic problem is that some python modules
+try to use open on data files which could be placed in a zipfile.. which
+the open function doesn't know how to deal with. We also have
+a bunch of imports that future uses that confuses the finders.
 '''
 
 from __future__ import with_statement
@@ -16,9 +19,10 @@ import os
 import sys
 import shutil
 import functools
-import zipfile
 import tempfile
 import py_compile
+
+from distutils.dir_util import copy_tree # This overwrites any existing folders/files
 
 from esky.util import PY3, extract_zipfile, create_zipfile
 
@@ -75,6 +79,19 @@ FUTURE_PACKAGES = (
 
 INCLUDES_LIST = ('UserList', 'UserString', 'commands')
 
+def preserve_cwd(function):
+    '''Decorator used for keeping the original cwd after function call'''
+
+    @functools.wraps(function)
+    def decorator(*args, **kwargs):
+        cwd = os.getcwd()
+        try:
+            return function(*args, **kwargs)
+        finally:
+            os.chdir(cwd)
+
+    return decorator
+
 
 def add_future_deps(dist):
     '''Esky uses the futures library to work with python3 and 2,
@@ -89,20 +106,6 @@ def add_future_deps(dist):
     elif sys.platform == 'win32':
         if not PY3:
             dist.includes.extend(INCLUDES_LIST)
-
-
-def preserve_cwd(function):
-    '''Decorator used for keeping the original cwd after function call'''
-
-    @functools.wraps(function)
-    def decorator(*args, **kwargs):
-        cwd = os.getcwd()
-        try:
-            return function(*args, **kwargs)
-        finally:
-            os.chdir(cwd)
-
-    return decorator
 
 
 @preserve_cwd

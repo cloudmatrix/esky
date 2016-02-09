@@ -24,6 +24,7 @@ except ImportError:
 import esky
 from esky.util import is_core_dependency, ESKY_CONTROL_DIR
 from esky import winres
+from esky.bdist_esky.f_util import freeze_future
 
 try:
     import py2exe.mf as modulefinder
@@ -45,7 +46,7 @@ if modulefinder is not None:
         pass
 
 
-class custom_py2exe(py2exe):
+class CustomPy2exe(py2exe):
     """Custom py2exe command subclass.
 
     This py2exe command subclass incorporates some well-known py2exe "hacks"
@@ -120,9 +121,8 @@ def freeze(dist):
     if "zipfile" in options:
         dist.distribution.zipfile = options.pop("zipfile")
     #  Create the py2exe cmd and adjust its options
-    cmd = custom_py2exe(dist.distribution)
+    cmd = CustomPy2exe(dist.distribution)
     cmd.includes = includes
-    cmd.excludes = excludes
     if "bundle_files" in options:
         if options["bundle_files"] < 3 and dist.compile_bootstrap_exes:
             err = "can't compile bootstrap exes when bundle_files < 3"
@@ -133,6 +133,7 @@ def freeze(dist):
     cmd.finalize_options()
     #  Actually run the freeze process
     cmd.run()
+    freeze_future(dist.freeze_dir, optimize=getattr(cmd, 'optimize'))
     #  Copy data files into the freeze dir
     dist.distribution.data_files = my_data_files
     for (src, dst) in dist.get_data_files():
