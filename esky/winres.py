@@ -12,7 +12,6 @@ under Windows.
 
 from __future__ import with_statement
 from __future__ import division
-from past.builtins import basestring
 from past.utils import old_div
 from builtins import str
 
@@ -96,9 +95,9 @@ def find_resource(filename_or_handle, res_type, res_id, res_lang=None):
     try:
         if res_lang is None:
             res_lang = _DEFAULT_RESLANG
-        if isinstance(filename_or_handle, basestring):
+        if isinstance(filename_or_handle, (str, bytes)):
             filename = filename_or_handle
-            if not isinstance(filename, str):
+            if isinstance(filename, bytes):
                 filename = filename.decode(sys.getfilesystemencoding())
             #  See if we already have that file loaded as a module.
             #  In this case it won't be in memory as one big block and we
@@ -142,19 +141,16 @@ def find_resource(filename_or_handle, res_type, res_id, res_lang=None):
             os.rmdir(tdir)
 
 
-def load_resource(filename_or_handle,
-                  res_type,
-                  res_id,
-                  res_lang=_DEFAULT_RESLANG):
+def load_resource(filename_or_handle, res_type, res_id, res_lang=_DEFAULT_RESLANG):
     """Load a resource from the given filename or module handle.
 
     The "res_type" and "res_id" arguments identify the particular resource
     to be loaded, along with the "res_lang" argument if given.  The contents
     of the specified resource are returned as a string.
     """
-    if isinstance(filename_or_handle, basestring):
+    if isinstance(filename_or_handle, (str, bytes)):
         filename = filename_or_handle
-        if not isinstance(filename, str):
+        if isinstance(filename, bytes):
             filename = filename.decode(sys.getfilesystemencoding())
         l_handle = k32.LoadLibraryExW(filename, None, LOAD_LIBRARY_AS_DATAFILE)
         if not l_handle:
@@ -183,18 +179,14 @@ def load_resource(filename_or_handle,
             k32.FreeLibrary(l_handle)
 
 
-def add_resource(filename,
-                 resource,
-                 res_type,
-                 res_id,
-                 res_lang=_DEFAULT_RESLANG):
+def add_resource(filename, resource, res_type, res_id, res_lang=_DEFAULT_RESLANG):
     """Add a resource to the given filename.
 
     The "res_type" and "res_id" arguments identify the particular resource
     to be added, along with the "res_lang" argument if given.  The contents
     of the specified resource must be provided as a string.
     """
-    if not isinstance(filename, str):
+    if isinstance(filename, bytes):
         filename = filename.decode(sys.getfilesystemencoding())
     l_handle = k32.BeginUpdateResourceW(filename, 0)
     if not l_handle:
