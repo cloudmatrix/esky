@@ -9,7 +9,6 @@ the open function doesn't know how to deal with. We also have
 a bunch of imports that future uses that confuses the finders.
 '''
 
-from __future__ import with_statement
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()

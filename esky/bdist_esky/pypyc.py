@@ -9,7 +9,6 @@ usage than building the bootstrap exes out of the frozen application stubs.
 
 """
 
-from __future__ import with_statement
 from builtins import str
 
 import os

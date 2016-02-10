@@ -6,8 +6,6 @@
 
 """
 
-from __future__ import with_statement
-
 import os
 import sys
 import marshal

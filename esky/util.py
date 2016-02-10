@@ -6,7 +6,6 @@
 
 """
 
-from __future__ import with_statement
 from future import standard_library
 standard_library.install_aliases()
 from builtins import next, hex, range, zip, object

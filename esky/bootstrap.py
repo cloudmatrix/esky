@@ -609,12 +609,7 @@ def parse_version(s):
     return parts
 
 
-_replace_p = {
-    'pre': 'c',
-    'preview': 'c',
-    '-': 'final-',
-    'rc': 'c',
-    'dev': '@'}.get
+_replace_p = { 'pre': 'c', 'preview': 'c', '-': 'final-', 'rc': 'c', 'dev': '@'}.get
 
 
 def _parse_version_parts(s):

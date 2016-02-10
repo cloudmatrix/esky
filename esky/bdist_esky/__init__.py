@@ -13,7 +13,6 @@ must be given the path to the top-level directory of the frozen app, and a
 'VersionFinder' object that it will use to search for updates.
 """
 
-from __future__ import with_statement
 from __future__ import print_function
 from past.builtins import basestring
 from builtins import str
@@ -243,10 +242,11 @@ class bdist_esky(Command):
          "Compression options of the Esky, use lower case for compressed or upper case for uncompressed, currently only support zip files"),
     ]
 
-    boolean_options = [
-        "bundle-msvcrt", "dont-run-startup-hooks", "compile-bootstrap-exes",
-        "enable-appdata-dir"
-    ]
+    boolean_options = ["bundle-msvcrt",
+                       "dont-run-startup-hooks",
+                       "compile-bootstrap-exes",
+                       "enable-appdata-dir",
+                       ]
 
     def initialize_options(self):
         self.dist_dir = None

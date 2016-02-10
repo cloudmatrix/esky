@@ -90,35 +90,35 @@ class TestEsky(unittest.TestCase):
         def test_esky_py2exe_bundle1(self):
             self._run_eskytester({"bdist_esky": {"freezer_module": "py2exe",
                                                  "freezer_options": {
-                                                     "bundle_files": 1
+                                                     "bundle_files": 1,
                                                  }}})
 
         @pytest.mark.py2exe
         def test_esky_py2exe_bundle2(self):
             self._run_eskytester({"bdist_esky": {"freezer_module": "py2exe",
                                                  "freezer_options": {
-                                                     "bundle_files": 2
+                                                     "bundle_files": 2,
                                                  }}})
 
         @pytest.mark.py2exe
         def test_esky_py2exe_bundle3(self):
             self._run_eskytester({"bdist_esky": {"freezer_module": "py2exe",
                                                  "freezer_options": {
-                                                     "bundle_files": 3
+                                                     "bundle_files": 3,
                                                  }}})
 
         @pytest.mark.py2exe
         def test_esky_py2exe_skiparchive(self):
             self._run_eskytester({"bdist_esky": {"freezer_module": "py2exe",
                                                  "freezer_options": {
-                                                     "skip_archive": True
+                                                     "skip_archive": True,
                                                  }}})
 
         @pytest.mark.py2exe
         def test_esky_py2exe_unbuffered(self):
             self._run_eskytester({"bdist_esky": {"freezer_module": "py2exe",
                                                  "freezer_options": {
-                                                     "unbuffered": True
+                                                     "unbuffered": True,
                                                  }}})
 
         @pytest.mark.py2exe
@@ -151,7 +151,7 @@ class TestEsky(unittest.TestCase):
                                       {"freezer_module": "py2exe",
                                        "compile_bootstrap_exes": 1,
                                        "freezer_options": {
-                                           "unbuffered": True
+                                           "unbuffered": True,
                                        }}})
 
     if py2app is not None:
@@ -181,8 +181,7 @@ class TestEsky(unittest.TestCase):
 
         @pytest.mark.cxfreeze
         def test_esky_cxfreeze(self):
-            self._run_eskytester({"bdist_esky": {"freezer_module": "cxfreeze"}
-                                  })
+            self._run_eskytester({"bdist_esky": {"freezer_module": "cxfreeze"}})
 
         if sys.platform == "win32":
 
@@ -218,10 +217,6 @@ class TestEsky(unittest.TestCase):
         sequence of tests performed range across "script1.py" to "script3.py".
         """
         olddir = os.path.abspath(os.curdir)
-        #    tdir = os.path.join(os.path.dirname(__file__),"DIST")
-        #    if os.path.exists(tdir):
-        #        really_rmtree(tdir)
-        #    os.mkdir(tdir)
         tdir = tempfile.mkdtemp()
         server = None
         script2 = None
@@ -241,6 +236,7 @@ class TestEsky(unittest.TestCase):
                 os.path.join(esky_root, "esky", "tests",
                              "eskytester"), "eskytester")
             dir_util._path_created.clear()
+
             #  Build three increasing versions of the test package.
             #  Version 0.2 will include a bundled MSVCRT on win32.
             #  Version 0.3 will be distributed as a patch.
@@ -254,30 +250,30 @@ class TestEsky(unittest.TestCase):
             options2["bdist_esky"] = options["bdist_esky"].copy()
             options2["bdist_esky"]["bundle_msvcrt"] = True
             script1 = "eskytester/script1.py"
-            script2 = Executable( [None, open("eskytester/script2.py")], name="script2")
+            script2 = Executable([None, open("eskytester/script2.py")], name="script2")
             script3 = "eskytester/script3.py"
+
             with silence():
                 dist_setup(version="0.1", scripts=[script1], options=options, script_args=[ "bdist_esky" ], **metadata)
                 dist_setup(version="0.2", scripts=[ script1, script2 ], options=options2, script_args=["bdist_esky"], **metadata)
                 dist_setup(version="0.3", scripts=[script2, script3], options=options, script_args=[ "bdist_esky_patch" ], **metadata)
                 os.unlink(os.path.join(tdir, "dist", "eskytester-0.3.%s.zip" % ( platform, )))
+
             #  Check that the patches apply cleanly
             uzdir = os.path.join(tdir, "unzip")
-
             deep_extract_zipfile( os.path.join(tdir, "dist", "eskytester-0.1.%s.zip" % (platform, )), uzdir)
             with open( os.path.join(tdir, "dist", "eskytester-0.3.%s.from-0.1.patch" % (platform, )), "rb") as f:
                 esky.patch.apply_patch(uzdir, f)
             really_rmtree(uzdir)
-
             deep_extract_zipfile( os.path.join(tdir, "dist", "eskytester-0.2.%s.zip" % (platform, )), uzdir)
             with open( os.path.join(tdir, "dist", "eskytester-0.3.%s.from-0.2.patch" % (platform, )), "rb") as f:
                 esky.patch.apply_patch(uzdir, f)
             really_rmtree(uzdir)
+
             #  Serve the updates at LOCAL_HTTP_PORT set in esky.util
             print("running local update server")
             try:
-                server = HTTPServer(
-                    ("localhost", LOCAL_HTTP_PORT), SimpleHTTPRequestHandler)
+                server = HTTPServer(("localhost", LOCAL_HTTP_PORT), SimpleHTTPRequestHandler)
             except Exception:
                 # in travis ci we start our own server
                 pass
@@ -306,16 +302,17 @@ class TestEsky(unittest.TestCase):
                     cmd1 = os.path.join(deploydir, "script1")
                     cmd2 = os.path.join(deploydir, "script2")
                     cmd3 = os.path.join(deploydir, "script3")
-            print("spawning eskytester script1", options["bdist_esky"][
-                "freezer_module"])
+            print("spawning eskytester script1", options["bdist_esky"][ "freezer_module"])
             os.unlink(os.path.join(tdir, "dist", "eskytester-0.1.%s.zip" % (
                 platform, )))
+
             p = subprocess.Popen(cmd1)
             if p.wait():
                 print(p.stdout)
                 print(p.stderr)
                 assert False
             os.unlink(os.path.join(appdir,"tests-completed"))
+
             print("spawning eskytester script2")
             os.unlink(os.path.join(tdir, "dist", "eskytester-0.2.%s.zip" % (
                 platform, )))
@@ -325,6 +322,7 @@ class TestEsky(unittest.TestCase):
                 print(p.stderr)
                 assert False
             os.unlink(os.path.join(appdir,"tests-completed"))
+
             print("spawning eskytester script3")
             p = subprocess.Popen(cmd3)
             if p.wait():
@@ -349,7 +347,7 @@ class TestEsky(unittest.TestCase):
         appdir = tempfile.mkdtemp()
         try:
             vdir = os.path.join(appdir, ESKY_APPDATA_DIR,
-                                "testapp-0.1.%s" % (platform, ))
+                                "testapp-0.1.%s" % (platform,))
             os.makedirs(vdir)
             os.mkdir(os.path.join(vdir, ESKY_CONTROL_DIR))
             open( os.path.join(vdir, ESKY_CONTROL_DIR, "bootstrap-manifest.txt"), "wb").close()
