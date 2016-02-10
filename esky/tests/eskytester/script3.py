@@ -6,7 +6,7 @@ import sys
 import time
 import esky
 import esky.util
-from esky.util import LOCAL_HTTP_PORT
+from esky.util import LOCAL_HTTP_PORT, PY3
 import esky.tests
 
 platform = esky.util.get_platform()
@@ -52,6 +52,16 @@ if sys.platform == "win32":
 #  On windows, test that we were chainloaded without an execv
 if sys.platform == "win32":
     if "ESKY_NO_CUSTOM_CHAINLOAD" not in os.environ:
-        assert hasattr(sys, "bootstrap_executable"), "didn't chainload in-proc"
+        if PY3:
+            try:
+                # py2exe cannot execv on python3 because this module is not avaliable...
+                import zipextimporter
+            except ImportError:
+                pass
+            else:
+                assert hasattr(sys, "bootstrap_executable"), "didn't chainload in-proc"
+        else:
+            assert hasattr(sys, "bootstrap_executable"), "didn't chainload in-proc"
+
 
 open(os.path.join(app.appdir, "tests-completed"), "w").close()
