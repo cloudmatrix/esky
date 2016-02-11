@@ -113,7 +113,7 @@ def freeze_future(dist_dir, optimize, **freezer_options):
     We edit the files in place so that they know how to find their data files
     '''
 
-    lib_path, zip_archive, broken_modules = _freeze_future()
+    lib_path, zip_archive, broken_modules = _freeze_future(**freezer_options)
     os.chdir(dist_dir)
 
     if freezer_options.get('skip_archive'):
@@ -154,7 +154,7 @@ def freeze_future(dist_dir, optimize, **freezer_options):
     move_datafiles_in_position(lib_path, broken_modules)
 
 
-def _freeze_future():
+def _freeze_future(**freezer_options):
     '''
     returns
     path to python/lib/site-packages
@@ -166,7 +166,7 @@ def _freeze_future():
         '''This is raised to exit out of a nested loop'''
         pass
 
-    zip_archive = 'library.zip'
+    zip_archive = freezer_options.get('zipfile', 'library.zip')
 
     broken_modules = (_lib2to3, )
 
