@@ -108,12 +108,17 @@ def add_future_deps(dist):
 
 
 @preserve_cwd
-def freeze_future(dist_dir, optimize):
+def freeze_future(dist_dir, optimize, **freezer_options):
     '''
     We edit the files in place so that they know how to find their data files
     '''
+
     lib_path, zip_archive, broken_modules = _freeze_future()
     os.chdir(dist_dir)
+
+    if freezer_options.get('skip_archive'):
+        move_datafiles_in_position(lib_path, broken_modules)
+        return
 
     # Patch the source files that are causing headaches
     fixdir = tempfile.mkdtemp()
@@ -146,16 +151,7 @@ def freeze_future(dist_dir, optimize):
     shutil.rmtree(fixdir)
     shutil.rmtree(unzipped)
 
-    # sit the data files next to the archive
-    for module in broken_modules:
-        try:
-            os.makedirs(module.name)
-        except Exception:
-            pass
-        for data in module.datafiles:
-            shutil.copy(
-                    os.path.join(lib_path, module.name, data),
-                    os.path.join(module.name, data))
+    move_datafiles_in_position(lib_path, broken_modules)
 
 
 def _freeze_future():
@@ -221,6 +217,18 @@ def make_open_work_on_zip(file, to_match, fix):
                 broken_file[broken_file.i - 1] = fix(line)
                 break
     broken_file.save()
+
+
+def move_datafiles_in_position(lib_path, broken_modules):
+    for module in broken_modules:
+        try:
+            os.makedirs(module.name)
+        except Exception:
+            pass
+        for data in module.datafiles:
+            shutil.copy(
+                os.path.join(lib_path, module.name, data),
+                os.path.join(module.name, data))
 
 
 class ToFix():

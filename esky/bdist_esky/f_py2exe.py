@@ -131,7 +131,8 @@ def freeze(dist):
     cmd.finalize_options()
     #  Actually run the freeze process
     cmd.run()
-    freeze_future(dist.freeze_dir, optimize=getattr(cmd, 'optimize'))
+    freeze_future(dist.freeze_dir, optimize=getattr(cmd, 'optimize'),
+                                    skip_archive=options.get('skip_archive'))
     #  Copy data files into the freeze dir
     dist.distribution.data_files = my_data_files
     for (src, dst) in dist.get_data_files():
