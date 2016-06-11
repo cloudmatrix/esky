@@ -20,6 +20,7 @@ import shutil
 import functools
 import tempfile
 import py_compile
+import zipfile
 
 from distutils.dir_util import copy_tree # This overwrites any existing folders/files
 
@@ -107,6 +108,60 @@ def add_future_deps(dist):
             dist.includes.extend(INCLUDES_LIST)
 
 
+def name_filter_add(name):
+    if name == name.lower():
+        return name
+    else:
+        return 'zlxfc.' + name
+
+
+def name_filter_del(name):
+    return name[6:]
+
+
+def create_pyzipfile(source, target):
+    zf = zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED)
+
+    def gen_members():
+        for (dirpath, dirnames, filenames) in os.walk(source):
+            for fn in map(name_filter_add, filenames):
+                yield os.path.join(dirpath, fn)[len(source) + 1:]
+
+    for fpath in gen_members():
+        if isinstance(fpath, zipfile.ZipInfo):
+            zinfo = fpath
+            fpath = os.path.join(source, zinfo.filename)
+        else:
+            # TODO keep the zipinfo..
+            zinfo = None
+            fpath = os.path.join(source, fpath)
+        if os.path.islink(fpath):
+            # For information about adding symlinks to a zip file, see
+            # https://mail.python.org/pipermail/python-list/2005-June/322180.html
+            dest = os.readlink(fpath)
+            if zinfo is None:
+                zinfo = zipfile.ZipInfo()
+                zinfo.filename = fpath[len(source) + 1:]
+            elif isinstance(zinfo, basestring):
+                link = zinfo
+                zinfo = zipfile.ZipInfo()
+                zinfo.filename = link
+            else:  # isinstance(zinfo,zipfile.ZipInfo)
+                pass
+            zinfo.create_system = 3
+            zinfo.external_attr = 2716663808  # symlink: 0xA1ED0000
+            zf.writestr(zinfo, dest)
+        else:  # not a symlink
+            if zinfo is None:
+                zf.write(fpath, fpath[len(source) + 1:])
+            elif isinstance(zinfo, basestring):
+                zf.write(fpath, zinfo)
+            else:
+                with open(fpath, "rb") as f:
+                    zf.writestr(zinfo, f.read())
+    zf.close()
+
+
 @preserve_cwd
 def freeze_future(dist_dir, optimize, **freezer_options):
     '''
@@ -144,10 +199,10 @@ def freeze_future(dist_dir, optimize, **freezer_options):
     # Todo Preserve the settings of compressing zip or not
     # merge changes we made and rezip the library
     unzipped = tempfile.mkdtemp()
-    extract_zipfile(zip_archive, unzipped)
+    extract_zipfile(zip_archive, unzipped, name_filter_add)
     os.remove(zip_archive)
     copy_tree(fixdir, unzipped)
-    create_zipfile(unzipped, zip_archive)
+    create_pyzipfile(unzipped, zip_archive)
     shutil.rmtree(fixdir)
     shutil.rmtree(unzipped)
 
