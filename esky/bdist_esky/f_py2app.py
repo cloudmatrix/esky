@@ -16,7 +16,7 @@ import zipfile
 import shutil
 import inspect
 import struct
-import marshal
+import tempfile
 
 
 from py2app.build_app import py2app, get_zipfile, Target
@@ -110,21 +110,43 @@ def freeze(dist):
                 #  have no interest in examining right now.  Eventually this
                 #  guard will be more conservative.
                 pass
+        bsdir = dist.bootstrap_dir
         copy_to_bootstrap_env("Contents/Resources/include")
         if sys.version_info[:2] < (3, 3):
             copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config")
         else:
             copy_to_bootstrap_env("Contents/Resources/lib/"+pydir+"/config-%d.%dm"
                                    % sys.version_info[:2])
+            # copy across the zip file that we need to run the boostrap application
+            # from the inner package. This only needs to contain
+            # a mimimal set of files for the bootstrap
+            # handle the bootstrap lib dependencies
+            python_name = 'python%d%d' % sys.version_info[:2]
+            zip_name = os.path.join('Contents', 'Resources', 'lib', '{}.zip'.format(python_name))
 
-        if "fcntl" not in sys.builtin_module_names:
-            dynload = "Contents/Resources/lib/"+pydir+"/lib-dynload"
-            for nm in os.listdir(os.path.join(app_dir,dynload)):
-                if nm.startswith("fcntl"):
-                    copy_to_bootstrap_env(os.path.join(dynload,nm))
+            app_zfname = os.path.join(app_dir, zip_name)
+            zfname = os.path.join(bsdir, zip_name)
+            with tempfile.TemporaryDirectory() as tdir:
+                esky.util.extract_zipfile(app_zfname, tdir)
+                member_list = ['_weakrefset.pyc', 'abc.pyc', 'codecs.pyc', 'io.pyc']
+                for enc in os.listdir(os.path.join(tdir, 'encodings')):
+                    member_list.append(os.path.join('encodings',enc))
+                esky.util.create_zipfile(tdir, zfname, members=member_list)
+
+        if sys.version_info[:2] < (3, 3):
+            required_libs = ['fcntl']
+        else:
+            required_libs = ['fcntl', 'zlib']
+
+        for req_lib in required_libs:
+            if req_lib not in sys.builtin_module_names:
+                dynload = "Contents/Resources/lib/"+pydir+"/lib-dynload"
+                for nm in os.listdir(os.path.join(app_dir,dynload)):
+                    if nm.startswith(req_lib):
+                        copy_to_bootstrap_env(os.path.join(dynload,nm))
+
         copy_to_bootstrap_env("Contents/Resources/__error__.sh")
         # Copy site.py/site.pyc into the boostrap env, then zero them out.
-        bsdir = dist.bootstrap_dir
         if os.path.exists(os.path.join(app_dir, "Contents/Resources/site.py")):
             copy_to_bootstrap_env("Contents/Resources/site.py")
             with open(bsdir + "/Contents/Resources/site.py", "wt") as f:
@@ -132,8 +154,7 @@ def freeze(dist):
         if os.path.exists(os.path.join(app_dir, "Contents/Resources/site.pyc")):
             copy_to_bootstrap_env("Contents/Resources/site.pyc")
             with open(bsdir + "/Contents/Resources/site.pyc", "wb") as f:
-                f.write(imp.get_magic() + struct.pack("<i", 0))
-                f.write(marshal.dumps(compile("", "site.py", "exec")))
+                f.write(esky.util.compile_to_bytecode("", "site.py"))
         if os.path.exists(os.path.join(app_dir, "Contents/Resources/site.pyo")):
             copy_to_bootstrap_env("Contents/Resources/site.pyo")
             with open(bsdir + "/Contents/Resources/site.pyo", "wb") as f:
@@ -219,6 +240,10 @@ sys.modules["esky.bootstrap"] = __fake()
 #  Get the original value back.
 _EXTRA_BOOTSTRAP_CODE = """
 from posix import environ
-sys.executable = environ["EXECUTABLEPATH"]
-sys.argv[0] = environ["ARGVZERO"]
+if sys.version_info[:2] < (3, 3):
+    sys.executable = environ["EXECUTABLEPATH"]
+    sys.argv[0] = environ["ARGVZERO"]
+else:
+    sys.executable = environ[b"EXECUTABLEPATH"].decode(sys.getfilesystemencoding())
+    sys.argv[0] = environ[b"ARGVZERO"].decode(sys.getfilesystemencoding())
 """
