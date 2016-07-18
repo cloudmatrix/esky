@@ -222,11 +222,11 @@ class SecureStringPipe(base.SecureStringPipe):
     def __init__(self, token=None, pipename=None):
         super(SecureStringPipe, self).__init__(token)
         if pipename is None:
-            self.pipename = r"\\.\pipe\esky-" + uuid.uuid4().hex
-            self.pipe = kernel32.CreateNamedPipeA(self.pipename, 0x03, 0x00, 1,
-                                                  8192, 8192, 0, None)
+            self.pipename = (r"\\.\pipe\esky-" + uuid.uuid4().hex).encode('utf8')
+            self.pipe = kernel32.CreateNamedPipeA(self.pipename,
+                                            0x03, 0x00, 1, 8192, 8192, 0, None)
         else:
-            self.pipename = pipename
+            self.pipename = pipename.encode('utf8')
             self.pipe = None
 
     def connect(self):
