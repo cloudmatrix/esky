@@ -156,7 +156,10 @@ def spawn_sudo(proxy):
     auth = ctypes.c_void_p()
 
     right = AuthorizationRight()
-    right.name = "py.esky.sudo." + proxy.name
+    if sys.version_info[0] < 3:
+        right.name = "py.esky.sudo.{}".format(proxy.name)
+    else:
+        right.name = "py.esky.sudo.{}".format(proxy.name).encode('utf8')
     right.valueLength = 0
     right.value = None
     right.flags = 0
@@ -183,10 +186,17 @@ def spawn_sudo(proxy):
 
         args = (ctypes.c_char_p * len(exe))()
         for i,arg in enumerate(exe[1:]):
-            args[i] = arg
+            if sys.version_info[0] < 3:
+                args[i] = arg
+            else:
+                args[i] = arg.encode('utf8')
+
         args[len(exe)-1] = None
         io = ctypes.c_void_p()
-        err = sec.AuthorizationExecuteWithPrivileges(auth,exe[0],0,args,byref(io))
+        if sys.version_info[0] < 3:
+            err = sec.AuthorizationExecuteWithPrivileges(auth,exe[0],0,args,byref(io))
+        else:
+            err = sec.AuthorizationExecuteWithPrivileges(auth,exe[0].encode('utf8'),0,args,byref(io))
         if err:
             raise OSError(errno.EACCES,"could not sudo: %d" %(err,))
         
@@ -205,8 +215,8 @@ def spawn_sudo(proxy):
 def run_startup_hooks():
     if len(sys.argv) > 1 and sys.argv[1] == "--esky-spawn-sudo":
         if sys.version_info[0] > 2:
-            proxy = b64unpickle(sys.argv[2])
-            pipe = b64unpickle(sys.argv[3])
+            proxy = base.b64unpickle(sys.argv[2])
+            pipe = base.b64unpickle(sys.argv[3])
         else:
             proxy = pickle.loads(b64decode(sys.argv[2]))
             pipe = pickle.loads(b64decode(sys.argv[3]))
