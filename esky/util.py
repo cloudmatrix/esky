@@ -295,10 +295,11 @@ def extract_zipfile(source,target,name_filter=None):
                 outfilenm = os.path.join(target,nm)
             if not os.path.isdir(os.path.dirname(outfilenm)):
                 os.makedirs(os.path.dirname(outfilenm))
+
             zinfo = zf.getinfo(nm)
-            if hex(zinfo.external_attr) == 2716663808L: # it's a symlink
-                target = zf.read(nm)
-                os.symlink(target, outfilenm)
+            if zinfo.external_attr == 2716663808L: # it's a symlink
+                sym_target = zf.read(nm)
+                os.symlink(sym_target, outfilenm)
                 continue
             infile = zf_open(nm,"r")
             try:
@@ -462,7 +463,10 @@ def copy_ownership_info(src,dst,cur="",default=None):
     else:
         info = default
     if sys.platform != "win32":
-        os.chown(target,info.st_uid,info.st_gid)
+        if sys.version_info[:2] < (3, 3):
+            os.chown(target,info.st_uid,info.st_gid)
+        else:
+            os.chown(target,info.st_uid,info.st_gid, follow_symlinks=False)
     if os.path.isdir(target):
         for nm in os.listdir(target):
             copy_ownership_info(src,dst,os.path.join(cur,nm),default)
