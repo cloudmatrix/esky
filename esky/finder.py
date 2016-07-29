@@ -179,7 +179,7 @@ class DefaultVersionFinder(VersionFinder):
         return f
 
     def find_versions(self,app):
-        version_re = "[a-zA-Z0-9\\.-_]+"
+        version_re = "[a-zA-Z0-9\\.\\-_]+"
         appname_re = "(?P<version>%s)" % (version_re,)
         name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
         appname_re = join_app_version(name_re,appname_re,app.platform)
@@ -453,7 +453,7 @@ class S3VersionFinder(DefaultVersionFinder):
     bucket.
     """
     def find_versions(self, app):
-        version_re = "[a-zA-Z0-9\\.-_]+"
+        version_re = "[a-zA-Z0-9\\.\\-_]+"
         appname_re = "(?P<version>%s)" % (version_re,)
         name_re = "(%s|%s)" % (app.name, urllib.quote(app.name))
         appname_re = join_app_version(name_re, appname_re, app.platform)
