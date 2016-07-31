@@ -171,6 +171,7 @@ def freeze_future(dist_dir, optimize, **freezer_options):
     lib_path, zip_archive, broken_modules = _freeze_future(**freezer_options)
     os.chdir(dist_dir)
 
+    # Py2exe will use the archive only if this is set
     if freezer_options.get('skip_archive'):
         move_datafiles_in_position(lib_path, broken_modules)
         return
@@ -193,10 +194,11 @@ def freeze_future(dist_dir, optimize, **freezer_options):
 
     # Turning into pyc is the default for cxfreeze and py2exe
     if optimize not in ('0', 0) or optimize is None:
+        #TODO
         pass
     #     make_pyc(broken_modules, cwd=fixdir)
 
-    # Todo Preserve the settings of compressing zip or not
+    # TODO Preserve the settings of compressing zip or not
     # merge changes we made and rezip the library
     unzipped = tempfile.mkdtemp()
     extract_zipfile(zip_archive, unzipped, name_filter_add)

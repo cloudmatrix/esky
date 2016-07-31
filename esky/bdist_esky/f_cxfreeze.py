@@ -13,6 +13,7 @@ import sys
 import inspect
 import zipfile
 import distutils
+from distutils.version import LooseVersion as Version
 
 if sys.platform == "win32":
     from esky import winres
@@ -73,7 +74,8 @@ def freeze(dist):
     #  Freeze up the executables
     f = cx_Freeze.Freezer(executables, **kwds)
     f.Freeze()
-    freeze_future(f.targetDir, optimize=kwds.get("optimizeFlag"))
+    if Version(cx_Freeze.version) < Version('5.0'):
+        freeze_future(f.targetDir, optimize=kwds.get("optimizeFlag"))
 
     #  Copy data files into the freeze dir
     for (src, dst) in dist.get_data_files():
@@ -84,16 +86,17 @@ def freeze(dist):
         dist.copy_file(src, dst)
     #  Copy package data into the library.zip
     #  For now, this only works if there's a shared "library.zip" file.
-    if f.createLibraryZip:
-        lib = zipfile.ZipFile(
-            os.path.join(dist.freeze_dir, "library.zip"), "a")
-        for (src, arcnm) in dist.get_package_data():
-            lib.write(src, arcnm)
-        lib.close()
-    else:
-        for (src, arcnm) in dist.get_package_data():
-            err = "use of package_data currently requires createLibraryZip=True"
-            raise RuntimeError(err)
+    if Version(cx_Freeze.version) < Version('5.0'):
+        if f.createLibraryZip:
+            lib = zipfile.ZipFile(
+                os.path.join(dist.freeze_dir, "library.zip"), "a")
+            for (src, arcnm) in dist.get_package_data():
+                lib.write(src, arcnm)
+            lib.close()
+        else:
+            for (src, arcnm) in dist.get_package_data():
+                err = "use of package_data currently requires createLibraryZip=True"
+                raise RuntimeError(err)
     #  Create the bootstrap code, using custom code if specified.
     code_source = ["__name__ = '__main__'"]
     esky_name = dist.distribution.get_name()
