@@ -20,3 +20,4 @@ esky/bdist_esky/bootstrap_*
 .idea/
 esky.egg-info
 .rst
+tags
