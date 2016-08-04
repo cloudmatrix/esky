@@ -16,20 +16,28 @@ Esky is currently capable of freezing apps with py2exe, py2app, cxfreeze and
 bbfreeze. Adding support for other freezer programs should be easy;
 patches will be gratefully accepted.
 
-We are tested and running on Python 2.7, 3.3 and 3.4
-
+We are tested and running on Python 2.7
+Py2app will work on python3 fine, the other freezers not so much.
 
 #### Current Limitations
  - Cannot sign the bootstrap executable
  - Doesn't work with windows resources
+ - cxfreeze and py2exe not working on python3
+ - Only support cxfreeze 4
 
+For some workarounds to common issues check out the wiki
 
 #### News
 
- - Codebase our now python 3 and python2 compliant
- - Bbfreeze depreciated
- - RIP python 2.6
+ Esky, is again unmaintained.
+ I would reccomend trying `pyinstaller` and `pyupdater`
+ It seems to be the king.
 
+ There are some useful modules here such as the functions to get admin access. These
+ could be made reusable for other projects.
+
+ I would also like to encourage people to collaborate instead of always spin
+ off new libraries. Why do we have 4 activley mainited freezers for python????
 
 
 Installation
@@ -96,7 +104,7 @@ See the [Contributing Guide](https://github.com/cloudmatrix/esky/wiki/Contributi
 
 #### Current Core
 
- - [Timothy Eichler](https://github.com/timeyyy)
+ - No one
 
 #### Contributors
 
