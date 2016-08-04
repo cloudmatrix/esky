@@ -21,6 +21,7 @@ import functools
 import tempfile
 import py_compile
 import zipfile
+import site
 
 from distutils.dir_util import copy_tree # This overwrites any existing folders/files
 
@@ -108,15 +109,21 @@ def add_future_deps(dist):
             dist.includes.extend(INCLUDES_LIST)
 
 
+# this is used to handle case insensitive files on windows lol
 def name_filter_add(name):
-    if name == name.lower():
-        return name
-    else:
-        return 'zlxfc.' + name
+    if os.name == 'nt':
+        if name == name.lower():
+            return name
+        else:
+            return 'zlxfc.' + name
+    return name
 
 
 def name_filter_del(name):
-    return name[6:]
+    if os.name == 'nt':
+        if name[6:] == 'zlxfc.':
+            return name[6:]
+    return name
 
 
 def create_pyzipfile(source, target):
@@ -124,7 +131,7 @@ def create_pyzipfile(source, target):
 
     def gen_members():
         for (dirpath, dirnames, filenames) in os.walk(source):
-            for fn in map(name_filter_add, filenames):
+            for fn in map(name_filter_del, filenames):
                 yield os.path.join(dirpath, fn)[len(source) + 1:]
 
     for fpath in gen_members():
@@ -177,14 +184,14 @@ def freeze_future(dist_dir, optimize, **freezer_options):
         return
 
     # Patch the source files that are causing headaches
-    fixdir = tempfile.mkdtemp()
+    fixedfiles = tempfile.mkdtemp()
     for module in broken_modules:
         try:
-            os.makedirs(os.path.join(fixdir, module.name))
+            os.makedirs(os.path.join(fixedfiles, module.name))
         except Exception:
             pass
         for broken in module.brokenfiles:
-            fixme = os.path.join(fixdir, module.name, broken)
+            fixme = os.path.join(fixedfiles, module.name, broken)
             shutil.copy(os.path.join(lib_path, module.name, broken), fixme)
             for fix in module.fixes:
                 make_open_work_on_zip(
@@ -196,17 +203,17 @@ def freeze_future(dist_dir, optimize, **freezer_options):
     if optimize not in ('0', 0) or optimize is None:
         #TODO
         pass
-    #     make_pyc(broken_modules, cwd=fixdir)
+    #     make_pyc(broken_modules, cwd=fixedfiles)
 
     # TODO Preserve the settings of compressing zip or not
     # merge changes we made and rezip the library
-    unzipped = tempfile.mkdtemp()
-    extract_zipfile(zip_archive, unzipped, name_filter_add)
+    tdir = tempfile.mkdtemp()
+    extract_zipfile(zip_archive, tdir, name_filter_add)
     os.remove(zip_archive)
-    copy_tree(fixdir, unzipped)
-    create_pyzipfile(unzipped, zip_archive)
-    shutil.rmtree(fixdir)
-    shutil.rmtree(unzipped)
+    copy_tree(fixedfiles, tdir)
+    create_pyzipfile(tdir, zip_archive)
+    shutil.rmtree(fixedfiles)
+    shutil.rmtree(tdir)
 
     move_datafiles_in_position(lib_path, broken_modules)
 
@@ -219,36 +226,16 @@ def _freeze_future(**freezer_options):
     modules requiring fixes
     '''
 
-    class Unnest(Exception):
-        '''This is raised to exit out of a nested loop'''
-        pass
-
     zip_archive = freezer_options.get('zipfile', 'library.zip')
 
     broken_modules = (_lib2to3, )
 
-    # locating the Lib folder path
     if os.name == 'nt':
         lib_path = os.path.join(sys.exec_prefix, 'Lib')
-        assert os.path.exists(lib_path)
     elif 'linux' in sys.platform:
-        try:
-            for folder in sys.path:
-                if folder:
-                    try:
-                        for file in os.listdir(folder):
-                            for module in broken_modules:
-                                if file == module.name:
-                                    lib_path = folder
-                                    raise Unnest
-                    except OSError:
-                        # In a virtualenv weird stuff gets put on the path
-                        # sometimes
-                        pass
-        except Unnest:
-            pass
-        else:
-            raise Exception('One of our required modules could not be found')
+        import lib2to3
+        lib_path = os.path.dirname(os.path.dirname(lib2to3.__file__))
+    assert os.path.exists(lib_path)
     return lib_path, zip_archive, broken_modules
 
 

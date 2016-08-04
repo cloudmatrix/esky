@@ -56,7 +56,7 @@ def freeze(dist):
     kwds["includes"] = includes
     kwds["excludes"] = excludes
     kwds["targetDir"] = dist.freeze_dir
-    if kwds.get("optimize"):
+    if 'optimize' in kwds:
         kwds["optimizeFlag"] = kwds.get('optimize')
         del kwds['optimize']
     #  Build an Executable object for each script.

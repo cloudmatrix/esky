@@ -228,6 +228,7 @@ class TestEsky(unittest.TestCase):
             options.setdefault("bdist_esky", {}).setdefault( "pre_zip_callback", assert_freezedir_exists)
             options["bdist_esky"].setdefault("excludes", []).extend(["Tkinter", "tkinter"])
             options["bdist_esky"]["compress"] = "ZIP"
+            options["bdist_esky"].setdefault("freezer_options", {})['optimize'] = 0
             platform = get_platform()
             deploydir = "deploy.%s" % (platform, )
             esky_root = dirname(dirname(dirname(__file__)))
