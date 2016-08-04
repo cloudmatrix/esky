@@ -461,7 +461,10 @@ def copy_ownership_info(src, dst, cur="", default=None):
     else:
         info = default
     if sys.platform != "win32":
-        os.chown(target, info.st_uid, info.st_gid, follow_symlinks=False)
+        if sys.version_info[:2] < (3, 3):
+            os.chown(target,info.st_uid,info.st_gid)
+        else:
+            os.chown(target,info.st_uid,info.st_gid, follow_symlinks=False)
     if os.path.isdir(target):
         for nm in os.listdir(target):
             copy_ownership_info(src, dst, os.path.join(cur, nm), default)
