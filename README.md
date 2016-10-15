@@ -9,7 +9,7 @@
  could be made reusable for other projects.
 
  I would also like to encourage people to collaborate instead of always spin
- off new libraries. Why do we have 4 activley mainited freezers for python????
+ off new libraries. Why do we have 4 actively maintained freezers for python????
 
 
 Esky  - keep frozen apps fresh
