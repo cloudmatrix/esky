@@ -1,5 +1,16 @@
 
-# News
+Status: Unmaintained
+====================
+
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
+
+This project is [no longer actively maintained](https://rfk.id.au/blog/entry/archiving-open-source-projects/).
+
+Thanks to @timeyyy for helping to push it along for a while!
+
+
+News
+====
 
  Esky, is again unmaintained.
  I would reccomend trying `pyinstaller` and `pyupdater`
